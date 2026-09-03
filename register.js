@@ -1,17 +1,19 @@
 import { supabase } from './supabase.js';
+
+
 const $ = (id) => document.getElementById(id);
-let toastWrap = $('toastWrap');
-if (!toastWrap) {
-  toastWrap = document.createElement('div');
-  toastWrap.id = 'toastWrap';
-  document.body.appendChild(toastWrap);
-}
+
+const toastWrap = $('toastWrap');
+
+
 const CATEGORIES = {
   '1': 'Technology & Computing',
   '2': 'Vocational & Agricultural Skills',
   '3': 'Health & Community Wellness',
   '4': '2-Year Diploma Program'
 };
+
+
 const LEVELS = [
   'Primary School',
   'Junior Secondary School (JSS)',
@@ -22,6 +24,8 @@ const LEVELS = [
   'PhD',
   'Other'
 ];
+
+
 let courseMap = {};
 let urlCourseId = '';
 let urlCourseName = '';
@@ -29,46 +33,45 @@ let urlCoursePrice = '';
 let urlCourseNumber = '';
 let urlCourseInfo = '';
 let urlCourseImage = '';
+
+
 function escapeHtml(str) {
-  return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
 }
+
+
 function removeToast(el) {
   el.classList.add('out');
   setTimeout(() => el.remove(), 320);
 }
+
+
 function showToast(type, title, message, raw) {
-  try {
-    const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
-    const el = document.createElement('div');
-    el.className = 'toast ' + type;
-    const rawHtml = raw ? '<small class="toast-raw"><i class="fa-solid fa-bug"></i> ' + escapeHtml(raw) + '</small>' : '';
-    el.innerHTML = '<i class="fa-solid ' + icons[type] + '"></i>' +
-      '<div class="toast-body"><b>' + escapeHtml(title) + '</b><p>' + escapeHtml(message) + '</p>' + rawHtml + '</div>' +
-      '<button class="toast-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>';
-    el.querySelector('.toast-x').addEventListener('click', () => removeToast(el));
-    toastWrap.appendChild(el);
-    if (type === 'success') setTimeout(() => removeToast(el), 2600);
-    return el;
-  } catch (err) {
-    console.error(title + ': ' + message + (raw ? ' | ' + raw : ''));
-    return null;
-  }
+  const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  const rawHtml = raw ? '<small class="toast-raw"><i class="fa-solid fa-bug"></i> ' + escapeHtml(raw) + '</small>' : '';
+  el.innerHTML = '<i class="fa-solid ' + icons[type] + '"></i>' +
+    '<div class="toast-body"><b>' + escapeHtml(title) + '</b><p>' + escapeHtml(message) + '</p>' + rawHtml + '</div>' +
+    '<button class="toast-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>';
+  el.querySelector('.toast-x').addEventListener('click', () => removeToast(el));
+  toastWrap.appendChild(el);
+  if (type === 'success') setTimeout(() => removeToast(el), 2600);
+  return el;
 }
-window.addEventListener('error', (e) => {
-  showToast('error', 'Page Error', e.message || 'Unknown error occurred.', (e.filename || '') + ':' + (e.lineno || ''));
-});
-window.addEventListener('unhandledrejection', (e) => {
-  const r = e.reason;
-  const msg = r && r.message ? r.message : String(r);
-  showToast('error', 'Unexpected Error', msg || 'Something went wrong.', '');
-});
-function on(id, evt, fn) {
-  const el = $(id);
-  if (el) el.addEventListener(evt, fn);
-}
+
+
 function showLoading() {
   let loader = document.getElementById('idt-loader-2');
-  if (loader) { loader.classList.remove('idt-hide'); } else {
+  if (loader) { 
+    loader.classList.remove('idt-hide'); 
+  } else {
     const loaderHTML = `
       <div class="idt-loader-2" id="idt-loader-2">
         <div class="i2-bg">
@@ -91,7 +94,7 @@ function showLoading() {
               <div class="i2-cover i2-cl"><img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="i2-coverlogo"></div>
               <div class="i2-cover i2-cr"><img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="i2-coverlogo i2-crlogo"></div>
               <div class="i2-page i2-p1"><i></i><i></i><i></i><i></i></div>
-              <div class="i2-page i2-p2"><i></i><i></i></div>
+              <div class="i2-page i2-p2"><i></i><i></i><i></i></div>
               <div class="i2-page i2-p3"><i></i><i></i></div>
               <div class="i2-spine"></div>
               <div class="i2-ribbon"></div>
@@ -162,36 +165,25 @@ function showLoading() {
     `;
     document.body.insertAdjacentHTML('beforeend', loaderHTML);
   }
+
   var n = document.getElementById('i2num');
   var c = 0;
   if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
-  window.idtLoaderInterval = setInterval(function() { c += 5; if (n) n.textContent = (c >= 100 ? 100 : c); if (c >= 100) clearInterval(window.idtLoaderInterval); }, 30);
+  window.idtLoaderInterval = setInterval(function() { 
+    c += 5; 
+    if (n) n.textContent = (c >= 100 ? 100 : c); 
+    if (c >= 100) clearInterval(window.idtLoaderInterval); 
+  }, 30);
 }
+
+
 function hideLoading() {
   var l = document.getElementById('idt-loader-2');
   if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
   if (l) l.classList.add('idt-hide');
 }
-function hexToBytes(hex) {
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i++) {
-    out[i] = parseInt(hex.substr(i * 2, 2), 16);
-  }
-  return out;
-}
-function bytesToHex(bytes) {
-  return Array.from(bytes).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
-}
-async function hashPassword(password, saltHex) {
-  const enc = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt: hexToBytes(saltHex), iterations: 100000, hash: 'SHA-256' },
-    keyMaterial,
-    256
-  );
-  return bytesToHex(new Uint8Array(bits));
-}
+
+
 function parseUrl() {
   const params = new URLSearchParams(window.location.search);
   urlCourseId = params.get('course_id') || '';
@@ -201,10 +193,13 @@ function parseUrl() {
   urlCourseInfo = params.get('info') || '';
   urlCourseImage = params.get('image') || '';
 }
+
+
 function getUrlRef() {
   let ref = '';
   const params = new URLSearchParams(window.location.search);
   ref = (params.get('ref') || '').trim();
+  if (!ref) ref = (params.get('code') || '').trim();
   if (!ref) {
     const path = window.location.pathname;
     let m = path.match(/\/ref\/([A-Za-z0-9]{4,8})/i);
@@ -214,44 +209,40 @@ function getUrlRef() {
   if (!ref) ref = localStorage.getItem('idt_ref') || '';
   return ref.trim().toUpperCase();
 }
-function extractRefCode(value) {
-  const str = String(value || '').trim();
-  if (!str) return '';
-  let m = str.match(/ref\/([A-Za-z0-9]{4,8})/i);
-  if (m) return m[1].toUpperCase();
-  m = str.match(/[?&]ref=([A-Za-z0-9]{4,8})/i);
-  if (m) return m[1].toUpperCase();
-  m = str.match(/([A-Za-z0-9]{4,8})\s*$/);
-  if (m && /[^@]/.test(m[1])) return m[1].toUpperCase();
-  return str.trim().toUpperCase();
-}
+
+
 function switchTab(name) {
-  const tr = $('tabRegister');
-  const tl = $('tabLogin');
-  const rf = $('registerForm');
-  const lf = $('loginForm');
-  if (tr) tr.classList.toggle('active', name === 'register');
-  if (tl) tl.classList.toggle('active', name === 'login');
-  if (rf) rf.classList.toggle('active', name === 'register');
-  if (lf) lf.classList.toggle('active', name === 'login');
+  $('tabRegister').classList.toggle('active', name === 'register');
+  $('tabLogin').classList.toggle('active', name === 'login');
+  $('registerForm').classList.toggle('active', name === 'register');
+  $('loginForm').classList.toggle('active', name === 'login');
+
   if (name === 'register') {
-    if ($('authTitle')) $('authTitle').textContent = 'Create Your Account';
-    if ($('authSub')) $('authSub').textContent = 'Join IDT Academy and start learning today';
+    $('authTitle').textContent = 'Create Your Account';
+    $('authSub').textContent = 'Join IDT Academy and start learning today';
   } else {
-    if ($('authTitle')) $('authTitle').textContent = 'Welcome Back';
-    if ($('authSub')) $('authSub').textContent = 'Login to continue your learning';
+    $('authTitle').textContent = 'Welcome Back';
+    $('authSub').textContent = 'Login to continue your learning';
   }
 }
+
+
 function validEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
+
+
 function validPhone(phone) {
   const p = phone.replace(/[\s\-()]/g, '');
   return /^(\+?234|0)[0-9]{10}$/.test(p);
 }
+
+
 function validRefCode(code) {
   return /^[A-Z0-9]{4,8}$/.test(code);
 }
+
+
 function friendlyRegisterError(json) {
   const raw = String((json && (json.error || json.message)) || '').toLowerCase();
   if (raw.includes('already registered') || raw.includes('already exists') || raw.includes('duplicate')) return 'This email is already registered. Please use the "Login" tab to sign in.';
@@ -263,75 +254,40 @@ function friendlyRegisterError(json) {
   if (raw.includes('network') || raw.includes('fetch')) return 'Network problem. Check your internet and try again.';
   return 'Something went wrong. Please try again or contact support.';
 }
-function isCourseLike(v) {
-  return v && typeof v === 'object' && !Array.isArray(v) && (v.course_name || v.name || v.title || v.course_number || v.number || v.info_text || v.info || v.price != null || v.course_price != null);
+
+
+function friendlyLoginError(err) {
+  const raw = String((err && (err.message || err.error_description || err)) || '').toLowerCase();
+  if (raw.includes('invalid login credentials') || raw.includes('invalid_grant')) return 'Invalid email or password. Please check your credentials and try again.';
+  if (raw.includes('email not confirmed')) return 'Your email address is not verified yet. Please check your inbox.';
+  if (raw.includes('network') || raw.includes('fetch')) return 'Network problem. Check your internet connection and try again.';
+  return err.message || 'Login failed. Please try again or contact support.';
 }
-function collectCourses(val, out) {
-  if (!val) return;
-  if (Array.isArray(val)) {
-    val.forEach((v) => collectCourses(v, out));
-    return;
-  }
-  if (typeof val !== 'object') return;
-  if (isCourseLike(val)) {
-    out.push(val);
-    return;
-  }
-  Object.keys(val).forEach((k) => collectCourses(val[k], out));
-}
-function normalizeCourse(c) {
-  const id = String(c.id || c.course_id || c.courseId || '').trim();
-  if (!id) return null;
-  return {
-    id: id,
-    course_name: c.course_name || c.name || c.title || '',
-    course_number: c.course_number || c.number || '',
-    price: Number(c.price || c.course_price || 0),
-    category: c.category || '',
-    image_url: c.image_url || c.image || '',
-    info_text: c.info_text || c.info || ''
-  };
-}
+
+
 async function loadCourses() {
   const sel = $('regCourse');
-  if (!sel) return;
   try {
-    let list = [];
-    const seen = {};
+    const { data, error } = await supabase.from('courses').select('*');
+    if (error) throw error;
+    let list = (data || [])
+      .map((row) => row.course_data || {})
+      .filter((c) => c && c.id)
+      .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+
     try {
-      const { data: posts, error: postsError } = await supabase.from('all_couse_post').select('*');
-      if (!postsError && posts && posts.length) {
-        const candidates = [];
-        (posts || []).forEach((row) => {
-          collectCourses(row.all_course, candidates);
-        });
-        candidates.forEach((c) => {
-          const n = normalizeCourse(c);
-          if (n && !seen[n.id]) {
-            seen[n.id] = true;
-            list.push(n);
-          }
-        });
-      }
-    } catch (e) {}
-    if (!list.length) {
-      try {
-        const { data, error } = await supabase.from('courses').select('*');
-        if (!error && data && data.length) {
-          const candidates = [];
-          (data || []).forEach((row) => {
-            collectCourses(row.course_data, candidates);
-          });
-          candidates.forEach((c) => {
-            const n = normalizeCourse(c);
-            if (n && !seen[n.id]) {
-              seen[n.id] = true;
-              list.push(n);
-            }
-          });
+      const { data: acData, error: acErr } = await supabase.from('all_couse_post').select('*');
+      if (!acErr && Array.isArray(acData)) {
+        const activeIds = acData
+          .filter((row) => row.all_course && row.all_course.active === true)
+          .map((row) => row.id);
+        if (activeIds.length > 0) {
+          const filtered = list.filter((c) => activeIds.indexOf(c.id) !== -1);
+          if (filtered.length > 0) list = filtered;
         }
-      } catch (e) {}
-    }
+      }
+    } catch (e2) {}
+
     sel.innerHTML = '<option value="">Choose your course</option>';
     list.forEach((c) => {
       courseMap[c.id] = c;
@@ -341,8 +297,16 @@ async function loadCourses() {
       if (c.id === urlCourseId) opt.selected = true;
       sel.appendChild(opt);
     });
+
     if (urlCourseId && !courseMap[urlCourseId]) {
-      const fake = { id: urlCourseId, course_name: urlCourseName || 'Selected Course', course_number: urlCourseNumber || '', price: Number(urlCoursePrice || 0), info_text: urlCourseInfo || '', image_url: urlCourseImage || '' };
+      const fake = { 
+        id: urlCourseId, 
+        course_name: urlCourseName || 'Selected Course', 
+        course_number: urlCourseNumber || '', 
+        price: Number(urlCoursePrice || 0), 
+        info_text: urlCourseInfo || '', 
+        image_url: urlCourseImage || '' 
+      };
       courseMap[urlCourseId] = fake;
       const opt = document.createElement('option');
       opt.value = fake.id;
@@ -350,9 +314,10 @@ async function loadCourses() {
       opt.selected = true;
       sel.appendChild(opt);
     }
-    if (!list.length && !urlCourseId) {
-      sel.innerHTML = '<option value="">No courses available yet</option>';
-      showToast('info', 'No Courses Yet', 'Courses are being prepared. Please check back soon.', '');
+
+    if (!list.length && !urlCourseId) { 
+      sel.innerHTML = '<option value="">No courses available yet</option>'; 
+      showToast('info', 'No Courses Yet', 'Courses are being prepared. Please check back soon.', ''); 
     }
     updateCourseSummary();
   } catch (err) {
@@ -360,47 +325,49 @@ async function loadCourses() {
     showToast('error', 'Courses Failed To Load', 'Please refresh the page or check your Supabase connection.', err.message || String(err));
   }
 }
+
+
 function updateCourseSummary() {
   const sel = $('regCourse');
-  if (!sel) return;
   const id = sel.value;
   const summary = $('courseSummary');
-  if (!summary) return;
-  if (!id || !courseMap[id]) { summary.classList.add('hidden'); if ($('regPrice')) $('regPrice').value = ''; return; }
+  if (!id || !courseMap[id]) { summary.classList.add('hidden'); $('regPrice').value = ''; return; }
   const c = courseMap[id];
-  if ($('regPrice')) $('regPrice').value = Number(c.price || 0).toLocaleString('en-NG');
-  if ($('courseSummaryName')) $('courseSummaryName').textContent = c.course_name || 'Course';
+  $('regPrice').value = Number(c.price || 0).toLocaleString('en-NG');
+  $('courseSummaryName').textContent = c.course_name || 'Course';
   const cat = CATEGORIES[String(c.category || '')] || '';
-  if ($('courseSummaryMeta')) $('courseSummaryMeta').textContent = [cat, c.course_number ? '#' + c.course_number : ''].filter(Boolean).join(' - ');
+  $('courseSummaryMeta').textContent = [cat, c.course_number ? '#' + c.course_number : ''].filter(Boolean).join(' - ');
   const img = $('courseImg');
-  if (img) {
-    if (c.image_url) { img.src = c.image_url; img.style.display = 'block'; } else { img.style.display = 'none'; }
-  }
+  if (c.image_url) { img.src = c.image_url; img.style.display = 'block'; } else { img.style.display = 'none'; }
   summary.classList.remove('hidden');
 }
+
+
 async function handleRegister(e) {
   e.preventDefault();
-  const fullName = $('regFullName') ? $('regFullName').value.trim() : '';
-  const phone = $('regPhone') ? $('regPhone').value.trim() : '';
-  const courseId = $('regCourse') ? $('regCourse').value : '';
-  const gender = $('regGender') ? $('regGender').value : '';
-  const dob = $('regDob') ? $('regDob').value : '';
-  const level = $('regLevel') ? $('regLevel').value : '';
-  const email = $('regEmail') ? $('regEmail').value.trim().toLowerCase() : '';
-  const password = $('regPassword') ? $('regPassword').value : '';
-  const confirm = $('regConfirm') ? $('regConfirm').value : '';
-  const ref = $('regRef') ? $('regRef').value.trim().toUpperCase() : '';
-  const paymentNo = $('regPaymentNo') ? $('regPaymentNo').value.trim() : '';
-  if (fullName.length < 3) { showToast('error', 'Full Name Required', 'Please enter your full name.', ''); if ($('regFullName')) $('regFullName').focus(); return; }
-  if (!validPhone(phone)) { showToast('error', 'Invalid Phone Number', 'Please enter a valid Nigerian phone number, e.g. 08123456789.', ''); if ($('regPhone')) $('regPhone').focus(); return; }
-  if (!courseId) { showToast('error', 'Choose A Course', 'Please select the course you want to study.', ''); if ($('regCourse')) $('regCourse').focus(); return; }
-  if (!gender) { showToast('error', 'Select Gender', 'Please choose your gender.', ''); if ($('regGender')) $('regGender').focus(); return; }
-  if (!dob) { showToast('error', 'Date Of Birth Required', 'Please select your date of birth.', ''); if ($('regDob')) $('regDob').focus(); return; }
-  if (!level) { showToast('error', 'Select Education Level', 'Please select your level of education.', ''); if ($('regLevel')) $('regLevel').focus(); return; }
-  if (!validEmail(email)) { showToast('error', 'Invalid Email', 'Please enter a valid email address.', ''); if ($('regEmail')) $('regEmail').focus(); return; }
-  if (password.length < 6) { showToast('error', 'Weak Password', 'Password must be at least 6 characters.', ''); if ($('regPassword')) $('regPassword').focus(); return; }
-  if (password !== confirm) { showToast('error', 'Password Mismatch', 'The two passwords do not match. Please type them again.', ''); if ($('regConfirm')) $('regConfirm').focus(); return; }
-  if (ref && !validRefCode(ref)) { showToast('error', 'Invalid Referral Code', 'Referral codes are 4 to 8 letters or numbers. Please check it.', ''); if ($('regRef')) $('regRef').focus(); return; }
+  const fullName = $('regFullName').value.trim();
+  const phone = $('regPhone').value.trim();
+  const courseId = $('regCourse').value;
+  const gender = $('regGender').value;
+  const dob = $('regDob').value;
+  const level = $('regLevel').value;
+  const email = $('regEmail').value.trim().toLowerCase();
+  const password = $('regPassword').value;
+  const confirm = $('regConfirm').value;
+  const ref = $('regRef').value.trim().toUpperCase();
+  const paymentNo = $('regPaymentNo').value.trim();
+
+  if (fullName.length < 3) { showToast('error', 'Full Name Required', 'Please enter your full name.', ''); $('regFullName').focus(); return; }
+  if (!validPhone(phone)) { showToast('error', 'Invalid Phone Number', 'Please enter a valid Nigerian phone number, e.g. 08123456789.', ''); $('regPhone').focus(); return; }
+  if (!courseId) { showToast('error', 'Choose A Course', 'Please select the course you want to study.', ''); $('regCourse').focus(); return; }
+  if (!gender) { showToast('error', 'Select Gender', 'Please choose your gender.', ''); $('regGender').focus(); return; }
+  if (!dob) { showToast('error', 'Date Of Birth Required', 'Please select your date of birth.', ''); $('regDob').focus(); return; }
+  if (!level) { showToast('error', 'Select Education Level', 'Please select your level of education.', ''); $('regLevel').focus(); return; }
+  if (!validEmail(email)) { showToast('error', 'Invalid Email', 'Please enter a valid email address.', ''); $('regEmail').focus(); return; }
+  if (password.length < 6) { showToast('error', 'Weak Password', 'Password must be at least 6 characters.', ''); $('regPassword').focus(); return; }
+  if (password !== confirm) { showToast('error', 'Password Mismatch', 'The two passwords do not match. Please type them again.', ''); $('regConfirm').focus(); return; }
+  if (ref && !validRefCode(ref)) { showToast('error', 'Invalid Referral Code', 'Referral codes are 4 to 8 letters or numbers. Please check it.', ''); $('regRef').focus(); return; }
+
   const course = courseMap[courseId] || {};
   const payload = {
     full_name: fullName,
@@ -417,25 +384,16 @@ async function handleRegister(e) {
     password: password,
     referred_by: ref
   };
+
   showLoading();
   try {
-    const fetchOpts = {
+    const res = await fetch('/api/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    };
-    if (window.AbortSignal && typeof AbortSignal.timeout === 'function') {
-      fetchOpts.signal = AbortSignal.timeout(30000);
-    }
-    const res = await fetch('/api/register', fetchOpts);
-    let json = {};
-    let rawText = '';
-    try {
-      rawText = await res.text();
-      json = rawText ? JSON.parse(rawText) : {};
-    } catch (parseErr) {
-      json = { error: rawText || ('HTTP ' + res.status) };
-    }
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(30000)
+    });
+    const json = await res.json().catch(() => ({}));
     hideLoading();
     if (!res.ok || !json.success) {
       showToast('error', 'Registration Failed', friendlyRegisterError(json), json.error || json.message || ('HTTP ' + res.status));
@@ -450,85 +408,84 @@ async function handleRegister(e) {
     showToast('error', 'Network Error', 'Could not reach the server. Check your internet and try again.', err.message || String(err));
   }
 }
+
+
 async function handleLogin(e) {
   e.preventDefault();
-  const email = $('loginEmail') ? $('loginEmail').value.trim().toLowerCase() : '';
-  const password = $('loginPassword') ? $('loginPassword').value : '';
-  if (!validEmail(email)) { showToast('error', 'Invalid Email', 'Please enter the email you registered with.', ''); if ($('loginEmail')) $('loginEmail').focus(); return; }
-  if (!password) { showToast('error', 'Password Required', 'Please enter your password.', ''); if ($('loginPassword')) $('loginPassword').focus(); return; }
+  const email = $('loginEmail').value.trim().toLowerCase();
+  const password = $('loginPassword').value;
+
+  if (!validEmail(email)) { 
+    showToast('error', 'Invalid Email', 'Please enter the email you registered with.', ''); 
+    $('loginEmail').focus(); 
+    return; 
+  }
+  if (!password) { 
+    showToast('error', 'Password Required', 'Please enter your password.', ''); 
+    $('loginPassword').focus(); 
+    return; 
+  }
+
   showLoading();
+
   try {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('user_data->>email', email)
-      .maybeSingle();
-    if (error) throw error;
-    if (!data || !data.user_data) {
+   
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+
+    if (error) {
       hideLoading();
-      showToast('error', 'Login Failed', 'No account found with this email. Please use the "Register" tab to create one.', 'No user_profiles row for ' + email);
+      showToast('error', 'Login Failed', friendlyLoginError(error), error.message);
       return;
     }
-    const ud = data.user_data;
-    if (!ud.password_hash || !ud.password_salt) {
-      hideLoading();
-      showToast('error', 'Login Failed', 'This account has no password saved. Please register again or contact support.', 'Missing password_hash/password_salt');
-      return;
-    }
-    const hash = await hashPassword(password, ud.password_salt);
-    if (hash !== String(ud.password_hash).toLowerCase()) {
-      hideLoading();
-      showToast('error', 'Login Failed', 'Wrong password. Please try again.', '');
-      if ($('loginPassword')) $('loginPassword').focus();
-      return;
-    }
-    const safeUser = {
-      id: data.id,
-      full_name: ud.full_name || '',
-      email: ud.email || email,
-      phone: ud.phone || '',
-      gender: ud.gender || '',
-      course_id: ud.course_id || '',
-      course_name: ud.course_name || '',
-      course_number: ud.course_number || '',
-      course_price: Number(ud.course_price || 0),
-      referral_code: ud.referral_code || '',
-      referral_link: ud.referral_link || '',
-      referred_by: ud.referred_by || '',
-      referral_bonus: Number(ud.referral_bonus || 0),
-      date_of_birth: ud.date_of_birth || '',
-      school_level: ud.school_level || '',
-      date_registered: ud.date_registered || '',
-      status: ud.status || 'pending',
-      assessment_grade: ud.assessment_grade || '',
-      exam_grade: ud.exam_grade || '',
-      level_completed: ud.level_completed || '',
-      certificate_issued: ud.certificate_issued === true
+
+    
+    let userObj = {
+      id: data.user.id,
+      email: data.user.email,
+      ...data.user.user_metadata
     };
-    localStorage.setItem('idt_user', JSON.stringify(safeUser));
+
+    try {
+      const { data: profData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profData) {
+        userObj = { ...userObj, ...profData };
+      }
+    } catch (eProf) {
+      
+    }
+
+   
+    localStorage.setItem('idt_user', JSON.stringify(userObj));
+
     hideLoading();
     showToast('success', 'Welcome Back!', 'Login successful. Opening your dashboard...');
-    setTimeout(() => window.location.replace('dashboard.html'), 1600);
+    
+   
+    setTimeout(() => window.location.replace('dashboard.html'), 1400);
+
   } catch (err) {
     hideLoading();
-    showToast('error', 'Login Failed', 'Could not verify your account. Check your internet and try again.', err.message || String(err));
+    showToast('error', 'Network Error', 'Could not connect to Supabase. Check your internet and try again.', err.message || String(err));
   }
 }
-on('tabRegister', 'click', () => switchTab('register'));
-on('tabLogin', 'click', () => switchTab('login'));
-on('registerForm', 'submit', handleRegister);
-on('loginForm', 'submit', handleLogin);
-on('regCourse', 'change', updateCourseSummary);
-on('regRef', 'input', (e) => {
-  const extracted = extractRefCode(e.target.value);
-  if (extracted !== e.target.value) e.target.value = extracted;
-  e.target.value = e.target.value.toUpperCase();
-});
-on('regRef', 'paste', (e) => {
-  e.preventDefault();
-  const pasted = (e.clipboardData || window.clipboardData).getData('text');
-  e.target.value = extractRefCode(pasted).toUpperCase();
-});
+
+
+$('tabRegister').addEventListener('click', () => switchTab('register'));
+$('tabLogin').addEventListener('click', () => switchTab('login'));
+$('registerForm').addEventListener('submit', handleRegister);
+$('loginForm').addEventListener('submit', handleLogin);
+$('regCourse').addEventListener('change', updateCourseSummary);
+$('regRef').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase(); });
+
+
 document.querySelectorAll('.eye-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     const inp = $(btn.dataset.target);
@@ -538,35 +495,67 @@ document.querySelectorAll('.eye-btn').forEach((btn) => {
     btn.innerHTML = '<i class="fa-solid ' + (show ? 'fa-eye-slash' : 'fa-eye') + '"></i>';
   });
 });
+
+
 const menuBtn = $('menuBtn');
 const menuItems = $('menuItems');
+
 if (menuBtn && menuItems) {
-  menuBtn.addEventListener('click', (e) => { e.stopPropagation(); menuItems.classList.toggle('open'); });
-  document.addEventListener('click', (e) => { if (!menuItems.contains(e.target) && !menuBtn.contains(e.target)) menuItems.classList.remove('open'); });
+  menuBtn.addEventListener('click', (e) => { 
+    e.stopPropagation(); 
+    menuItems.classList.toggle('open'); 
+  });
+  
+  document.addEventListener('click', (e) => { 
+    if (!menuItems.contains(e.target) && !menuBtn.contains(e.target)) {
+      menuItems.classList.remove('open'); 
+    }
+  });
 }
+
+
 document.addEventListener('DOMContentLoaded', async () => {
   showLoading();
+
   try {
-    const sessionData = localStorage.getItem('idt_user');
-    if (sessionData) {
-      const u = JSON.parse(sessionData);
-      if (u && u.id) {
-        window.location.replace('dashboard.html');
-        return;
-      }
+    
+    const { data: sessionData } = await supabase.auth.getSession();
+    
+  
+    const localUser = localStorage.getItem('idt_user');
+
+    if (sessionData?.session || localUser) {
+      
+      window.location.replace('dashboard.html');
+      return;
     }
-  } catch (err) {}
+  } catch (err) {
+   
+  }
+
   parseUrl();
   const ref = getUrlRef();
-  if (ref) { if ($('regRef')) $('regRef').value = ref; localStorage.setItem('idt_ref', ref); }
+  if (ref) { 
+    $('regRef').value = ref; 
+    localStorage.setItem('idt_ref', ref); 
+  }
+
   const today = new Date().toISOString().split('T')[0];
   if ($('regDob')) $('regDob').max = today;
+
   const visited = localStorage.getItem('idt_visited');
-  if (visited) { switchTab('login'); } else { switchTab('register'); }
+  if (visited) { 
+    switchTab('login'); 
+  } else { 
+    switchTab('register'); 
+  }
+
   localStorage.setItem('idt_visited', '1');
-  loadCourses();
-  window.addEventListener('load', () => { setTimeout(hideLoading, 500); });
+  await loadCourses();
+  setTimeout(hideLoading, 500);
 });
+
+
 document.addEventListener('DOMContentLoaded', () => {
   document.documentElement.classList.add('ready');
 });
