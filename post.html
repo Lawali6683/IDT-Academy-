@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#7c3aed">
+<title>IDT Academy - Admin Post</title>
+<link rel="icon" href="https://i.imgur.com/oyqM5oF.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --violet:#7c3aed;
+  --violet-light:#a78bfa;
+  --cyan:#06b6d4;
+  --amber:#f59e0b;
+  --ink:#221a4d;
+  --muted:#6d6a8a;
+  --card:rgba(255,255,255,.78);
+  --line:rgba(124,58,237,.16);
+  --radius:22px;
+  --shadow:0 22px 55px rgba(80,40,160,.14);
+}
+
+html{
+  scroll-behavior:smooth;
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+  opacity:0;
+  transition:opacity .3s ease-in-out;
+}
+
+html.ready{opacity:1}
+
+body{
+  font-family:'Poppins',system-ui,-apple-system,sans-serif;
+  color:var(--ink);
+  min-height:100vh;
+  overflow-x:hidden;
+  width:100%;
+  background:
+    radial-gradient(850px 480px at 6% -8%, rgba(167,139,250,.38), transparent 62%),
+    radial-gradient(760px 500px at 100% -4%, rgba(34,211,238,.30), transparent 58%),
+    radial-gradient(900px 620px at 50% 118%, rgba(251,191,36,.26), transparent 62%),
+    linear-gradient(155deg,#f7f4ff 0%,#effbff 52%,#fffdf2 100%);
+  background-attachment:fixed;
+  position:relative;
+}
+
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  background-image:radial-gradient(rgba(124,58,237,.10) 1.2px, transparent 1.2px);
+  background-size:26px 26px;
+  pointer-events:none;
+  z-index:0;
+}
+
+img,svg,video,iframe{max-width:100%}
+
+::selection{background:rgba(124,58,237,.25)}
+
+.hidden{display:none !important}
+
+.topbar{
+  position:sticky;
+  top:0;
+  z-index:50;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  flex-wrap:wrap;
+  padding:14px 5%;
+  max-width:100%;
+  background:rgba(255,255,255,.66);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid rgba(124,58,237,.12);
+}
+
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+
+.brand-logo{
+  width:52px;
+  height:52px;
+  object-fit:contain;
+  background:#fff;
+  border-radius:50%;
+  padding:7px;
+  box-shadow:0 8px 22px rgba(124,58,237,.25);
+  flex-shrink:0;
+}
+
+.brand h1{font-size:20px;font-weight:800;line-height:1.1;letter-spacing:.5px}
+
+.brand p{font-size:12px;color:var(--muted);font-weight:500}
+
+.top-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  border:none;
+  cursor:pointer;
+  font-family:inherit;
+  font-weight:600;
+  font-size:14px;
+  padding:12px 20px;
+  border-radius:14px;
+  text-decoration:none;
+  color:inherit;
+  max-width:100%;
+  transition:transform .2s ease, box-shadow .2s ease, background .2s ease, opacity .2s ease;
+}
+
+.btn:active{transform:scale(.97)}
+
+.btn:disabled{cursor:not-allowed;opacity:.75}
+
+.btn-primary{
+  background:linear-gradient(135deg,var(--violet) 0%,#6d28d9 50%,var(--cyan) 130%);
+  color:#fff;
+  box-shadow:0 12px 28px rgba(109,40,217,.35);
+}
+
+.btn-primary:hover{box-shadow:0 16px 34px rgba(109,40,217,.45);transform:translateY(-2px)}
+
+.btn-ghost{
+  background:rgba(255,255,255,.75);
+  border:1px solid var(--line);
+  color:var(--ink);
+}
+
+.btn-ghost:hover{background:#fff;box-shadow:0 8px 20px rgba(80,40,160,.12)}
+
+.btn-home{
+  background:linear-gradient(135deg,#f59e0b,#f97316);
+  color:#fff;
+  box-shadow:0 12px 26px rgba(245,158,11,.35);
+}
+
+.btn-danger{
+  background:linear-gradient(135deg,#ef4444,#dc2626);
+  color:#fff;
+  box-shadow:0 10px 24px rgba(239,68,68,.3);
+}
+
+.btn-sm{padding:8px 14px;font-size:13px;border-radius:11px}
+
+.btn-block{width:100%;margin-top:6px}
+
+.btn-upload{
+  background:linear-gradient(135deg,#1bb76e,#0f9d58);
+  color:#fff;
+  width:100%;
+  margin-top:10px;
+  box-shadow:0 10px 24px rgba(27,183,110,.3);
+}
+
+.btn-upload.disabled{opacity:.5;pointer-events:none}
+
+.btn-spinner{font-size:15px}
+
+.login-wrap{
+  position:relative;
+  z-index:1;
+  min-height:calc(100vh - 82px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:34px 18px;
+  width:100%;
+}
+
+.login-card{
+  width:100%;
+  max-width:440px;
+  background:var(--card);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,.65);
+  border-radius:26px;
+  padding:38px 34px;
+  box-shadow:var(--shadow);
+  animation:floatIn .55s ease both;
+}
+
+@keyframes floatIn{
+  from{opacity:0;transform:translateY(22px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+.login-logo{
+  width:100%;
+  height:auto;
+  max-width:130px;
+  margin:0 auto 4px;
+  padding:1px;
+  display:flex;
+  justify-content:center;
+}
+
+.login-logo img{width:100%;height:auto;object-fit:contain}
+
+.login-card h2{text-align:center;font-size:23px;font-weight:800}
+
+.login-sub{text-align:center;color:var(--muted);font-size:13px;margin:4px 0 22px}
+
+.field{margin-bottom:16px;min-width:0}
+
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:7px}
+
+.req{color:#ef4444}
+
+.input-box{
+  position:relative;
+  display:flex;
+  align-items:center;
+  width:100%;
+  background:#fff;
+  border:1.5px solid var(--line);
+  border-radius:14px;
+  padding:0 14px;
+  transition:border-color .2s ease, box-shadow .2s ease;
+}
+
+.input-box:focus-within{border-color:var(--violet);box-shadow:0 0 0 4px rgba(124,58,237,.12)}
+
+.input-box > i{
+  color:var(--violet);
+  font-size:15px;
+  margin-right:11px;
+  flex-shrink:0;
+}
+
+.input-box input,
+.input-box textarea{
+  width:100%;
+  min-width:0;
+  border:none;
+  outline:none;
+  background:transparent;
+  font-family:inherit;
+  font-size:14px;
+  color:var(--ink);
+  padding:13px 0;
+}
+
+.input-box textarea{resize:vertical;min-height:96px;line-height:1.55}
+
+.eye-btn{
+  border:none;
+  background:transparent;
+  cursor:pointer;
+  color:var(--muted);
+  font-size:15px;
+  padding:6px;
+  flex-shrink:0;
+}
+
+.eye-btn:hover{color:var(--violet)}
+
+.select-box{
+  position:relative;
+  display:flex;
+  align-items:center;
+  width:100%;
+  background:#fff;
+  border:1.5px solid var(--line);
+  border-radius:14px;
+  padding:0 14px;
+  transition:border-color .2s ease, box-shadow .2s ease;
+}
+
+.select-box:focus-within{border-color:var(--violet);box-shadow:0 0 0 4px rgba(124,58,237,.12)}
+
+.select-box > i{color:var(--violet);font-size:15px;margin-right:11px;flex-shrink:0}
+
+.select-box select{
+  width:100%;
+  border:none;
+  outline:none;
+  background:transparent;
+  font-family:inherit;
+  font-size:14px;
+  color:var(--ink);
+  padding:13px 0;
+  cursor:pointer;
+  appearance:none;
+  -webkit-appearance:none;
+  padding-right:28px;
+}
+
+.select-arrow{
+  position:absolute;
+  right:14px;
+  pointer-events:none;
+  color:var(--muted);
+  font-size:12px;
+  margin:0 !important;
+}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+.img-tabs{display:flex;gap:8px;margin-bottom:10px}
+
+.img-tab{
+  flex:1;
+  border:1.5px solid var(--line);
+  background:#fff;
+  color:var(--muted);
+  padding:10px;
+  border-radius:12px;
+  cursor:pointer;
+  font-family:inherit;
+  font-size:13px;
+  font-weight:600;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  transition:all .2s ease;
+}
+
+.img-tab.active{
+  background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(6,182,212,.12));
+  border-color:var(--violet);
+  color:var(--violet);
+}
+
+.drop-zone{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  border:2px dashed rgba(124,58,237,.35);
+  border-radius:14px;
+  background:rgba(255,255,255,.6);
+  padding:22px 12px;
+  text-align:center;
+  cursor:pointer;
+  font-size:13px;
+  font-weight:600;
+  color:var(--muted);
+  transition:all .2s ease;
+}
+
+.drop-zone:hover,
+.drop-zone.drag{
+  border-color:var(--violet);
+  background:rgba(124,58,237,.06);
+  color:var(--violet);
+}
+
+.drop-zone i{font-size:26px;color:var(--violet)}
+
+.drop-zone small{font-weight:500;opacity:.75}
+
+.hidden-input{display:none}
+
+.preview-box{
+  margin-top:12px;
+  height:170px;
+  border-radius:14px;
+  overflow:hidden;
+  background:rgba(255,255,255,.55);
+  border:1.5px dashed var(--line);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+}
+
+.preview-img{width:100%;height:100%;object-fit:cover;display:block}
+
+.preview-empty{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:7px;
+  color:var(--muted);
+  font-size:13px;
+}
+
+.preview-empty i{font-size:30px;color:var(--violet-light)}
+
+.main-wrap{position:relative;z-index:1;padding:26px 5% 60px;width:100%;max-width:100%}
+
+.grid-panels{
+  display:grid;
+  grid-template-columns:minmax(0,5fr) minmax(0,6fr);
+  gap:24px;
+  align-items:start;
+}
+
+.panel{
+  background:var(--card);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,.6);
+  border-radius:var(--radius);
+  padding:24px;
+  box-shadow:var(--shadow);
+  min-width:0;
+  overflow:hidden;
+}
+
+.panel-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:20px;
+  flex-wrap:wrap;
+}
+
+.panel-head h2{
+  font-size:18px;
+  font-weight:800;
+  display:flex;
+  align-items:center;
+  gap:9px;
+}
+
+.panel-head h2 i{color:var(--violet)}
+
+.count-badge{
+  background:linear-gradient(135deg,var(--violet),var(--cyan));
+  color:#fff;
+  font-size:13px;
+  font-weight:700;
+  padding:5px 13px;
+  border-radius:99px;
+  box-shadow:0 6px 16px rgba(124,58,237,.3);
+}
+
+.form-panel.highlight{
+  outline:3px solid rgba(124,58,237,.35);
+  outline-offset:4px;
+}
+
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+.course-table{width:100%;border-collapse:collapse;min-width:520px}
+
+.course-table th{
+  text-align:left;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:1.2px;
+  color:var(--muted);
+  padding:10px;
+  border-bottom:2px solid var(--line);
+}
+
+.course-table td{
+  padding:13px 10px;
+  border-bottom:1px solid rgba(124,58,237,.09);
+  font-size:13.5px;
+  vertical-align:middle;
+}
+
+.course-table tr:hover td{background:rgba(124,58,237,.04)}
+
+.course-cell{display:flex;align-items:center;gap:10px}
+
+.course-cell img{
+  width:44px;
+  height:44px;
+  border-radius:10px;
+  object-fit:cover;
+  box-shadow:0 4px 10px rgba(80,40,160,.18);
+  flex-shrink:0;
+}
+
+.course-cell b{display:block;font-size:13.5px;line-height:1.25}
+
+.course-cell small{color:var(--muted);font-size:11.5px}
+
+.cat-badge{
+  display:inline-block;
+  font-size:11px;
+  font-weight:600;
+  padding:5px 10px;
+  border-radius:99px;
+  background:rgba(6,182,212,.12);
+  color:#0e7490;
+  white-space:nowrap;
+}
+
+.price-tag{font-weight:800;color:var(--violet);white-space:nowrap}
+
+.row-actions{display:flex;gap:7px;white-space:nowrap}
+
+.icon-btn{
+  width:34px;
+  height:34px;
+  border-radius:10px;
+  border:none;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:13px;
+  transition:all .2s ease;
+}
+
+.icon-btn.edit{background:rgba(245,158,11,.14);color:#b45309}
+
+.icon-btn.edit:hover{background:rgba(245,158,11,.25)}
+
+.icon-btn.del{background:rgba(239,68,68,.12);color:#dc2626}
+
+.icon-btn.del:hover{background:rgba(239,68,68,.24)}
+
+.empty-state{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  padding:44px 10px;
+  color:var(--muted);
+  text-align:center;
+}
+
+.empty-state i{font-size:40px;color:var(--violet-light)}
+
+.toast-wrap{
+  position:fixed;
+  top:20px;
+  right:20px;
+  z-index:100000;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  max-width:min(92vw,380px);
+}
+
+.toast{
+  display:flex;
+  align-items:flex-start;
+  gap:11px;
+  background:rgba(255,255,255,.95);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border:1px solid rgba(124,58,237,.14);
+  border-radius:14px;
+  padding:13px 15px;
+  box-shadow:0 14px 34px rgba(30,27,75,.16);
+  font-size:13.5px;
+  font-weight:500;
+  color:var(--ink);
+  animation:toastIn .35s ease both;
+}
+
+.toast.out{animation:toastOut .3s ease both}
+
+@keyframes toastIn{
+  from{opacity:0;transform:translateX(40px)}
+  to{opacity:1;transform:translateX(0)}
+}
+
+@keyframes toastOut{
+  to{opacity:0;transform:translateX(40px)}
+}
+
+.toast > i{font-size:17px;margin-top:1px}
+
+.toast.success > i{color:#16a34a}
+
+.toast.error > i{color:#dc2626}
+
+.toast.info > i{color:var(--violet)}
+
+.toast b{display:block;font-size:13px;margin-bottom:1px}
+
+.toast p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.45}
+
+.modal-overlay{
+  position:fixed;
+  inset:0;
+  z-index:99990;
+  background:rgba(30,27,75,.45);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  animation:fadeIn .25s ease both;
+}
+
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+.modal-card{
+  width:100%;
+  max-width:380px;
+  background:#fff;
+  border-radius:20px;
+  padding:28px;
+  text-align:center;
+  box-shadow:0 30px 70px rgba(30,27,75,.3);
+  animation:popIn .3s ease both;
+}
+
+@keyframes popIn{
+  from{opacity:0;transform:scale(.92)}
+  to{opacity:1;transform:scale(1)}
+}
+
+.modal-icon{
+  width:60px;
+  height:60px;
+  margin:0 auto 14px;
+  border-radius:50%;
+  background:rgba(239,68,68,.12);
+  color:#dc2626;
+  font-size:24px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.modal-card h3{font-size:18px;font-weight:800;margin-bottom:6px}
+
+.modal-card p{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.55}
+
+.modal-actions{display:flex;gap:10px}
+
+.modal-actions .btn{flex:1}
+
+@media(max-width:960px){
+  .grid-panels{grid-template-columns:1fr}
+}
+
+@media(max-width:768px){
+  body{font-size:17px}
+
+  .topbar{padding:14px 4%}
+
+  .brand h1{font-size:24px}
+  .brand p{font-size:14px}
+  .brand-logo{width:60px;height:60px}
+
+  .top-actions{width:100%}
+  .top-actions .btn{flex:1 1 auto;font-size:16px;padding:14px 18px}
+  .btn-sm{font-size:15px;padding:11px 16px}
+
+  .btn{font-size:16px;padding:15px 22px;border-radius:16px}
+
+  .login-wrap{padding:24px 14px}
+  .login-card{padding:32px 22px;border-radius:24px}
+  .login-logo{max-width:150px}
+  .login-card h2{font-size:28px}
+  .login-sub{font-size:16px;margin:6px 0 24px}
+
+  .field label{font-size:16px;margin-bottom:9px}
+  .input-box{padding:0 16px;border-radius:16px}
+  .input-box > i,.select-box > i{font-size:18px}
+  .input-box input,.input-box textarea,.select-box select{font-size:17px;padding:15px 0}
+  .input-box textarea{min-height:110px}
+  .eye-btn{font-size:18px;padding:10px}
+  .select-arrow{font-size:15px}
+
+  .two-col{grid-template-columns:1fr}
+
+  .img-tab{font-size:15px;padding:13px 10px}
+  .drop-zone{font-size:15px;padding:28px 14px}
+  .preview-box{height:200px}
+
+  .main-wrap{padding:20px 4% 54px}
+  .panel{padding:20px 18px;border-radius:20px}
+  .panel-head h2{font-size:23px}
+  .panel-head h2 i{font-size:22px}
+  .count-badge{font-size:15px;padding:6px 15px}
+
+  .course-table th{font-size:13px;padding:12px 10px}
+  .course-table td{font-size:16px;padding:15px 10px}
+  .course-cell img{width:54px;height:54px;border-radius:12px}
+  .course-cell b{font-size:16px}
+  .course-cell small{font-size:13.5px}
+  .cat-badge{font-size:13px;padding:6px 12px}
+  .price-tag{font-size:16px}
+  .row-actions{gap:9px}
+  .icon-btn{width:42px;height:42px;border-radius:12px;font-size:16px}
+
+  .empty-state{padding:50px 10px;font-size:16px}
+  .empty-state i{font-size:48px}
+
+  .toast{font-size:16px;padding:15px 17px}
+  .toast b{font-size:15.5px}
+  .toast p{font-size:14.5px}
+  .toast > i{font-size:20px}
+
+  .modal-card{padding:32px 24px}
+  .modal-card h3{font-size:22px}
+  .modal-card p{font-size:16px;margin-bottom:24px}
+  .modal-icon{width:70px;height:70px;font-size:28px}
+
+  .toast-wrap{left:12px;right:12px;top:12px;max-width:none}
+}
+
+@media(max-width:640px){
+  .toast-wrap{left:12px;right:12px;max-width:none}
+}
+
+@media(hover:none) and (pointer:coarse){
+  .btn-primary:hover,.btn-ghost:hover,.btn-home:hover{transform:none}
+  .icon-btn{width:40px;height:40px}
+}
+</style>
+
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <img src="https://i.imgur.com/vLaejQ7.png" alt="IDT Academy Logo" class="brand-logo">
+    <div>
+      <h1>IDT Academy</h1>
+      <p>Admin Post Center</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <a href="index.html" class="btn btn-home"><i class="fa-solid fa-house"></i> Home</a>
+    <button id="btnLogout" class="btn btn-ghost hidden"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+  </div>
+</header>
+
+<section id="loginPanel" class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy">
+    </div>
+    <h2>Welcome Back</h2>
+    <p class="login-sub">Sign in to manage courses</p>
+    <form id="loginForm" novalidate>
+      <div class="field">
+        <label for="loginEmail">Email</label>
+        <div class="input-box">
+          <i class="fa-solid fa-envelope"></i>
+          <input type="email" id="loginEmail" placeholder="admin@idtacademy.com" autocomplete="email" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="loginPassword">Password</label>
+        <div class="input-box">
+          <i class="fa-solid fa-lock"></i>
+          <input type="password" id="loginPassword" placeholder="Enter your password" autocomplete="current-password" required>
+          <button type="button" id="togglePass" class="eye-btn" aria-label="Show password">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </div>
+      </div>
+      <button type="submit" id="btnLogin" class="btn btn-primary btn-block">
+        <span class="btn-label"><i class="fa-solid fa-right-to-bracket"></i> Sign In</span>
+        <i class="fa-solid fa-spinner fa-spin btn-spinner hidden"></i>
+      </button>
+    </form>
+  </div>
+</section>
+
+<main id="mainPanel" class="main-wrap hidden">
+  <div class="grid-panels">
+
+    <section class="panel form-panel" id="formCard">
+      <div class="panel-head">
+        <h2><i class="fa-solid fa-plus-circle"></i> <span id="formTitle">Post New Course</span></h2>
+        <button id="btnReset" class="btn btn-ghost btn-sm hidden"><i class="fa-solid fa-rotate-left"></i> New</button>
+      </div>
+      <form id="courseForm" novalidate>
+
+        <div class="field">
+          <label>Category <span class="req">*</span></label>
+          <div class="select-box">
+            <i class="fa-solid fa-layer-group"></i>
+            <select id="courseCategory" required>
+              <option value="">Select a category</option>
+              <option value="1">Technology &amp; Computing</option>
+              <option value="2">Vocational &amp; Agricultural Skills</option>
+              <option value="3">Health &amp; Community Wellness</option>
+              <option value="4">2-Year Diploma Program</option>
+            </select>
+            <i class="fa-solid fa-chevron-down select-arrow"></i>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="field">
+            <label>Course Number <span class="req">*</span></label>
+            <div class="input-box">
+              <i class="fa-solid fa-hashtag"></i>
+              <input type="text" id="courseNumber" placeholder="e.g. TEC-101" required>
+            </div>
+          </div>
+          <div class="field">
+            <label>Course Name <span class="req">*</span></label>
+            <div class="input-box">
+              <i class="fa-solid fa-graduation-cap"></i>
+              <input type="text" id="courseName" placeholder="e.g. Web Development" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Course Image <span class="req">*</span></label>
+          <div class="img-tabs">
+            <button type="button" id="tabLink" class="img-tab active"><i class="fa-solid fa-link"></i> Image Link</button>
+            <button type="button" id="tabUpload" class="img-tab"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
+          </div>
+          <div id="linkMode" class="img-mode">
+            <div class="input-box">
+              <i class="fa-solid fa-image"></i>
+              <input type="url" id="imageLink" placeholder="https://i.imgur.com/example.png">
+            </div>
+          </div>
+          <div id="uploadMode" class="img-mode hidden">
+            <label for="fileInput" class="drop-zone" id="dropZone">
+              <i class="fa-solid fa-file-image"></i>
+              <span id="dropText">Click to choose an image<br><small>JPG, PNG, WEBP - max 8MB</small></span>
+            </label>
+            <input type="file" id="fileInput" accept="image/*" class="hidden-input">
+            <button type="button" id="btnUploadImgur" class="btn btn-upload disabled">
+              <span class="btn-label"><i class="fa-brands fa-imgur"></i> Upload to Imgur</span>
+              <i class="fa-solid fa-spinner fa-spin btn-spinner hidden"></i>
+            </button>
+          </div>
+          <div class="preview-box" id="previewBox">
+            <img id="imagePreview" class="preview-img hidden" alt="Course preview">
+            <span id="previewEmpty" class="preview-empty"><i class="fa-regular fa-image"></i> Image preview</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Course Info Text <span class="req">*</span></label>
+          <div class="input-box textarea-box">
+            <i class="fa-solid fa-align-left"></i>
+            <textarea id="courseInfo" rows="5" placeholder="What students will learn in this course..."></textarea>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Course Price (₦) <span class="req">*</span></label>
+          <div class="input-box">
+            <i class="fa-solid fa-naira-sign"></i>
+            <input type="number" id="coursePrice" min="0" step="0.01" placeholder="e.g. 5000" required>
+          </div>
+        </div>
+
+        <button type="submit" id="btnSubmit" class="btn btn-primary btn-block">
+          <span class="btn-label"><i class="fa-solid fa-cloud-arrow-up"></i> Post Course</span>
+          <i class="fa-solid fa-spinner fa-spin btn-spinner hidden"></i>
+        </button>
+
+      </form>
+    </section>
+
+    <section class="panel list-panel">
+      <div class="panel-head">
+        <h2><i class="fa-solid fa-list-check"></i> Posted Courses</h2>
+        <span class="count-badge" id="courseCount">0</span>
+      </div>
+      <div class="table-scroll">
+        <table class="course-table">
+          <thead>
+            <tr>
+              <th>Course</th>
+              <th>No.</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="courseList"></tbody>
+        </table>
+        <div id="emptyState" class="empty-state">
+          <i class="fa-regular fa-folder-open"></i>
+          <p>No courses posted yet</p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<div id="toastWrap" class="toast-wrap"></div>
+
+<div id="confirmModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div class="modal-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <h3>Delete Course?</h3>
+    <p id="modalMessage">This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button id="btnCancelDel" class="btn btn-ghost">Cancel</button>
+      <button id="btnConfirmDel" class="btn btn-danger"><i class="fa-solid fa-trash-can"></i> Delete</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="post.js"></script>
+</body>
+</html>

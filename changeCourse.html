@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IDT Academy - Manage Courses</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    :root {
+        --violet: #7c3aed;
+        --violet-d: #6d28d9;
+        --violet-l: #a78bfa;
+        --cyan: #06b6d4;
+        --amber: #f59e0b;
+        --rose: #f43f5e;
+        --green: #10b981;
+        --ink: #1e1b4b;
+        --muted: #6d6a8a;
+        --line: rgba(124,58,237,.15);
+        --shadow: 0 24px 60px rgba(80,40,160,.16);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+        font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+        color: var(--ink);
+        min-height: 100vh;
+        background: 
+            radial-gradient(820px 480px at 6% -6%, rgba(167,139,250,.30), transparent 60%),
+            radial-gradient(740px 480px at 98% 4%, rgba(34,211,238,.22), transparent 58%),
+            radial-gradient(820px 540px at 50% 112%, rgba(251,191,36,.16), transparent 60%),
+            linear-gradient(160deg, #f8f6ff 0%, #ffffff 50%, #eefbff 100%);
+        background-attachment: fixed;
+        overflow-x: hidden;
+        position: relative;
+    }
+    body::before { content: ""; position: fixed; inset: 0; z-index: -2; background: url('https://i.imgur.com/CQgjfNJ.png') center/cover no-repeat fixed; opacity: .08; pointer-events: none; }
+    body::after { content: ""; position: fixed; inset: 0; z-index: -1; background: url('https://i.imgur.com/oyqM5oF.png') center/contain no-repeat fixed; opacity: .05; pointer-events: none; }
+    ::selection { background: rgba(124,58,237,.22); }
+    img { max-width: 100%; display: block; }
+    a { text-decoration: none; color: inherit; }
+    button { font-family: inherit; }
+    input, select, textarea { font-family: inherit; }
+    textarea { resize: vertical; }
+    .hidden { display: none !important; }
+
+    #toastWrap{position:fixed;top:20px;right:20px;z-index:100000;display:flex;flex-direction:column;gap:10px;max-width:380px;width:100%}
+    .toast{background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:14px 18px;display:flex;align-items:flex-start;gap:12px;box-shadow:var(--shadow);animation:slideIn .3s ease forwards;position:relative;overflow:hidden}
+    .toast.success{border-color:var(--green)}
+    .toast.error{border-color:var(--rose)}
+    .toast.info{border-color:var(--cyan)}
+    .toast i.fa-solid{font-size:18px;margin-top:2px}
+    .toast.success i{color:var(--green)}
+    .toast.error i{color:var(--rose)}
+    .toast.info i{color:var(--cyan)}
+    .toast-body{flex:1}
+    .toast-body b{display:block;font-size:14px;margin-bottom:2px;color:var(--ink)}
+    .toast-body p{font-size:13px;color:var(--muted);line-height:1.4}
+    .toast-raw{display:block;margin-top:6px;font-size:11px;color:var(--rose);background:rgba(244,63,94,0.1);padding:3px 6px;border-radius:4px}
+    .toast-x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px}
+    .toast.out{animation:slideOut .3s ease forwards}
+    @keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+    @keyframes slideOut{from{transform:translateX(0);opacity:1}to{transform:translateX(120%);opacity:0}}
+
+    .page-gate {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(248,246,255,0.95);
+        backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+        transition: opacity 0.6s ease, visibility 0.6s ease;
+    }
+    .page-gate.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    
+    .gate-card, .auth-card {
+        background: rgba(255,255,255,.92);
+        backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255,255,255,.7);
+        border-radius: 26px;
+        padding: 34px 28px;
+        width: 100%; max-width: 420px; margin: 20px;
+        text-align: center;
+        box-shadow: 0 34px 80px rgba(80,40,160,.2);
+    }
+    .gate-logo { width: 72px; height: 72px; object-fit: contain; background: #fff; border-radius: 50%; padding: 8px; margin: 0 auto 10px; box-shadow: 0 12px 28px rgba(124,58,237,.28); }
+    .gate-title, .auth-card h2 { font-size: 20px; font-weight: 900; margin-bottom: 4px; color: var(--ink); }
+    .gate-desc, .auth-card p { font-size: 12.5px; color: var(--muted); margin-bottom: 22px; }
+    
+    .gate-input, .auth-input {
+        width: 100%;
+        background: #fff;
+        border: 1.5px solid var(--line);
+        border-radius: 13px;
+        padding: 14px 16px;
+        color: var(--ink);
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        outline: none;
+        text-align: center;
+        transition: all .2s ease;
+        margin-bottom: 12px;
+    }
+    .gate-input:focus, .auth-input:focus { border-color: var(--violet); box-shadow: 0 0 0 4px rgba(124,58,237,.1); }
+    
+    .gate-btn, .auth-btn {
+        width: 100%;
+        background: linear-gradient(135deg, var(--violet), var(--violet-d));
+        border: none;
+        border-radius: 13px;
+        padding: 14px;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        margin-top: 4px;
+        box-shadow: 0 10px 25px rgba(124,58,237,.3);
+        transition: transform 0.15s, opacity 0.2s;
+    }
+    .gate-btn:hover, .auth-btn:hover { transform: translateY(-2px); opacity: 0.95; }
+
+    .input-wrap-pass { position: relative; margin-bottom: 12px; }
+    .input-wrap-pass input { margin-bottom: 0; text-align: left; padding-right: 45px; }
+    .eye-btn { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; }
+
+    .admin-area{flex:1;display:flex;flex-direction:column;min-height:100vh}
+    header{background:rgba(255,255,255,0.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:15px 30px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,0.03)}
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand img{width:42px;height:42px;object-fit:contain;background:#fff;border-radius:50%;padding:6px;box-shadow:0 4px 12px rgba(124,58,237,0.2)}
+    .brand span{font-size:18px;font-weight:800;color:var(--ink)}
+    .brand span b{color:var(--violet)}
+    .header-actions{display:flex;gap:12px}
+    .btn-action{background:#fff;border:1.5px solid var(--line);color:var(--ink);padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;transition:.2s;box-shadow:0 4px 12px rgba(0,0,0,0.03)}
+    .btn-action:hover{background:var(--violet);border-color:var(--violet);color:#fff}
+
+    main{flex:1;max-width:1200px;width:100%;margin:0 auto;padding:30px 20px;display:flex;flex-direction:column;gap:30px}
+    .search-card{background:rgba(255,255,255,0.85);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.8);border-radius:20px;padding:25px;display:flex;flex-direction:column;gap:15px;box-shadow:var(--shadow)}
+    .search-card h2{font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px;color:var(--ink)}
+    .search-card h2 i{color:var(--cyan)}
+    .search-box{display:flex;gap:12px}
+    .search-box input{flex:1;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px 18px;color:var(--ink);font-size:14px;outline:none}
+    .search-box input:focus{border-color:var(--violet)}
+    .btn-search{background:var(--violet);border:none;border-radius:12px;padding:0 24px;color:#fff;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;transition:.2s}
+    .btn-search:hover{background:var(--violet-d)}
+
+    .course-display-card{background:rgba(255,255,255,0.85);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.8);border-radius:20px;padding:25px;display:flex;gap:20px;align-items:center;box-shadow:var(--shadow)}
+    .course-display-img{width:120px;height:120px;border-radius:14px;object-fit:cover;background:#000;border:1px solid var(--line)}
+    .course-display-info{flex:1;display:flex;flex-direction:column;gap:6px}
+    .course-display-info h3{font-size:20px;font-weight:700;color:var(--ink)}
+    .course-badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+    .badge{background:#fff;border:1.5px solid var(--line);padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;box-shadow:0 2px 6px rgba(0,0,0,0.02)}
+    .badge.num{color:var(--cyan)}
+    .badge.cat{color:var(--amber)}
+    .badge.price{color:var(--green)}
+    .btn-del-course{background:rgba(244,63,94,0.08);border:1.5px solid var(--rose);color:var(--rose);padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;transition:.2s}
+    .btn-del-course:hover{background:var(--rose);color:#fff}
+
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    @media(max-width:768px){.form-grid{grid-template-columns:1fr}.course-display-card{flex-direction:column;text-align:center}.course-badges{justify-content:center}}
+    .panel-card{background:rgba(255,255,255,0.85);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.8);border-radius:20px;padding:25px;box-shadow:var(--shadow)}
+    .panel-card h3{font-size:16px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px;border-bottom:1.5px solid var(--line);padding-bottom:12px;color:var(--ink)}
+    .panel-card h3 i{color:var(--violet)}
+    
+    .form-group{margin-bottom:16px;text-align:left}
+    .form-group label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
+    .form-group input, .form-group textarea{width:100%;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px;color:var(--ink);font-size:14px;outline:none;transition:.2s}
+    .form-group textarea{resize:vertical;min-height:120px}
+    .form-group input:focus, .form-group textarea:focus{border-color:var(--violet)}
+
+    .checkbox-row{display:flex;align-items:center;gap:10px;margin-bottom:20px;cursor:pointer;text-align:left}
+    .custom-checkbox{width:22px;height:22px;border:2px solid var(--line);border-radius:6px;background:#fff;display:flex;align-items:center;justify-content:center;transition:.2s}
+    .custom-checkbox.checked{background:var(--green);border-color:var(--green)}
+    .custom-checkbox.checked i{color:#fff;font-size:12px;display:block}
+    .custom-checkbox i{display:none}
+    .checkbox-row span{font-size:14px;font-weight:600;color:var(--ink)}
+    .final-status{margin-left:auto;font-size:12px;padding:4px 10px;border-radius:6px;background:rgba(16,185,129,0.1);color:var(--green);font-weight:700}
+    .final-status.off{background:rgba(0,0,0,0.04);color:var(--muted)}
+
+    .topics-list{display:flex;flex-direction:column;gap:12px;max-height:450px;overflow-y:auto;padding-right:5px}
+    .topic-row{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:14px;display:flex;align-items:center;gap:14px}
+    .topic-num{width:34px;height:34px;border-radius:10px;background:rgba(124,58,237,0.08);border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:var(--cyan)}
+    .topic-num.final-num{background:rgba(16,185,129,0.1);border-color:var(--green);color:var(--green)}
+    .topic-info{flex:1;display:flex;flex-direction:column;gap:3px;text-align:left}
+    .topic-info b{font-size:14px;color:var(--ink)}
+    .topic-info small{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+    .topic-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:6px;transition:.2s}
+    .topic-del:hover{color:var(--rose)}
+    .empty-state{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
+    .empty-state i{font-size:32px;margin-bottom:10px;display:block;color:var(--line)}
+
+    .overlay{position:fixed;inset:0;background:rgba(30,27,75,0.6);backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:.3s}
+    .overlay.open{opacity:1;visibility:visible}
+    .overlay-card{background:#fff;border:1.5px solid var(--line);border-radius:24px;width:100%;max-width:700px;max-height:85vh;display:flex;flex-direction:column;box-shadow:var(--shadow);overflow:hidden}
+    .overlay-header{padding:20px 25px;border-bottom:1.5px solid var(--line);display:flex;align-items:center;justify-content:between}
+    .overlay-header h3{font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px;color:var(--ink)}
+    .overlay-header h3 i{color:var(--cyan)}
+    .overlay-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer}
+    .overlay-body{padding:20px 25px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+    .ov-row{background:#f8f6ff;border:1.5px solid var(--line);border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px}
+    .ov-img{width:48px;height:48px;border-radius:10px;object-fit:cover;background:#000}
+    .ov-info{flex:1;display:flex;flex-direction:column;gap:3px;text-align:left}
+    .ov-info b{font-size:14px;color:var(--ink)}
+    .ov-info small{font-size:12px;color:var(--muted)}
+    .ov-btn{background:#fff;border:1.5px solid var(--line);color:var(--ink);width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s}
+    .ov-btn:hover{background:var(--violet);border-color:var(--violet);color:#fff}
+    .ov-empty{text-align:center;padding:40px;color:var(--muted)}
+  </style>
+</head>
+<body>
+
+  <div id="toastWrap"></div>
+
+ 
+  <div id="ceoGate" class="page-gate">
+    <div class="gate-card">
+      <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="gate-loo">
+      <h2 class="gate-title">CEO Verification</h2>
+      <p class="gate-desc">Enter CEO password to proceed to Supabase login</p>
+      <form id="ceoForm">
+        <div class="input-wrap-pass">
+          <input type="password" id="ceoPassword" class="gate-input" placeholder="Enter CEO password" autocomplete="current-password">
+          <button type="button" class="eye-btn" id="toggleCeoPass"><i class="fa-solid fa-eye"></i></button>
+        </div>
+        <button type="submit" class="gate-btn">Submit <i class="fa-solid fa-arrow-right"></i></button>
+      </form>
+    </div>
+  </div>
+
+  
+  <div id="supabaseGate" class="page-gate hidden">
+    <div class="auth-card">
+      <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="gate-loo">
+      <h2> Admin Login</h2>
+      <p>Enter your admin email and password to access the dashboard</p>
+      <form id="supabaseForm">
+        <input type="email" id="supaEmail" class="auth-input" placeholder="Admin Email" autocomplete="email">
+        <div class="input-wrap-pass">
+          <input type="password" id="supaPassword" class="auth-input" placeholder="Password" autocomplete="current-password">
+          <button type="button" class="eye-btn" id="toggleSupaPass"><i class="fa-solid fa-eye"></i></button>
+        </div>
+        <button type="submit" class="auth-btn">Submit <i class="fa-solid fa-arrow-right"></i></button>
+      </form>
+    </div>
+  </div>
+
+  
+  <div id="adminArea" class="admin-area hidden">
+    <header>
+      <div class="brand">
+        <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy">
+        <span>IDT <b>Academy</b></span>
+      </div>
+      <div class="header-actions">
+        <button class="btn-action" id="btnOpenOverlay"><i class="fa-solid fa-book"></i> All Courses</button>
+        <button class="btn-action" id="btnLogout"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="search-card">
+        <h2><i class="fa-solid fa-magnifying-glass"></i> Search Course by Number</h2>
+        <div class="search-box">
+          <input type="text" id="courseNumInput" placeholder="Enter course number (e.g. 101)...">
+          <button class="btn-search" id="btnSearchCourse"><i class="fa-solid fa-arrow-right"></i> Search</button>
+        </div>
+      </div>
+
+      <div id="courseCard" class="course-display-card hidden">
+        <img id="courseImg" src="" alt="" class="course-display-img">
+        <div class="course-display-info">
+          <h3 id="courseName">Course Title</h3>
+          <div class="course-badges">
+            <span class="badge num" id="courseNumberBadge"><i class="fa-solid fa-hashtag"></i> #000</span>
+            <span class="badge cat" id="courseCategory"><i class="fa-solid fa-tag"></i> General</span>
+            <span class="badge price" id="coursePrice"><i class="fa-solid fa-naira-sign"></i> 0</span>
+            <span class="badge" style="color:var(--muted)"><i class="fa-solid fa-fingerprint"></i> ID: <span id="courseIdText"></span></span>
+          </div>
+        </div>
+        <div class="course-actions">
+          <button class="btn-del-course" id="btnDeleteEntireCourse"><i class="fa-solid fa-trash-can"></i> Delete Course</button>
+        </div>
+      </div>
+
+      <div id="formCard" class="form-grid hidden">
+        <div class="panel-card">
+          <h3><i class="fa-solid fa-circle-plus"></i> Add New Topic</h3>
+          <form id="topicForm">
+            <div class="form-group">
+              <label>Topic Name</label>
+              <input type="text" id="topicName" placeholder="e.g. Introduction to Variables">
+            </div>
+            <div class="form-group">
+              <label>Lesson Text Content</label>
+              <textarea id="topicText" placeholder="Write full lesson notes here..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Video URL (Optional)</label>
+              <input type="url" id="videoUrl" placeholder="https://youtube.com/embed/...">
+            </div>
+            <div class="checkbox-row" id="finalToggleRow">
+              <div class="custom-checkbox" id="finalBox" role="checkbox" aria-pressed="false"><i class="fa-solid fa-check"></i></div>
+              <span>Mark as Final Topic</span>
+              <span class="final-status off" id="finalStatus">Final: No</span>
+            </div>
+            <button type="submit" class="auth-btn">Save Topic <i class="fa-solid fa-floppy-disk"></i></button>
+          </form>
+        </div>
+
+        <div class="panel-card">
+          <h3><i class="fa-solid fa-list-check"></i> Course Topics List (<span id="statTopics">0</span>)</h3>
+          <div class="topics-list" id="topicsList">
+            <div class="empty-state">
+              <i class="fa-solid fa-book-open"></i>
+              No topics loaded yet. Search and select a course above.
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="overlay" id="coursesOverlay">
+    <div class="overlay-card">
+      <div class="overlay-header">
+        <h3><i class="fa-solid fa-graduation-cap"></i> All Available Courses</h3>
+        <button class="overlay-close" id="btnCloseOverlay"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="overlay-body" id="overlayList">
+      </div>
+    </div>
+  </div>
+<script type="module" src="change.js"></script>
+  
+</body>
+</html>

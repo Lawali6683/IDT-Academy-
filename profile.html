@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#7c3aed">
+<meta name="description" content="Your IDT Academy profile and learning progress">
+<title>Profile • IDT Academy</title>
+<link rel="icon" href="https://i.imgur.com/oyqM5oF.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --violet:#7c3aed;--violet-d:#6d28d9;--violet-l:#a78bfa;--cyan:#06b6d4;--amber:#f59e0b;--rose:#f43f5e;--green:#10b981;--ink:#1e1b4b;--muted:#6d6a8a;--line:rgba(124,58,237,.15);--shadow:0 24px 60px rgba(80,40,160,.16);
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Poppins',system-ui,-apple-system,sans-serif;color:var(--ink);min-height:100vh;
+  background:radial-gradient(820px 480px at 6% -6%,rgba(167,139,250,.30),transparent 60%),radial-gradient(740px 480px at 98% 4%,rgba(34,211,238,.22),transparent 58%),radial-gradient(820px 540px at 50% 112%,rgba(251,191,36,.16),transparent 60%),linear-gradient(160deg,#f8f6ff 0%,#ffffff 50%,#eefbff 100%);
+  background-attachment:fixed;overflow-x:hidden;position:relative;
+}
+body::before{content:"";position:fixed;inset:0;z-index:-2;background:url('https://i.imgur.com/oyqM5oF.png') center/contain no-repeat fixed;opacity:.04;pointer-events:none}
+::selection{background:rgba(124,58,237,.22)}
+img{max-width:100%;display:block}
+a{text-decoration:none;color:inherit}
+button{font-family:inherit}
+.hidden{display:none !important}
+.topbar{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 4%;background:rgba(255,255,255,.82);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid rgba(124,58,237,.12)}
+.brand{display:flex;align-items:center;gap:12px;cursor:pointer}
+.brand img{width:50px;height:50px;object-fit:contain;background:#fff;border-radius:50%;padding:6px;box-shadow:0 8px 22px rgba(124,58,237,.25)}
+.brand h1{font-size:18px;font-weight:900;line-height:1.1}
+.brand p{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1.4px;text-transform:uppercase}
+.top-right{display:flex;align-items:center;gap:10px}
+.btn-home{display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;font-weight:700;font-size:13.5px;padding:11px 18px;border-radius:12px;color:#fff;background:linear-gradient(135deg,#f59e0b,#f97316);box-shadow:0 10px 24px rgba(245,158,11,.32);transition:transform .2s ease,box-shadow .2s ease}
+.btn-home:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(245,158,11,.42)}
+.btn-logout{display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;font-weight:700;font-size:13px;padding:10px 16px;border-radius:12px;color:#fff;background:linear-gradient(135deg,#f43f5e,#be123c);box-shadow:0 10px 22px rgba(244,63,94,.3);transition:transform .2s ease,box-shadow .2s ease}
+.btn-logout:hover{transform:translateY(-2px);box-shadow:0 14px 28px rgba(244,63,94,.42)}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;padding:6px 13px;border-radius:999px;flex-shrink:0;text-transform:capitalize}
+.badge.green{background:rgba(16,185,129,.14);color:#047857}
+.badge.violet{background:rgba(124,58,237,.12);color:var(--violet-d)}
+.badge.amber{background:rgba(245,158,11,.14);color:#b45309}
+.badge.cyan{background:rgba(6,182,212,.12);color:#0e7490}
+.badge.rose{background:rgba(244,63,94,.12);color:var(--rose)}
+.page-wrap{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:28px 18px 40px;animation:fadeUp .5s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.page-head{display:flex;align-items:center;gap:13px;margin-bottom:20px;background:linear-gradient(135deg,rgba(124,58,237,.09),rgba(6,182,212,.09));border:1px solid rgba(124,58,237,.14);border-radius:20px;padding:16px 18px}
+.ph-icon{width:54px;height:54px;border-radius:15px;flex-shrink:0;background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px rgba(109,40,217,.3)}
+.page-head div{flex:1;min-width:0}
+.page-head small{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:2px}
+.page-head h2{font-size:19px;font-weight:900}
+.page-head p{font-size:11.5px;color:var(--muted);margin-top:2px}
+.card{background:rgba(255,255,255,.9);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.7);border-radius:22px;padding:20px;box-shadow:var(--shadow);margin-bottom:18px}
+.sec-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.sec-head .sh-icon{width:42px;height:42px;border-radius:12px;flex-shrink:0;background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(6,182,212,.12));color:var(--violet-d);font-size:15px;display:flex;align-items:center;justify-content:center}
+.sec-head small{font-size:10.5px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:1px;display:block}
+.sec-head b{font-size:15.5px;font-weight:900}
+.no-session{max-width:430px;margin:36px auto 0;background:rgba(255,255,255,.94);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.7);border-radius:26px;padding:34px 26px;box-shadow:var(--shadow);text-align:center}
+.no-session .big-logo{width:100%;max-width:200px;height:auto;object-fit:contain;margin:0 auto 14px}
+.no-session h2{font-size:20px;font-weight:900;margin-bottom:6px}
+.no-session p{font-size:12.5px;color:var(--muted);line-height:1.7;margin-bottom:22px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border:none;cursor:pointer;font-weight:800;font-size:14px;padding:14px 24px;border-radius:14px;transition:transform .22s ease,box-shadow .22s ease}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,var(--violet) 0%,var(--violet-d) 55%,var(--cyan) 140%);color:#fff;box-shadow:0 14px 30px rgba(109,40,217,.35)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 20px 40px rgba(109,40,217,.45)}
+.btn-outline{width:100%;background:#fff;color:var(--violet-d);border:2px solid rgba(124,58,237,.3)}
+.btn-outline:hover{background:rgba(124,58,237,.06);border-color:var(--violet)}
+.btn-row{display:flex;gap:10px}
+.btn-row .btn{flex:1}
+.pro-hero{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:24px;background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(6,182,212,.08));border:1px solid var(--line)}
+.pro-avatar{position:relative;width:108px;height:108px;flex-shrink:0}
+.pro-avatar img{width:100%;height:100%;border-radius:24px;object-fit:cover;background:#fff;border:3px solid #fff;box-shadow:0 16px 34px rgba(80,40,160,.28)}
+.pro-avatar .cam-ring{position:absolute;inset:-5px;border-radius:28px;border:2px dashed rgba(124,58,237,.4);animation:spinSlow 14s linear infinite;pointer-events:none}
+@keyframes spinSlow{to{transform:rotate(360deg)}}
+.pro-info{flex:1;min-width:220px}
+.pro-info h2{font-size:clamp(20px,4.5vw,27px);font-weight:900;line-height:1.2}
+.pro-info .p-email{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);font-weight:600;margin-top:4px;word-break:break-word}
+.pro-info .p-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.ring-wrap{flex-shrink:0;margin:0 auto;text-align:center}
+.ring{width:104px;height:104px;border-radius:50%;background:conic-gradient(var(--violet) 0%,rgba(124,58,237,.12) 0);display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 14px 30px rgba(109,40,217,.25)}
+.ring::before{content:"";position:absolute;inset:9px;border-radius:50%;background:#fff}
+.ring span{position:relative;z-index:1;font-size:17px;font-weight:900;color:var(--violet-d)}
+.ring-label{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-top:8px}
+.steps-wrap{display:flex;flex-direction:column;gap:0;padding:4px 0 2px}
+.step{display:flex;gap:14px;position:relative;padding-bottom:22px}
+.step:last-child{padding-bottom:0}
+.step::before{content:"";position:absolute;left:17px;top:38px;bottom:0;width:2px;background:linear-gradient(180deg,rgba(124,58,237,.35),rgba(124,58,237,.08));border-radius:2px}
+.step:last-child::before{display:none}
+.step-ic{width:36px;height:36px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;z-index:1}
+.step-ic.done{background:linear-gradient(135deg,#10b981,#059669);color:#fff;box-shadow:0 8px 18px rgba(16,185,129,.35)}
+.step-ic.current{background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#fff;box-shadow:0 8px 18px rgba(109,40,217,.35)}
+.step-ic.wait{background:rgba(245,158,11,.14);color:#b45309}
+.step-body{flex:1;min-width:0;padding-top:2px}
+.step-body b{font-size:14px;font-weight:900;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.step-body span{font-size:12px;color:var(--muted);display:block;margin-top:2px;line-height:1.5}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:11px;margin-bottom:18px}
+.stat-card{background:rgba(255,255,255,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.7);border-radius:18px;padding:16px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 14px 34px rgba(80,40,160,.1)}
+.stat-card i{width:44px;height:44px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px;background:rgba(124,58,237,.1);color:var(--violet-d)}
+.stat-card.gold i{background:rgba(245,158,11,.14);color:#b45309}
+.stat-card.cyan i{background:rgba(6,182,212,.12);color:#0e7490}
+.stat-card.rose i{background:rgba(244,63,94,.12);color:var(--rose)}
+.stat-card b{font-size:20px;font-weight:900;display:block;line-height:1.1}
+.stat-card span{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.act-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:18px}
+.act-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:#fff;color:var(--violet-d);border:2px solid rgba(124,58,237,.28);border-radius:14px;font-weight:800;font-size:13px;padding:14px 12px;transition:transform .2s ease,box-shadow .2s ease,background .2s ease;text-align:center}
+.act-btn:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(109,40,217,.2);background:rgba(124,58,237,.05)}
+.act-btn.primary{background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#fff;border:none;box-shadow:0 12px 26px rgba(109,40,217,.32)}
+.act-btn.primary:hover{box-shadow:0 16px 32px rgba(109,40,217,.42)}
+.act-btn.amber{background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;border:none;box-shadow:0 12px 26px rgba(245,158,11,.32)}
+.kv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.kv-box{background:#f8f7ff;border:1.5px solid var(--line);border-radius:14px;padding:12px 13px}
+.kv-box span{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px}
+.kv-box b{font-size:13.5px;font-weight:800;word-break:break-word;line-height:1.4}
+.empty-state{text-align:center;padding:30px 16px}
+.empty-state i{font-size:36px;color:rgba(124,58,237,.3);display:block;margin-bottom:10px}
+.empty-state b{font-size:14px;display:block;margin-bottom:5px}
+.empty-state p{font-size:12px;color:var(--muted)}
+.empty-state a{display:inline-flex;align-items:center;gap:8px;margin-top:14px;background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#fff;font-weight:800;font-size:13px;padding:12px 20px;border-radius:13px;box-shadow:0 12px 26px rgba(109,40,217,.32);transition:transform .2s ease}
+.empty-state a:hover{transform:translateY(-2px)}
+.exam-row{display:flex;align-items:center;gap:12px;background:#f8f7ff;border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:9px}
+.exam-row:last-child{margin-bottom:0}
+.exam-row .ex-ic{width:42px;height:42px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;background:rgba(124,58,237,.1);color:var(--violet-d)}
+.exam-row .ex-ic.pass{background:rgba(16,185,129,.13);color:var(--green)}
+.exam-row .ex-ic.fail{background:rgba(244,63,94,.12);color:var(--rose)}
+.exam-row .ex-body{flex:1;min-width:0}
+.exam-row .ex-body b{font-size:13px;font-weight:900;display:block}
+.exam-row .ex-body span{font-size:11.5px;color:var(--muted);display:block;margin-top:2px}
+.ref-box{background:linear-gradient(160deg,#f8f7ff,#ffffff);border:1.5px dashed rgba(124,58,237,.4);border-radius:16px;padding:16px;margin-top:4px}
+.ref-label{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:900;color:var(--violet-d);margin-bottom:10px}
+.ref-row{display:flex;gap:10px}
+.ref-row input{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:13px;outline:none;font-size:12px;color:var(--ink);padding:12px 13px;background:#fff}
+.copy-btn{border:none;cursor:pointer;font-weight:800;font-size:12.5px;background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#fff;padding:12px 18px;border-radius:13px;display:inline-flex;align-items:center;gap:8px;flex-shrink:0;box-shadow:0 10px 22px rgba(109,40,217,.32);transition:transform .2s ease,box-shadow .2s ease}
+.copy-btn:hover{transform:translateY(-2px);box-shadow:0 14px 28px rgba(109,40,217,.42)}
+.copy-btn.done{background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 10px 22px rgba(16,185,129,.35)}
+.ref-note{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.7}
+.ref-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.ref-meta .kv-box{flex:1;min-width:150px}
+.push-wrap{position:fixed;top:18px;right:18px;z-index:100000;display:flex;flex-direction:column;gap:10px;max-width:min(92vw,400px)}
+.push-card{display:flex;align-items:flex-start;gap:12px;background:rgba(255,255,255,.97);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(124,58,237,.16);border-radius:16px;padding:14px 15px;box-shadow:0 18px 44px rgba(30,27,75,.22);animation:pushIn .4s cubic-bezier(.22,.9,.35,1) both;position:relative;overflow:hidden}
+.push-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
+.push-card.success::before{background:var(--green)}
+.push-card.error::before{background:var(--rose)}
+.push-card.info::before{background:var(--cyan)}
+@keyframes pushIn{from{opacity:0;transform:translateX(60px) scale(.96)}to{opacity:1;transform:translateX(0) scale(1)}}
+.push-card.out{animation:pushOut .3s ease both}
+@keyframes pushOut{to{opacity:0;transform:translateX(60px) scale(.96)}}
+.push-logo{width:42px;height:42px;border-radius:12px;object-fit:contain;background:#fff;padding:5px;border:1px solid var(--line);flex-shrink:0;box-shadow:0 6px 14px rgba(80,40,160,.14)}
+.push-body{flex:1;min-width:0}
+.push-body b{font-size:13.5px;font-weight:900;margin-bottom:2px;display:flex;align-items:center;gap:7px}
+.push-body b i{font-size:14px}
+.push-card.success .push-body b i{color:var(--green)}
+.push-card.error .push-body b i{color:var(--rose)}
+.push-card.info .push-body b i{color:var(--cyan)}
+.push-body p{color:var(--muted);font-size:12px;line-height:1.55}
+.push-x{border:none;background:rgba(239,68,68,.1);color:var(--rose);width:28px;height:28px;border-radius:9px;cursor:pointer;font-size:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s ease}
+.push-x:hover{background:var(--rose);color:#fff}
+.site-footer{position:relative;z-index:1;margin-top:20px;background:linear-gradient(135deg,#1e1b4b,#312e81);color:#c7d2fe;padding:34px 4% 22px;border-radius:26px 26px 0 0}
+.footer-grid{max-width:960px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:24px;margin-bottom:22px}
+.footer-brand img{width:52px;height:52px;border-radius:50%;background:#fff;padding:6px;margin-bottom:10px}
+
+
+@media(max-width:640px){
+  .topbar{padding:12px 4%}
+  .brand h1{font-size:16px}
+  .brand p{font-size:10px}
+  .page-wrap{padding:20px 12px 30px}
+  .page-head h2{font-size:16px}
+  .pro-hero{flex-direction:column;text-align:center;padding:20px}
+  .pro-info .p-email{justify-content:center}
+  .pro-info .p-meta{justify-content:center}
+  .btn-row{flex-direction:column}
+  .ref-row{flex-direction:column}
+  .copy-btn{justify-content:center}
+  .push-wrap{left:12px;right:12px;max-width:none}
+}
+
+
+html {
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+ 
+  html.ready {
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand" onclick="window.location.href='https://www.idtacademy.com.ng'">
+    <img src="https://i.imgur.com/vLaejQ7.png" alt="IDT Academy Logo">
+    <div>
+      <h1>IDT Academy</h1>
+      <p>My Profile</p>
+    </div>
+  </div>
+  <div class="top-right">
+    <span class="badge green hidden" id="userBadge"><i class="fa-solid fa-circle-check"></i> Signed In</span>
+    <button class="btn-logout hidden" id="btnLogout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</button>
+  </div>
+</header>
+
+<main>
+
+  <section id="noSessionView" class="page-wrap hidden">
+    <div class="no-session">
+      <img class="big-logo" src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy">
+      <h2>Please Sign In</h2>
+      <p>You need to be signed in to view your IDT Academy profile and learning progress.</p>
+      <div class="btn-row">
+        <a class="btn btn-primary" href="register.html"><i class="fa-solid fa-right-to-bracket"></i> Login</a>
+        <a class="btn btn-outline" href="register.html"><i class="fa-solid fa-user-plus"></i> Register</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="profileView" class="page-wrap hidden">
+    <div class="page-head">
+      <div class="ph-icon"><i class="fa-solid fa-id-card"></i></div>
+      <div>
+        <small>IDT Academy • Student Profile</small>
+        <h2>My Learning Profile</h2>
+        <p>Your personal details and learning progress at a glance</p>
+      </div>
+      <span class="badge violet" id="statusBadge"><i class="fa-solid fa-circle-check"></i> Active</span>
+    </div>
+
+    <div class="card pro-hero">
+      <div class="pro-avatar">
+        <span class="cam-ring"></span>
+        <img id="pAvatar" src="https://i.imgur.com/oyqM5oF.png" alt="Student photo">
+      </div>
+      <div class="pro-info">
+        <h2 id="pName">Student</h2>
+        <div class="p-email"><i class="fa-solid fa-envelope"></i> <span id="pEmail">—</span></div>
+        <div class="p-meta">
+          <span class="badge amber" id="pMemberSince"><i class="fa-solid fa-calendar-check"></i> Member</span>
+          <span class="badge cyan" id="pLevelBadge" style="display:none"><i class="fa-solid fa-layer-group"></i> <span id="pLevelText">—</span></span>
+        </div>
+      </div>
+      <div class="ring-wrap">
+        <div class="ring" id="progressRing"><span id="progressPct">0%</span></div>
+        <div class="ring-label">Progress</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-head">
+        <div class="sh-icon"><i class="fa-solid fa-route"></i></div>
+        <div>
+          <small>Your Journey</small>
+          <b>Learning Stages</b>
+        </div>
+      </div>
+      <div class="steps-wrap" id="stepsWrap"></div>
+    </div>
+
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <div class="act-row" id="quickActions"></div>
+
+    <div class="card" id="courseCard">
+      <div class="sec-head">
+        <div class="sh-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+        <div>
+          <small>Enrollment</small>
+          <b>Course Details</b>
+        </div>
+      </div>
+      <div id="courseBody"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec-head">
+        <div class="sh-icon"><i class="fa-solid fa-user"></i></div>
+        <div>
+          <small>About You</small>
+          <b>Personal Information</b>
+        </div>
+      </div>
+      <div class="kv-grid" id="personalGrid"></div>
+    </div>
+
+    <div class="card hidden" id="examCard">
+      <div class="sec-head">
+        <div class="sh-icon"><i class="fa-solid fa-file-pen"></i></div>
+        <div>
+          <small>Assessments</small>
+          <b>Exam History</b>
+        </div>
+      </div>
+      <div id="examList"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec-head">
+        <div class="sh-icon"><i class="fa-solid fa-user-plus"></i></div>
+        <div>
+          <small>Earn Rewards</small>
+          <b>Referral Program</b>
+        </div>
+      </div>
+      <div class="ref-box">
+        <span class="ref-label"><i class="fa-solid fa-link"></i> Your Referral Link</span>
+        <div class="ref-row">
+          <input type="text" id="refLink" readonly>
+          <button class="copy-btn" id="copyRef"><i class="fa-solid fa-copy"></i> Copy</button>
+        </div>
+        <p class="ref-note"><i class="fa-solid fa-circle-info" style="color:var(--violet)"></i> Share this link with friends — you earn <b>₦1500</b> for every person who registers through it.</p>
+        <div class="ref-meta" id="refMeta"></div>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<style>
+.idt-footer-scope {
+  --violet: #7c3aed;
+  --violet-d: #6d28d9;
+  --violet-l: #a78bfa;
+  --cyan: #06b6d4;
+  --cyan-l: #22d3ee;
+  --amber: #f59e0b;
+  --rose: #f43f5e;
+  --ink: #1e1b4b;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.idt-footer-scope *, .idt-footer-scope *::before, .idt-footer-scope *::after {
+  box-sizing: border-box;
+}
+
+.idt-footer-scope .footer {
+  background: #0f0a2e;
+  color: #c6c3e6;
+  margin-top: 60px;
+  padding: 64px 20px 26px;
+  position: relative;
+  overflow: hidden;
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+  width: 100%;
+}
+
+.idt-footer-scope .footer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, var(--violet), var(--cyan), var(--amber), var(--rose), var(--violet));
+  background-size: 300% 100%;
+  animation: idtShine 6s linear infinite;
+}
+
+@keyframes idtShine {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.idt-footer-scope .idt-footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.idt-footer-scope .footer-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1.2fr;
+  gap: 36px;
+  margin-bottom: 40px;
+  width: 100%;
+}
+
+.idt-footer-scope .footer h4 {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 18px;
+  letter-spacing: .5px;
+}
+
+.idt-footer-scope .f-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.idt-footer-scope .f-brand img {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #fff;
+  padding: 6px;
+  object-fit: contain;
+}
+
+.idt-footer-scope .f-brand b {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.idt-footer-scope .f-desc {
+  font-size: 13px;
+  line-height: 1.75;
+  color: #9aa3d6;
+  margin-bottom: 20px;
+  word-wrap: break-word;
+}
+
+.idt-footer-scope .footer ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 11px;
+}
+
+.idt-footer-scope .footer ul a {
+  font-size: 13px;
+  color: #b8b5dd;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  transition: color .2s ease, padding .2s ease;
+}
+
+.idt-footer-scope .footer ul a:hover {
+  color: #fff;
+  padding-left: 4px;
+}
+
+.idt-footer-scope .footer ul a i {
+  font-size: 10px;
+  color: var(--violet-l);
+}
+
+.idt-footer-scope .f-contact li {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  align-items: flex-start;
+}
+
+.idt-footer-scope .f-contact li i {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(124,58,237,.16);
+  color: var(--violet-l);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.idt-footer-scope .f-contact li b {
+  display: block;
+  color: #fff;
+  font-size: 12.5px;
+  word-wrap: break-word;
+}
+
+.idt-footer-scope .f-contact li small {
+  color: #9aa3d6;
+  font-size: 11.5px;
+  word-wrap: break-word;
+}
+
+.idt-footer-scope .f-social {
+  display: flex;
+  gap: 11px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.idt-footer-scope .f-social a {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.12);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  text-decoration: none;
+  transition: all .25s ease;
+}
+
+.idt-footer-scope .f-social a:hover {
+  background: var(--violet);
+  transform: translateY(-4px);
+}
+
+.idt-footer-scope .footer-bottom {
+  border-top: 1px solid rgba(255,255,255,.09);
+  padding-top: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #8b88b8;
+}
+
+.idt-footer-scope .footer-bottom .made {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.idt-footer-scope .footer-bottom .made i {
+  color: var(--rose);
+}
+
+@media(max-width: 992px) {
+  .idt-footer-scope .footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media(max-width: 576px) {
+  .idt-footer-scope .footer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<div class="idt-footer-scope">
+  <footer class="footer" id="contact">
+    <div class="idt-footer-inner">
+      <div class="footer-grid">
+        <div>
+          <div class="f-">
+            <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy">
+            <b>IDT Academy</b>
+          </div>
+          <p class="f-desc">IDT Academy is a modern online school helping Nigerians and the world learn practical skills with video lessons, an AI tutor that speaks your language, verified exams and official certificates.</p>
+          <div class="f-social">
+            <a href="https://wa.me/2349131264928" target="_blank" rel="noopener" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
+            <a href="mailto:idtacademy3@gmail.com" aria-label="Email"><i class="fa-solid fa-envelope"></i></a>
+            <a href="tel:+2349131264928" aria-label="Call"><i class="fa-solid fa-phone"></i></a>
+            <a href="https://www.facebook.com" target="_blank" rel="noopener" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+            <a href="https://www.youtube.com" target="_blank" rel="noopener" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+          </div>
+        </div>
+        <div>
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> Home</a></li>
+            <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> Courses</a></li>
+            <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> How It Works</a></li>
+            <li><a href="about.html"><i class="fa-solid fa-chevron-right"></i> About Us</a></li>
+            <li><a href="register.html"><i class="fa-solid fa-chevron-right"></i> Register</a></li>
+            <li><a href="jam.html"><i class="fa-solid fa-chevron-right"></i> JAMB Prep</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Programs</h4>
+          <ul>
+            <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> Technology &amp; Computing</a></li>
+            <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> Vocational &amp; Agricultural</a></li>
+            <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> Health &amp; Wellness</a></li>
+            <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> 2-Year Diploma</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Contact Us</h4>
+          <ul class="f-contact">
+            <li><i class="fa-solid fa-user-tie"></i><div><b>CEO — Ubaida Aliyu</b><small>Partnerships, sponsorship &amp; general enquiries</small></div></li>
+            <li><a href="tel:+2349131264928"><i class="fa-solid fa-phone"></i><div><b>+234 913 126 4928</b><small>Call the CEO</small></div></a></li>
+            <li><a href="https://wa.me/2349131264928" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i><div><b>WhatsApp CEO</b><small>Chat directly</small></div></a></li>
+            <li><i class="fa-solid fa-headset"></i><div><b>Customer Care — Surajo Habibu Ibrahim</b><small>Payment issues, course problems &amp; support</small></div></a></li>
+            <li><a href="tel:+2347068818760"><i class="fa-solid fa-phone"></i><div><b>+234 706 881 8760</b><small>Call Customer Care</small></div></a></li>
+            <li><a href="https://wa.me/2347068818760" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i><div><b>WhatsApp Customer Care</b><small>Send a message</small></div></a></li>
+            <li><a href="mailto:idtacademy3@gmail.com"><i class="fa-solid fa-envelope"></i><div><b>idtacademy3@gmail.com</b><small>Email us anytime</small></div></a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; IDT Academy. All rights reserved.</span>
+        <span class="made">Made with <i class="fa-solid fa-heart"></i> for Nigerian learners</span>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<div class="push-wrap" id="pushWrap"></div>
+
+<script type="module" src="profile.js"></script>
+</body>
+</html>

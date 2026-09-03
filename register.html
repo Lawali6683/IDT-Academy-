@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#7c3aed">
+<meta name="description" content="Register at IDT Academy and start learning modern skills online. Earn ₦1,500 per referral.">
+<title>Register - IDT Academy</title>
+<link rel="icon" href="https://i.imgur.com/oyqM5oF.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --violet:#7c3aed;
+  --violet-d:#6d28d9;
+  --violet-l:#a78bfa;
+  --cyan:#06b6d4;
+  --amber:#f59e0b;
+  --rose:#f43f5e;
+  --green:#10b981;
+  --ink:#1e1b4b;
+  --muted:#6d6a8a;
+  --line:rgba(124,58,237,.15);
+  --shadow:0 24px 60px rgba(80,40,160,.16);
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Poppins',system-ui,-apple-system,sans-serif;
+  color:var(--ink);
+  min-height:100vh;
+  background:
+    radial-gradient(820px 480px at 6% -6%, rgba(167,139,250,.30), transparent 60%),
+    radial-gradient(740px 480px at 98% 4%, rgba(34,211,238,.22), transparent 58%),
+    radial-gradient(820px 540px at 50% 112%, rgba(251,191,36,.16), transparent 60%),
+    linear-gradient(160deg,#f8f6ff 0%,#ffffff 50%,#eefbff 100%);
+  background-attachment:fixed;
+  overflow-x:hidden;
+  position:relative;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-2;
+  background:url('https://i.imgur.com/CQgjfNJ.png') center/cover no-repeat fixed;
+  opacity:.08;
+  pointer-events:none;
+}
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  background:url('https://i.imgur.com/oyqM5oF.png') center/contain no-repeat fixed;
+  opacity:.05;
+  pointer-events:none;
+}
+::selection{background:rgba(124,58,237,.22)}
+img{max-width:100%;display:block}
+a{text-decoration:none;color:inherit}
+button{font-family:inherit}
+input,select,textarea{font-family:inherit}
+.hidden{display:none !important}
+.bg-blob{
+  position:fixed;
+  border-radius:50%;
+  filter:blur(70px);
+  opacity:.35;
+  z-index:-1;
+  pointer-events:none;
+  animation:blobFloat 14s ease-in-out infinite;
+}
+.b1{width:420px;height:420px;left:-140px;top:-120px;background:rgba(124,58,237,.4)}
+.b2{width:380px;height:380px;right:-120px;top:30%;background:rgba(6,182,212,.32);animation-delay:3s}
+.b3{width:360px;height:360px;left:30%;bottom:-160px;background:rgba(245,158,11,.26);animation-delay:6s}
+@keyframes blobFloat{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(50px,-40px) scale(1.15)}}
+
+.topbar{
+  position:sticky;
+  top:0;
+  z-index:100;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px 4%;
+  background:rgba(255,255,255,.82);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid rgba(124,58,237,.12);
+}
+.brand{display:flex;align-items:center;gap:12px;cursor:pointer}
+.brand img{
+  width:50px;
+  height:50px;
+  object-fit:contain;
+  background:#fff;
+  border-radius:50%;
+  padding:6px;
+  box-shadow:0 8px 22px rgba(124,58,237,.25);
+}
+.brand h1{font-size:18px;font-weight:900;line-height:1.1}
+.brand p{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1.4px;text-transform:uppercase}
+.top-right{display:flex;align-items:center;gap:10px}
+.btn-home{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  border:none;
+  cursor:pointer;
+  font-weight:700;
+  font-size:13.5px;
+  padding:11px 18px;
+  border-radius:12px;
+  color:#fff;
+  background:linear-gradient(135deg,#f59e0b,#f97316);
+  box-shadow:0 10px 24px rgba(245,158,11,.32);
+  transition:transform .2s ease,box-shadow .2s ease;
+}
+.btn-home:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(245,158,11,.42)}
+.menu-drop{position:relative}
+.menu-btn{
+  width:46px;
+  height:46px;
+  border-radius:13px;
+  border:1.5px solid var(--line);
+  background:#fff;
+  color:var(--violet-d);
+  font-size:17px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:all .22s ease;
+}
+.menu-btn:hover{background:var(--violet);color:#fff;border-color:var(--violet)}
+.menu-items{
+  position:absolute;
+  top:54px;
+  right:0;
+  width:210px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:0 22px 50px rgba(30,27,75,.18);
+  padding:8px;
+  opacity:0;
+  visibility:hidden;
+  transform:translateY(-8px);
+  transition:all .25s ease;
+  z-index:200;
+}
+.menu-items.open{opacity:1;visibility:visible;transform:translateY(0)}
+.menu-items a{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding:11px 13px;
+  border-radius:11px;
+  font-size:13.5px;
+  font-weight:600;
+  color:#3d3a6b;
+  transition:all .2s ease;
+}
+.menu-items a:hover{background:rgba(124,58,237,.08);color:var(--violet)}
+.menu-items a i{width:20px;text-align:center;color:var(--violet)}
+
+.auth-wrap{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:36px 18px 70px;
+}
+.auth-card{
+  width:100%;
+  max-width:600px;
+  background:rgba(255,255,255,.88);
+  backdrop-filter:blur(22px);
+  -webkit-backdrop-filter:blur(22px);
+  border:1px solid rgba(255,255,255,.7);
+  border-radius:30px;
+  padding:34px 32px 30px;
+  box-shadow:var(--shadow);
+  animation:cardIn .55s ease both;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:translateY(0)}}
+.auth-head{text-align:center;margin-bottom:24px}
+.auth-logo{
+  width:88px;
+  height:88px;
+  margin:0 auto 14px;
+  border-radius:50%;
+  background:#fff;
+  padding:11px;
+  box-shadow:0 16px 38px rgba(124,58,237,.28);
+}
+.auth-head h2{font-size:23px;font-weight:900;margin-bottom:4px}
+.auth-head p{font-size:13px;color:var(--muted)}
+
+.tabs{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  background:rgba(124,58,237,.07);
+  border:1px solid rgba(124,58,237,.12);
+  border-radius:16px;
+  padding:6px;
+  margin-bottom:26px;
+}
+.tab{
+  border:none;
+  background:transparent;
+  cursor:pointer;
+  font-weight:700;
+  font-size:13.5px;
+  color:var(--muted);
+  padding:12px 10px;
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  transition:all .25s ease;
+}
+.tab i{font-size:14px}
+.tab.active{
+  background:linear-gradient(135deg,var(--violet),var(--violet-d));
+  color:#fff;
+  box-shadow:0 10px 24px rgba(109,40,217,.35);
+}
+.tab-panel{display:none}
+.tab-panel.active{display:block;animation:fadeUp .4s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:12.5px;font-weight:700;margin-bottom:7px;color:#3d3a6b}
+.field label .opt{color:var(--muted);font-weight:500;font-size:11px}
+.input-box{
+  position:relative;
+  display:flex;
+  align-items:center;
+  background:#fff;
+  border:1.5px solid var(--line);
+  border-radius:14px;
+  padding:0 14px;
+  transition:border-color .2s ease,box-shadow .2s ease;
+}
+.input-box:focus-within{border-color:var(--violet);box-shadow:0 0 0 4px rgba(124,58,237,.12)}
+.input-box > i{color:var(--violet);font-size:14px;margin-right:11px;flex-shrink:0}
+.input-box input{
+  width:100%;
+  border:none;
+  outline:none;
+  background:transparent;
+  font-size:13.5px;
+  color:var(--ink);
+  padding:13px 0;
+}
+.input-box input[readonly]{background:rgba(245,158,11,.06);color:var(--amber-d,#b45309);font-weight:800;cursor:not-allowed}
+.eye-btn{
+  border:none;
+  background:transparent;
+  cursor:pointer;
+  color:var(--muted);
+  font-size:15px;
+  padding:6px;
+  flex-shrink:0;
+}
+.eye-btn:hover{color:var(--violet)}
+.select-box{
+  position:relative;
+  display:flex;
+  align-items:center;
+  background:#fff;
+  border:1.5px solid var(--line);
+  border-radius:14px;
+  padding:0 14px;
+  transition:border-color .2s ease,box-shadow .2s ease;
+}
+.select-box:focus-within{border-color:var(--violet);box-shadow:0 0 0 4px rgba(124,58,237,.12)}
+.select-box > i{color:var(--violet);font-size:14px;margin-right:11px;flex-shrink:0}
+.select-box select{
+  width:100%;
+  border:none;
+  outline:none;
+  background:transparent;
+  font-size:13.5px;
+  color:var(--ink);
+  padding:13px 0;
+  cursor:pointer;
+  appearance:none;
+  -webkit-appearance:none;
+  padding-right:28px;
+}
+.select-arrow{
+  position:absolute;
+  right:14px;
+  pointer-events:none;
+  color:var(--muted);
+  font-size:12px;
+  margin:0 !important;
+}
+.course-summary{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-top:11px;
+  background:rgba(124,58,237,.06);
+  border:1px solid rgba(124,58,237,.14);
+  border-radius:14px;
+  padding:10px 13px;
+}
+.course-summary img{width:46px;height:46px;border-radius:11px;object-fit:cover;box-shadow:0 4px 10px rgba(80,40,160,.18)}
+.course-summary b{font-size:13px;display:block;line-height:1.25}
+.course-summary small{font-size:11px;color:var(--muted)}
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  border:none;
+  cursor:pointer;
+  font-weight:800;
+  font-size:14.5px;
+  padding:15px 26px;
+  border-radius:14px;
+  transition:transform .22s ease,box-shadow .22s ease;
+}
+.btn:active{transform:scale(.97)}
+.btn-primary{
+  width:100%;
+  background:linear-gradient(135deg,var(--violet) 0%,var(--violet-d) 55%,var(--cyan) 140%);
+  color:#fff;
+  box-shadow:0 14px 30px rgba(109,40,217,.35);
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 20px 40px rgba(109,40,217,.45)}
+.forgot-row{text-align:right;margin-bottom:16px}
+.forgot-row a{font-size:12.5px;font-weight:700;color:var(--violet);display:inline-flex;align-items:center;gap:7px}
+.forgot-row a:hover{text-decoration:underline}
+.terms{text-align:center;font-size:11.5px;color:var(--muted);margin-top:14px;line-height:1.55}
+
+.toast-wrap{
+  position:fixed;
+  top:20px;
+  right:20px;
+  z-index:100000;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  max-width:min(92vw,400px);
+}
+.toast{
+  display:flex;
+  align-items:flex-start;
+  gap:11px;
+  background:rgba(255,255,255,.97);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border:1px solid rgba(124,58,237,.14);
+  border-radius:15px;
+  padding:14px 15px;
+  box-shadow:0 16px 38px rgba(30,27,75,.18);
+  font-size:13.5px;
+  font-weight:500;
+  color:var(--ink);
+  animation:toastIn .35s ease both;
+}
+.toast.out{animation:toastOut .3s ease both}
+@keyframes toastIn{from{opacity:0;transform:translateX(44px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateX(44px)}}
+.toast > i{font-size:18px;margin-top:1px;flex-shrink:0}
+.toast.success > i{color:var(--green)}
+.toast.error > i{color:var(--rose)}
+.toast.info > i{color:var(--violet)}
+.toast-body{flex:1;min-width:0}
+.toast-body b{display:block;font-size:13.5px;margin-bottom:2px}
+.toast-body p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.5}
+.toast-raw{
+  display:block;
+  margin-top:7px;
+  font-size:11px;
+  color:#b45309;
+  background:rgba(245,158,11,.1);
+  border-radius:8px;
+  padding:6px 9px;
+  line-height:1.45;
+  word-break:break-word;
+}
+.toast-x{
+  border:none;
+  background:rgba(239,68,68,.1);
+  color:var(--rose);
+  width:28px;
+  height:28px;
+  border-radius:9px;
+  cursor:pointer;
+  font-size:12px;
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:all .2s ease;
+}
+.toast-x:hover{background:var(--rose);color:#fff}
+
+@media(max-width:640px){
+  .topbar{padding:12px 4%}
+  .brand h1{font-size:16px}
+  .brand p{font-size:10px}
+  .btn-home{padding:10px 13px;font-size:12.5px}
+  .auth-wrap{padding:22px 12px 60px}
+  .auth-card{padding:26px 18px 24px;border-radius:24px}
+  .two-col{grid-template-columns:1fr}
+  .toast-wrap{left:12px;right:12px;max-width:none}
+}
+
+
+html {
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+ 
+  html.ready {
+    opacity: 1;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="bg-blob b1"></div>
+<div class="bg-blob b2"></div>
+<div class="bg-blob b3"></div>
+
+<header class="topbar">
+  <div class="brand" onclick="location.href='index.html'">
+    <img src="https://i.imgur.com/vLaejQ7.png" alt="IDT Academy Logo">
+    <div>
+      <h1>IDT Academy</h1>
+      <p>Register &amp; Start Learning</p>
+    </div>
+  </div>
+  <div class="top-right">
+    <a href="index.html" class="btn-home"><i class="fa-solid fa-house"></i> <span>Home</span></a>
+    <div class="menu-drop">
+      <button class="menu-btn" id="menuBtn" aria-label="Open menu"><i class="fa-solid fa-bars-staggered"></i></button>
+      <div class="menu-items" id="menuItems">
+        <a href="index.html"><i class="fa-solid fa-house"></i> Home</a>
+        <a href="about.html"><i class="fa-solid fa-circle-info"></i> About Us</a>
+        <a href="jam.html"><i class="fa-solid fa-file-pen"></i> JAMB Prep</a>
+        <a href="index.html#contact"><i class="fa-solid fa-headset"></i> Contact</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-head">
+      <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="auth-log">
+      <h2 id="authTitle">Create Your Account</h2>
+      <p id="authSub">Join IDT Academy and start learning today</p>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="tabRegister" data-tab="register"><i class="fa-solid fa-user-plus"></i> Applying</button>
+      <button class="tab" id="tabLogin" data-tab="login"><i class="fa-solid fa-right-to-bracket"></i> Login Learning</button>
+    </div>
+
+    <form id="registerForm" class="tab-panel active" novalidate>
+      <div class="two-col">
+        <div class="field">
+          <label>Full Name</label>
+          <div class="input-box">
+            <i class="fa-solid fa-user"></i>
+            <input type="text" id="regFullName" placeholder="e.g. Amina Musa" autocomplete="name">
+          </div>
+        </div>
+        <div class="field">
+          <label>Phone Number</label>
+          <div class="input-box">
+            <i class="fa-solid fa-phone"></i>
+            <input type="tel" id="regPhone" placeholder="e.g. 08123456789" inputmode="tel" autocomplete="tel">
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Select Course / Cluster</label>
+        <div class="select-box">
+          <i class="fa-solid fa-graduation-cap"></i>
+          <select id="regCourse">
+            <option value="">Loading courses...</option>
+          </select>
+          <i class="fa-solid fa-chevron-down select-arrow"></i>
+        </div>
+        <div class="course-summary hidden" id="courseSummary">
+          <img id="courseImg" src="" alt="">
+          <div>
+            <b id="courseSummaryName"></b>
+            <small id="courseSummaryMeta"></small>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="field">
+          <label>Course Price (₦)</label>
+          <div class="input-box">
+            <i class="fa-solid fa-naira-sign"></i>
+            <input type="text" id="regPrice" readonly placeholder="0.00">
+          </div>
+        </div>
+        <div class="field">
+          <label>Gender</label>
+          <div class="select-box">
+            <i class="fa-solid fa-venus-mars"></i>
+            <select id="regGender">
+              <option value="">Select gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+            <i class="fa-solid fa-chevron-down select-arrow"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="field">
+          <label>Date of Birth</label>
+          <div class="input-box">
+            <i class="fa-solid fa-calendar-days"></i>
+            <input type="date" id="regDob">
+          </div>
+        </div>
+        <div class="field">
+          <label>Level of Education</label>
+          <div class="select-box">
+            <i class="fa-solid fa-school"></i>
+            <select id="regLevel">
+              <option value="">Select level</option>
+              <option value="Primary School">Primary School</option>
+              <option value="Junior Secondary School (JSS)">Junior Secondary School (JSS)</option>
+              <option value="Senior Secondary School (SSS)">Senior Secondary School (SSS)</option>
+              <option value="OND / NCE">OND / NCE</option>
+              <option value="HND / Bachelor's Degree">HND / Bachelor's Degree</option>
+              <option value="Master's Degree (MSc)">Master's Degree (MSc)</option>
+              <option value="PhD">PhD</option>
+              <option value="Other">Other</option>
+            </select>
+            <i class="fa-solid fa-chevron-down select-arrow"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="field">
+          <label>Email Address</label>
+          <div class="input-box">
+            <i class="fa-solid fa-envelope"></i>
+            <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
+          </div>
+        </div>
+        <div class="field">
+          <label>Referral Code <span class="opt">(optional)</span></label>
+          <div class="input-box">
+            <i class="fa-solid fa-gift"></i>
+            <input type="text" id="regRef" placeholder="e.g. AB12CD" maxlength="8" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="field">
+          <label>Password</label>
+          <div class="input-box">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" id="regPassword" placeholder="Min 6 characters" autocomplete="new-password">
+            <button type="button" class="eye-btn" data-target="regPassword" aria-label="Show password"><i class="fa-solid fa-eye"></i></button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Confirm Password</label>
+          <div class="input-box">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" id="regConfirm" placeholder="Repeat password" autocomplete="new-password">
+            <button type="button" class="eye-btn" data-target="regConfirm" aria-label="Show password"><i class="fa-solid fa-eye"></i></button>
+          </div>
+        </div>
+      </div>
+
+    
+
+      <button type="submit" class="btn btn-primary" id="btnRegister">
+        <i class="fa-solid fa-user-plus"></i> <span>Applying</span>
+      </button>
+      <p class="terms">By registering you agree to the IDT Academy terms of service. Your information is safe with us.</p>
+    </form>
+
+    <form id="loginForm" class="tab-panel" novalidate>
+      <div class="field">
+        <label>Email Address</label>
+        <div class="input-box">
+          <i class="fa-solid fa-envelope"></i>
+          <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
+        </div>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <div class="input-box">
+          <i class="fa-solid fa-lock"></i>
+          <input type="password" id="loginPassword" placeholder="Enter your password" autocomplete="current-password">
+          <button type="button" class="eye-btn" data-target="loginPassword" aria-label="Show password"><ilo class="fa-solid fa-eye"></i></button>
+        </div>
+      </div>
+      <div class="forgot-row">
+        <a href="forget.html"><i class="fa-solid fa-key"></i> Forgot password?</a>
+      </div>
+      <button type="submit" class="btn btn-primary" id="btnLogin">
+        <i class="fa-solid fa-right-to-bracket"></i> <span>Login</span>
+      </button>
+    </form>
+  </div>
+</main>
+
+<div id="toastWrap" class="toast-wrap"></div>
+
+<script type="module" src="register.js"></script>
+</body>
+</html>

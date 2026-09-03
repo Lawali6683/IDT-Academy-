@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#7c3aed">
+<meta name="description" content="Referral & Withdraw - IDT Academy">
+<title>Referral - IDT Academy</title>
+<link rel="icon" href="https://i.imgur.com/oyqM5oF.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --violet:#7c3aed;
+  --violet-d:#6d28d9;
+  --violet-l:#a78bfa;
+  --cyan:#06b6d4;
+  --amber:#f59e0b;
+  --rose:#f43f5e;
+  --green:#10b981;
+  --ink:#1e1b4b;
+  --muted:#6d6a8a;
+  --line:rgba(124,58,237,.15);
+  --shadow:0 24px 60px rgba(80,40,160,.16);
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Poppins',system-ui,-apple-system,sans-serif;
+  color:var(--ink);
+  min-height:100vh;
+  background:
+    radial-gradient(820px 480px at 6% -6%, rgba(167,139,250,.30), transparent 60%),
+    radial-gradient(740px 480px at 98% 4%, rgba(34,211,238,.22), transparent 58%),
+    radial-gradient(820px 540px at 50% 112%, rgba(251,191,36,.16), transparent 60%),
+    linear-gradient(160deg,#f8f6ff 0%,#ffffff 50%,#eefbff 100%);
+  background-attachment:fixed;
+  overflow-x:hidden;
+  position:relative;
+}
+body::before{content:"";position:fixed;inset:0;z-index:-2;background:url('https://i.imgur.com/CQgjfNJ.png') center/cover no-repeat fixed;opacity:.08;pointer-events:none}
+body::after{content:"";position:fixed;inset:0;z-index:-1;background:url('https://i.imgur.com/oyqM5oF.png') center/contain no-repeat fixed;opacity:.05;pointer-events:none}
+::selection{background:rgba(124,58,237,.22)}
+img{max-width:100%;display:block}
+a{text-decoration:none;color:inherit}
+button{font-family:inherit}
+input,select,textarea{font-family:inherit}
+textarea{resize:vertical}
+.hidden{display:none !important}
+.bg-blob{position:fixed;border-radius:50%;filter:blur(70px);opacity:.35;z-index:-1;pointer-events:none;animation:blobFloat 14s ease-in-out infinite}
+.b1{width:420px;height:420px;left:-140px;top:-120px;background:rgba(124,58,237,.4)}
+.b2{width:380px;height:380px;right:-120px;top:30%;background:rgba(6,182,212,.32);animation-delay:3s}
+.b3{width:360px;height:360px;left:30%;bottom:-160px;background:rgba(245,158,11,.26);animation-delay:6s}
+@keyframes blobFloat{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(50px,-40px) scale(1.15)}}
+
+.topbar{
+  position:sticky;top:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:14px 4%;
+  background:rgba(255,255,255,.82);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid rgba(124,58,237,.12);
+}
+.brand{display:flex;align-items:center;gap:12px;cursor:pointer}
+.brand img{width:50px;height:50px;object-fit:contain;background:#fff;border-radius:50%;padding:6px;box-shadow:0 8px 22px rgba(124,58,237,.25)}
+.brand h1{font-size:18px;font-weight:900;line-height:1.1}
+.brand p{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1.4px;text-transform:uppercase}
+.top-right{display:flex;align-items:center;gap:10px}
+.btn-home{
+  display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;
+  font-weight:700;font-size:13.5px;padding:11px 18px;border-radius:12px;color:#fff;
+  background:linear-gradient(135deg,#f59e0b,#f97316);
+  box-shadow:0 10px 24px rgba(245,158,11,.32);
+  transition:transform .2s ease,box-shadow .2s ease;
+}
+.btn-home:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(245,158,11,.42)}
+.menu-btn{
+  width:46px;height:46px;border-radius:13px;border:1.5px solid var(--line);
+  background:#fff;color:var(--violet-d);font-size:17px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .22s ease;
+}
+.menu-btn:hover{background:var(--violet);color:#fff;border-color:var(--violet)}
+
+.side-menu{
+  position:fixed;top:0;right:0;bottom:0;z-index:5000;
+  width:min(340px,88vw);
+  background:#fff;
+  box-shadow:-24px 0 60px rgba(15,12,41,.25);
+  transform:translateX(105%);
+  transition:transform .35s cubic-bezier(.22,.9,.35,1);
+  display:flex;flex-direction:column;
+  border-radius:22px 0 0 22px;
+}
+.side-menu.open{transform:translateX(0)}
+.sm-head{
+  display:flex;align-items:center;gap:12px;padding:18px 18px;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(135deg,rgba(124,58,237,.07),rgba(6,182,212,.07));
+  border-radius:22px 0 0 0;
+}
+.sm-head img{width:46px;height:46px;border-radius:50%;background:#fff;padding:6px;box-shadow:0 8px 20px rgba(124,58,237,.25)}
+.sm-head div{flex:1;min-width:0}
+.sm-head b{font-size:14.5px;font-weight:900;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sm-head small{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sm-head small i{color:var(--amber)}
+.sm-close{
+  border:none;background:rgba(244,63,94,.1);color:var(--rose);
+  width:38px;height:38px;border-radius:12px;cursor:pointer;font-size:14px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s ease;
+}
+.sm-close:hover{background:var(--rose);color:#fff;transform:rotate(90deg)}
+.sm-body{flex:1;overflow-y:auto;padding:12px}
+.sm-item{
+  width:100%;display:flex;align-items:center;gap:13px;
+  padding:13px 14px;border-radius:13px;border:none;background:transparent;
+  cursor:pointer;font-size:13.5px;font-weight:600;color:#3d3a6b;
+  text-align:left;transition:all .2s ease;margin-bottom:4px;
+}
+.sm-item i{width:22px;text-align:center;color:var(--violet);font-size:15px;flex-shrink:0}
+.sm-item:hover{background:rgba(124,58,237,.08);color:var(--violet);transform:translateX(3px)}
+.sm-item .sm-extra{margin-left:auto;font-size:11px;font-weight:800;color:var(--amber);background:rgba(245,158,11,.12);padding:4px 10px;border-radius:999px}
+.sm-item .sm-extra.green{color:#047857;background:rgba(16,185,129,.14)}
+.sm-item.sm-danger{color:var(--rose)}
+.sm-item.sm-danger i{color:var(--rose)}
+.sm-item.sm-danger:hover{background:rgba(244,63,94,.08)}
+.sm-foot{padding:14px 18px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);text-align:center}
+
+.ov-backdrop{
+  position:fixed;inset:0;z-index:4000;
+  background:rgba(15,12,41,.62);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  opacity:0;visibility:hidden;transition:all .3s ease;
+}
+.ov-backdrop.open{opacity:1;visibility:visible}
+.ov-card{
+  width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column;
+  background:#fff;border-radius:26px;box-shadow:0 34px 80px rgba(15,12,41,.4);
+  overflow:hidden;transform:translateY(22px) scale(.98);transition:all .3s ease;
+}
+.ov-backdrop.open .ov-card{transform:translateY(0) scale(1)}
+.ov-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:18px 20px;border-bottom:1px solid var(--line);
+  background:linear-gradient(135deg,rgba(124,58,237,.06),rgba(6,182,212,.06));
+  flex-shrink:0;
+}
+.ov-head h3{font-size:16px;font-weight:800;display:flex;align-items:center;gap:10px}
+.ov-head h3 i{color:var(--violet)}
+.ov-head .ov-back{
+  border:none;background:rgba(124,58,237,.1);color:var(--violet-d);
+  width:38px;height:38px;border-radius:12px;cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s ease;
+}
+.ov-head .ov-back:hover{background:var(--violet);color:#fff}
+.ov-close{
+  border:none;background:rgba(244,63,94,.1);color:var(--rose);
+  width:38px;height:38px;border-radius:12px;cursor:pointer;font-size:14px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s ease;
+}
+.ov-close:hover{background:var(--rose);color:#fff;transform:rotate(90deg)}
+.ov-body{overflow-y:auto;padding:20px;flex:1}
+
+.ref-hero{
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+  background:rgba(255,255,255,.9);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border:1px solid rgba(255,255,255,.7);border-radius:22px;
+  padding:28px 20px;box-shadow:var(--shadow);margin-bottom:18px;
+}
+.ref-hero .rh-icon{
+  width:72px;height:72px;border-radius:22px;
+  background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:30px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 16px 36px rgba(16,185,129,.35);margin-bottom:12px;
+}
+.ref-hero h2{font-size:24px;font-weight:900;margin-bottom:4px}
+.ref-hero .rh-balance{
+  font-size:38px;font-weight:900;color:var(--violet-d);
+  margin:8px 0;font-variant-numeric:tabular-nums;
+}
+.ref-hero .rh-balance i{color:var(--amber);font-size:28px;margin-right:6px}
+.ref-hero .rh-label{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px}
+.rh-actions{display:flex;gap:12px;width:100%;max-width:400px}
+.rh-actions .btn{flex:1}
+
+.level-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 18px;border-radius:999px;margin-bottom:10px;
+  font-size:12.5px;font-weight:900;letter-spacing:.5px;
+  background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(6,182,212,.12));
+  color:var(--violet-d);border:1.5px solid rgba(124,58,237,.2);
+}
+.level-badge i{font-size:15px}
+.level-badge.gold{background:linear-gradient(135deg,rgba(245,158,11,.18),rgba(251,191,36,.22));color:#b45309;border-color:rgba(245,158,11,.35)}
+.level-badge.silver{background:linear-gradient(135deg,rgba(148,163,184,.2),rgba(203,213,225,.25));color:#475569;border-color:rgba(148,163,184,.4)}
+.level-badge.bronze{background:linear-gradient(135deg,rgba(180,83,9,.14),rgba(217,119,6,.18));color:#92400e;border-color:rgba(180,83,9,.3)}
+.level-badge.diamond{background:linear-gradient(135deg,rgba(6,182,212,.16),rgba(124,58,237,.16));color:#0e7490;border-color:rgba(6,182,212,.35)}
+
+.next-goal{
+  width:100%;max-width:400px;margin-top:16px;
+  background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.18);
+  border-radius:14px;padding:12px 14px;text-align:left;
+}
+.next-goal .ng-top{display:flex;align-items:center;justify-content:space-between;font-size:11.5px;font-weight:800;color:#047857;margin-bottom:7px}
+.next-goal .ng-bar{height:9px;border-radius:9px;background:rgba(16,185,129,.14);overflow:hidden}
+.next-goal .ng-bar span{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#10b981,#059669);transition:width .8s cubic-bezier(.22,.9,.35,1)}
+
+.stats-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:18px;
+}
+.stat-card{
+  background:rgba(255,255,255,.9);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border:1px solid rgba(255,255,255,.7);border-radius:18px;
+  padding:16px;box-shadow:var(--shadow);
+  display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden;
+  transition:transform .25s ease,box-shadow .25s ease;
+}
+.stat-card:hover{transform:translateY(-3px);box-shadow:0 28px 64px rgba(80,40,160,.22)}
+.stat-card::after{content:"";position:absolute;top:-30px;right:-30px;width:80px;height:80px;border-radius:50%;opacity:.12}
+.stat-card.sc-violet::after{background:var(--violet)}
+.stat-card.sc-green::after{background:var(--green)}
+.stat-card.sc-amber::after{background:var(--amber)}
+.stat-card.sc-cyan::after{background:var(--cyan)}
+.sc-icon{
+  width:40px;height:40px;border-radius:12px;color:#fff;font-size:16px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.sc-violet .sc-icon{background:linear-gradient(135deg,#7c3aed,#6d28d9);box-shadow:0 8px 18px rgba(124,58,237,.3)}
+.sc-green .sc-icon{background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 8px 18px rgba(16,185,129,.3)}
+.sc-amber .sc-icon{background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 8px 18px rgba(245,158,11,.3)}
+.sc-cyan .sc-icon{background:linear-gradient(135deg,#06b6d4,#0891b2);box-shadow:0 8px 18px rgba(6,182,212,.3)}
+.sc-value{font-size:26px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.sc-label{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+
+.ref-card{
+  background:rgba(255,255,255,.9);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border:1px solid rgba(255,255,255,.7);border-radius:22px;
+  padding:20px;box-shadow:var(--shadow);margin-bottom:18px;
+}
+.ref-card h3{
+  font-size:14px;font-weight:800;display:flex;align-items:center;gap:9px;
+  margin-bottom:14px;
+}
+.ref-card h3 i{color:var(--violet)}
+.ref-link-box{
+  display:flex;align-items:center;gap:10px;
+  background:#f4f2ff;border:1.5px solid var(--line);border-radius:14px;
+  padding:10px 14px;margin-bottom:12px;
+}
+.ref-link-box i{color:var(--violet);font-size:16px;flex-shrink:0}
+.ref-link-box code{
+  flex:1;font-family:'Courier New',monospace;font-size:12px;
+  color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.copy-btn{
+  border:none;background:rgba(124,58,237,.1);color:var(--violet-d);
+  width:38px;height:38px;border-radius:11px;cursor:pointer;font-size:14px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;transition:all .2s ease;
+}
+.copy-btn:hover{background:var(--violet);color:#fff}
+.copy-btn.done{background:#10b981;color:#fff}
+
+.qr-wrap{
+  display:flex;justify-content:center;margin:16px 0;
+}
+.qr-box{
+  width:200px;height:200px;border-radius:18px;
+  background:#fff;border:2px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  padding:12px;box-shadow:0 8px 24px rgba(80,40,160,.12);
+}
+.qr-box img{width:100%;height:100%;object-fit:contain}
+
+.chart-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.trend-pill{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:12px;font-weight:900;padding:7px 14px;border-radius:999px;
+}
+.trend-pill.up{background:rgba(16,185,129,.14);color:#047857}
+.trend-pill.down{background:rgba(244,63,94,.12);color:var(--rose)}
+.trend-pill.flat{background:rgba(109,106,138,.12);color:var(--muted)}
+.chart-container{
+  width:100%;background:#faf9ff;border:1.5px solid var(--line);
+  padding:14px;border-radius:16px;
+}
+.chart-svg{width:100%;height:auto;display:block}
+.chart-baseline{stroke:#9ca3af;stroke-width:1.5;stroke-dasharray:4}
+.chart-dot-label{font-size:9px;font-weight:800;fill:#6d6a8a;font-family:'Poppins',sans-serif}
+.chart-foot{
+  display:flex;align-items:center;justify-content:center;gap:18px;
+  margin-top:10px;font-size:11px;font-weight:700;color:var(--muted);flex-wrap:wrap;
+}
+.chart-foot span{display:inline-flex;align-items:center;gap:6px}
+.chart-foot i{font-size:12px}
+
+.ref-list{display:flex;flex-direction:column;gap:9px}
+.ref-user{
+  display:flex;align-items:center;gap:12px;
+  border:1.5px solid var(--line);border-radius:14px;
+  padding:11px 13px;background:#fff;transition:all .2s ease;
+}
+.ref-user:hover{border-color:var(--violet-l);box-shadow:0 6px 16px rgba(80,40,160,.08)}
+.ru-avatar{
+  width:40px;height:40px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,var(--violet),var(--cyan));color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;
+}
+.ru-info{flex:1;min-width:0}
+.ru-info b{font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ru-info small{font-size:10.5px;color:var(--muted);font-weight:600}
+.ru-status{
+  font-size:10px;font-weight:800;padding:5px 11px;border-radius:999px;
+  text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;
+}
+.ru-status.active{background:rgba(16,185,129,.14);color:#047857}
+.ru-status.pending{background:rgba(245,158,11,.12);color:#b45309}
+
+.promo-card{
+  background:linear-gradient(135deg,rgba(245,158,11,.08),rgba(251,191,36,.12));
+  border:1.5px dashed rgba(245,158,11,.4);
+  border-radius:18px;padding:18px;margin-bottom:18px;
+}
+.promo-card h4{
+  font-size:14px;font-weight:900;color:#b45309;
+  display:flex;align-items:center;gap:8px;margin-bottom:8px;
+}
+.promo-card p{font-size:12.5px;color:#92400e;line-height:1.7}
+.promo-card i{color:#d97706}
+
+.with-form{display:flex;flex-direction:column;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group label{
+  font-size:12px;font-weight:800;color:var(--ink);
+  display:flex;align-items:center;gap:6px;
+}
+.form-group label i{color:var(--violet);width:16px;text-align:center}
+.form-group input,.form-group select{
+  width:100%;padding:13px 15px;border:1.5px solid var(--line);
+  border-radius:13px;font-size:13px;color:var(--ink);
+  background:#fff;outline:none;transition:all .2s ease;
+}
+.form-group input:focus,.form-group select:focus{
+  border-color:var(--violet);box-shadow:0 0 0 4px rgba(124,58,237,.1);
+}
+.form-group select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%237c3aed' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+.balance-info{
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(124,58,237,.06);border:1.5px solid rgba(124,58,237,.14);
+  border-radius:13px;padding:12px 14px;
+}
+.balance-info span{font-size:12px;color:var(--muted);font-weight:700}
+.balance-info b{font-size:18px;font-weight:900;color:var(--violet-d)}
+.balance-info b i{color:var(--amber)}
+
+.verify-badge{
+  display:flex;align-items:center;gap:8px;
+  font-size:12px;font-weight:800;padding:10px 14px;
+  border-radius:12px;margin-top:4px;
+}
+.verify-badge.success{background:rgba(16,185,129,.12);color:#047857}
+.verify-badge.error{background:rgba(244,63,94,.1);color:var(--rose)}
+.verify-badge.loading{background:rgba(245,158,11,.1);color:#b45309}
+
+.password-group{
+  background:rgba(124,58,237,.04);border:1.5px solid var(--line);
+  border-radius:14px;padding:16px;margin-top:4px;
+}
+.password-group .pg-title{
+  font-size:12px;font-weight:800;display:flex;align-items:center;gap:8px;
+  margin-bottom:10px;color:var(--ink);
+}
+.password-group .pg-title i{color:var(--violet)}
+
+.txn-list{display:flex;flex-direction:column;gap:10px}
+.txn-item{
+  border:1.5px solid var(--line);border-radius:16px;
+  padding:14px;background:#fff;cursor:pointer;
+  transition:all .2s ease;
+}
+.txn-item:hover{border-color:var(--violet-l);box-shadow:0 6px 16px rgba(80,40,160,.08)}
+.txn-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.txn-amount{font-size:16px;font-weight:900;color:var(--ink)}
+.txn-status{
+  font-size:10.5px;font-weight:800;padding:4px 11px;
+  border-radius:999px;text-transform:uppercase;letter-spacing:.5px;
+}
+.txn-status.pending{background:rgba(245,158,11,.12);color:#b45309}
+.txn-status.completed{background:rgba(16,185,129,.14);color:#047857}
+.txn-meta{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.txn-meta i{width:14px;text-align:center;color:var(--violet)}
+.txn-detail{
+  margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);
+  display:flex;flex-direction:column;gap:6px;
+  font-size:12px;color:var(--ink);
+}
+.txn-detail span{display:flex;align-items:center;gap:7px}
+.txn-detail span i{color:var(--violet);width:16px;text-align:center;font-size:11px}
+
+.empty-state{
+  text-align:center;padding:34px 18px;
+}
+.empty-state i{font-size:42px;color:rgba(124,58,237,.2);display:block;margin-bottom:12px}
+.empty-state b{font-size:15px;display:block;margin-bottom:5px}
+.empty-state p{font-size:12.5px;color:var(--muted)}
+
+.site-footer{
+  position:relative;z-index:1;margin-top:20px;
+  background:linear-gradient(135deg,#1e1b4b,#312e81);
+  color:#c7d2fe;padding:34px 4% 22px;border-radius:26px 26px 0 0;
+}
+
+.toast-wrap{
+  position:fixed;top:20px;right:20px;z-index:100000;
+  display:flex;flex-direction:column;gap:10px;max-width:min(92vw,400px);
+}
+.toast{
+  display:flex;align-items:flex-start;gap:11px;
+  background:rgba(255,255,255,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid rgba(124,58,237,.14);border-radius:15px;padding:14px 15px;
+  box-shadow:0 16px 38px rgba(30,27,75,.18);font-size:13.5px;font-weight:500;color:var(--ink);
+  animation:toastIn .35s ease both;
+}
+.toast.out{animation:toastOut .3s ease both}
+@keyframes toastIn{from{opacity:0;transform:translateX(44px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateX(44px)}}
+.toast > i{font-size:18px;margin-top:1px;flex-shrink:0}
+.toast.success > i{color:var(--green)}
+.toast.error > i{color:var(--rose)}
+.toast.info > i{color:var(--violet)}
+.toast-body{flex:1;min-width:0}
+.toast-body b{display:block;font-size:13.5px;margin-bottom:2px}
+.toast-body p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.5}
+.toast-x{
+  border:none;background:rgba(239,68,68,.1);color:var(--rose);
+  width:28px;height:28px;border-radius:9px;cursor:pointer;font-size:12px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;transition:all .2s ease;
+}
+.toast-x:hover{background:var(--rose);color:#fff}
+
+@media(max-width:640px){
+  .topbar{padding:12px 4%}
+  .brand h1{font-size:16px}
+  .brand p{font-size:10px}
+  .btn-home{padding:10px 13px;font-size:12.5px}
+  .ref-hero{padding:20px 16px}
+  .ref-hero h2{font-size:20px}
+  .ref-hero .rh-balance{font-size:30px}
+  .rh-actions{flex-direction:column}
+  .btn{padding:13px 18px;font-size:13px}
+  .qr-box{width:160px;height:160px}
+  .txn-meta{gap:8px}
+  .toast-wrap{left:12px;right:12px;max-width:none}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .sc-value{font-size:22px}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-blob b1"></div>
+<div class="bg-blob b2"></div>
+<div class="bg-blob b3"></div>
+
+<header class="topbar">
+  <div class="brand" onclick="location.href='index.html'">
+    <img src="https://i.imgur.com/vLaejQ7.png" alt="IDT Academy Logo">
+    <div>
+      <h1>IDT Academy</h1>
+      <p>Referral & Earnings</p>
+    </div>
+  </div>
+  <div class="top-right">
+    <a href="dashboard.html" class="btn-home"><i class="fa-solid fa-gauge-high"></i> <span>Dashboard</span></a>
+    <button class="menu-btn" id="menuBtn" aria-label="Open menu"><i class="fa-solid fa-bars-staggered"></i></button>
+  </div>
+</header>
+
+<aside class="side-menu" id="sideMenu">
+  <div class="sm-head">
+    <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy">
+    <div>
+      <b id="smUserName">Student</b>
+      <small><i class="fa-solid fa-naira-sign"></i> <span id="smBonus">0.00</span> bonus</small>
+    </div>
+    <button class="sm-close" id="menuClose" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="sm-body">
+    <a href="index.html" class="sm-item"><i class="fa-solid fa-house"></i> Home</a>
+    <a href="profile.html" class="sm-item"><i class="fa-solid fa-user"></i> Profile</a>
+    <a href="referral.html" class="sm-item"><i class="fa-solid fa-users"></i> Referral <span class="sm-extra" id="smReferralExtra">₦0.00</span></a>
+    <a href="viewcourse.html" class="sm-item"><i class="fa-solid fa-book-open"></i> My Course</a>
+    <a href="buycourse.html" class="sm-item"><i class="fa-solid fa-graduation-cap"></i> Course / Diploma</a>
+    <button class="sm-item sm-danger" id="menuLogout"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+  </div>
+  <div class="sm-foot">IDT Academy © • Learn Beyond Limits</div>
+</aside>
+
+<section class="ov-backdrop" id="withdrawOverlay">
+  <div class="ov-card">
+    <div class="ov-head">
+      <button class="ov-back" id="withdrawBack" aria-label="Go back"><i class="fa-solid fa-arrow-left"></i></button>
+      <h3><i class="fa-solid fa-money-bill-transfer"></i> Withdraw Funds</h3>
+      <button class="ov-close" id="withdrawClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="ov-body">
+      <div class="balance-info">
+        <span><i class="fa-solid fa-wallet"></i> Available Balance</span>
+        <b><i class="fa-solid fa-naira-sign"></i> <span id="wdBalance">0.00</span></b>
+      </div>
+      <form id="withdrawForm" class="with-form" style="margin-top:16px">
+        <div class="form-group">
+          <label for="wdAmount"><i class="fa-solid fa-coins"></i> Amount (₦)</label>
+          <div style="display:flex;gap:8px">
+            <input type="number" id="wdAmount" placeholder="Enter amount" min="100" step="100" required style="flex:1">
+            <button type="button" id="btnAllBalance" class="btn btn-outline" style="padding:12px 16px;font-size:12px;width:auto;flex-shrink:0"><i class="fa-solid fa-maximize"></i> All</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="wdAccountNumber"><i class="fa-solid fa-hashtag"></i> Account Number</label>
+          <input type="text" id="wdAccountNumber" placeholder="Enter 10-digit account number" maxlength="10" inputmode="numeric" pattern="[0-9]{10}" required>
+          <div id="accountVerifyResult" style="display:none"></div>
+        </div>
+        <div class="form-group">
+          <label for="wdBankName"><i class="fa-solid fa-building-columns"></i> Select Bank</label>
+          <select id="wdBankName" required>
+            <option value="" disabled selected>Select a bank</option>
+          </select>
+        </div>
+        <div class="password-group">
+          <div class="pg-title"><i class="fa-solid fa-lock"></i> Confirm Your Password</div>
+          <div class="form-group">
+            <label for="wdPassword"><i class="fa-solid fa-key"></i> Login Password</label>
+            <input type="password" id="wdPassword" placeholder="Enter your login password to confirm" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-green" id="btnSubmitWithdraw" style="width:100%;margin-top:4px">
+          <i class="fa-solid fa-paper-plane"></i> Submit Withdrawal
+        </button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section class="ov-backdrop" id="transactionsOverlay">
+  <div class="ov-card">
+    <div class="ov-head">
+      <button class="ov-back" id="txnBack" aria-label="Go back"><i class="fa-solid fa-arrow-left"></i></button>
+      <h3><i class="fa-solid fa-clock-rotate-left"></i> My Transactions</h3>
+      <button class="ov-close" id="txnClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="ov-body">
+      <div id="txnList" class="txn-list"></div>
+    </div>
+  </div>
+</section>
+
+<main id="app" style="max-width:800px;margin:0 auto;padding:28px 18px 40px;position:relative;z-index:1">
+
+  <div class="ref-hero">
+      <h2>Invite Referrals and Get ₦1,500 Each</h2>
+    <span class="level-badge" id="levelBadge"><i class="fa-solid fa-medal"></i> <span id="levelText">Beginner</span></span>
+    <div class="rh-icon"><i class="fa-solid fa-gift"></i></div>
+    
+    <div class="rh-balance"><i class="fa-solid fa-naira-sign"></i><span id="refBalance">0.00</span></div>
+    <div class="rh-label">Total earnings from referrals</div>
+    <div class="rh-actions">
+      <button class="btn btn-green" id="btnWithdrawOpen"><i class="fa-solid fa-money-bill-wave"></i> Withdraw</button>
+      <button class="btn btn-primary" id="btnTxnOpen"><i class="fa-solid fa-clock-rotate-left"></i> Transactions</button>
+    </div>
+    <div class="next-goal" id="nextGoal">
+      <div class="ng-top"><span><i class="fa-solid fa-bullseye"></i> Next Reward Goal</span><span id="goalText">1 active referral</span></div>
+      <div class="ng-bar"><span id="goalBar" style="width:0%"></span></div>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card sc-violet">
+      <div class="sc-icon"><i class="fa-solid fa-users"></i></div>
+      <div class="sc-value" id="statTotal">0</div>
+      <div class="sc-label">Total Register Referrals</div>
+    </div>
+    <div class="stat-card sc-green">
+      <div class="sc-icon"><i class="fa-solid fa-book-open-reader"></i></div>
+      <div class="sc-value" id="statActive">0</div>
+      <div class="sc-label">Total Active Referrals</div>
+    </div>
+    <div class="stat-card sc-amber">
+      <div class="sc-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div class="sc-value" id="statPending">0</div>
+      <div class="sc-label">Pending Referrals</div>
+    </div>
+    <div class="stat-card sc-cyan">
+      <div class="sc-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+      <div class="sc-value"><i class="fa-solid fa-naira-sign" style="font-size:17px;color:var(--cyan)"></i> <span id="statEarned">0</span></div>
+      <div class="sc-label">Total Earned (₦1,500 each)</div>
+    </div>
+  </div>
+
+  <div class="ref-card">
+    <div class="chart-head">
+      <h3 style="margin:0"><i class="fa-solid fa-chart-line"></i> Referral Growth (Last 14 Days)</h3>
+      <span class="trend-pill flat" id="trendPill"><i class="fa-solid fa-minus"></i> No change</span>
+    </div>
+    <div class="chart-container">
+      <svg id="chartSvg" viewBox="0 0 500 200" class="chart-svg">
+        <defs>
+          <linearGradient id="greenGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#10b981" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
+          </linearGradient>
+          <linearGradient id="redGradient" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#ef4444" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#ef4444" stop-opacity="0.0"/>
+          </linearGradient>
+          <clipPath id="aboveBaseline"><rect x="0" y="0" width="500" height="100"/></clipPath>
+          <clipPath id="belowBaseline"><rect x="0" y="100" width="500" height="100"/></clipPath>
+        </defs>
+        <g id="chartArea"></g>
+        <line x1="0" y1="100" x2="500" y2="100" class="chart-baseline"/>
+        <g id="chartLines"></g>
+        <g id="chartDots"></g>
+      </svg>
+    </div>
+    <div class="chart-foot">
+      <span><i class="fa-solid fa-circle" style="color:#10b981"></i> Growing</span>
+      <span><i class="fa-solid fa-circle" style="color:#ef4444"></i> Dropping</span>
+      <span><i class="fa-solid fa-circle" style="color:#9ca3af"></i> Average line</span>
+    </div>
+  </div>
+
+  <div class="ref-card">
+    <h3><i class="fa-solid fa-user-friends"></i> Recent Referrals</h3>
+    <div class="ref-list" id="refList"></div>
+  </div>
+
+  <div class="ref-card">
+    <h3><i class="fa-solid fa-link"></i> Your Referral Link</h3>
+    <div class="ref-link-box">
+      <i class="fa-solid fa-globe"></i>
+      <code id="refLinkDisplay">loading...</code>
+      <button class="copy-btn" id="copyRefLink" aria-label="Copy referral link"><i class="fa-solid fa-copy"></i></button>
+    </div>
+    <div class="qr-wrap">
+      <div class="qr-box" id="qrContainer">
+        <img id="qrImage" src="" alt="Referral QR Code">
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-card">
+    <h3><i class="fa-solid fa-hashtag"></i> Your Referral Code</h3>
+    <div class="ref-link-box">
+      <i class="fa-solid fa-tag"></i>
+      <code id="refCodeDisplay">loading...</code>
+      <button class="copy-btn" id="copyRefCode" aria-label="Copy referral code"><i class="fa-solid fa-copy"></i></button>
+    </div>
+  </div>
+
+  <div class="promo-card">
+    <h4><i class="fa-solid fa-bullhorn"></i> Earn ₦1,500 Per Referral!</h4>
+    <p>In easy steps: Share your referral link with friends on social media. When any friend registers and pays for any course using your link, you earn <b>₦1,500</b> instantly. No restrictions — withdraw anytime once your balance reaches <b>₦1000</b> minimum. Start sharing today and turn your network into income!</p>
+  </div>
+
+</main>
+
+<style>
+.idt-footer-scope {
+  --violet: #7c3aed;
+  --violet-d: #6d28d9;
+  --violet-l: #a78bfa;
+  --cyan: #06b6d4;
+  --cyan-l: #22d3ee;
+  --amber: #f59e0b;
+  --rose: #f43f5e;
+  --ink: #1e1b4b;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.idt-footer-scope *, .idt-footer-scope *::before, .idt-footer-scope *::after {
+  box-sizing: border-box;
+}
+
+.idt-footer-scope .footer {
+  background: #0f0a2e;
+  color: #c6c3e6;
+  margin-top: 60px;
+  padding: 64px 20px 26px;
+  position: relative;
+  overflow: hidden;
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+  width: 100%;
+}
+
+.idt-footer-scope .footer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, var(--violet), var(--cyan), var(--amber), var(--rose), var(--violet));
+  background-size: 300% 100%;
+  animation: idtShine 6s linear infinite;
+}
+
+@keyframes idtShine {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.idt-footer-scope .idt-footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.idt-footer-scope .footer-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1.2fr;
+  gap: 36px;
+  margin-bottom: 40px;
+  width: 100%;
+}
+
+.idt-footer-scope .footer h4 {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 18px;
+  letter-spacing: .5px;
+}
+
+.idt-footer-scope .f-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.idt-footer-scope .f-brand img {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #fff;
+  padding: 6px;
+  object-fit: contain;
+}
+
+.idt-footer-scope .f-brand b {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.idt-footer-scope .f-desc {
+  font-size: 13px;
+  line-height: 1.75;
+  color: #9aa3d6;
+  margin-bottom: 20px;
+  word-wrap: break-word;
+}
+
+.idt-footer-scope .footer ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 11px;
+}
+
+.idt-footer-scope .footer ul a {
+  font-size: 13px;
+  color: #b8b5dd;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  transition: color .2s ease, padding .2s ease;
+}
+
+.idt-footer-scope .footer ul a:hover {
+  color: #fff;
+  padding-left: 4px;
+}
+
+.idt-footer-scope .footer ul a i {
+  font-size: 10px;
+  color: var(--violet-l);
+}
+
+.idt-footer-scope .f-contact li {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  align-items: flex-start;
+}
+
+.idt-footer-scope .f-contact li i {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(124,58,237,.16);
+  color: var(--violet-l);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.idt-footer-scope .f-contact li b {
+  display: block;
+  color: #fff;
+  font-size: 12.5px;
+  word-wrap: break-word;
+}
+
+.idt-footer-scope .f-contact li small {
+  color: #9aa3d6;
+  font-size: 11.5px;
+  word-wrap: break-word;
+}
+
+.idt-footer-scope .f-social {
+  display: flex;
+  gap: 11px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.idt-footer-scope .f-social a {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.12);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  text-decoration: none;
+  transition: all .25s ease;
+}
+
+.idt-footer-scope .f-social a:hover {
+  background: var(--violet);
+  transform: translateY(-4px);
+}
+
+.idt-footer-scope .footer-bottom {
+  border-top: 1px solid rgba(255,255,255,.09);
+  padding-top: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #8b88b8;
+}
+
+.idt-footer-scope .footer-bottom .made {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.idt-footer-scope .footer-bottom .made i {
+  color: var(--rose);
+}
+
+@media(max-width: 992px) {
+  .idt-footer-scope .footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media(max-width: 576px) {
+  .idt-footer-scope .footer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+html {
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+ 
+  html.ready {
+    opacity: 1;
+  }
+
+
+</style>
+
+<div class="idt-footer-scope">
+  <footer class="footer" id="contact">
+    <div class="idt-footer-inner">
+      <div class="footer-grid">
+        <div>
+          <div class="f-brand">
+            <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy">
+            <b>IDT Academy</b>
+          </div>
+          <p class="f-desc">IDT Academy is a modern online school helping Nigerians and the world learn practical skills with video lessons, an AI tutor that speaks your language, verified exams and official certificates.</p>
+          <div class="f-social">
+            <a href="https://wa.me/234 704 083 1743" target="_blank" rel="noopener" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
+            <a href="mailto:idtacademy3@gmail.com" aria-label="Email"><i class="fa-solid fa-envelope"></i></a>
+            <a href="tel:+234 704 083 1743" aria-label="Call"><i class="fa-solid fa-phone"></i></a>
+            <a href="https://www.facebook.com" target="_blank" rel="noopener" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+            <a href="https://www.youtube.com" target="_blank" rel="noopener" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+          </div>
+        </div>
+        <div>
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> Home</a></li>
+            <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> Courses</a></li>
+            <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> How It Works</a></li>
+            <li><a href="about.html"><i class="fa-solid fa-chevron-right"></i> About Us</a></li>
+            <li><a href="register.html"><i class="fa-solid fa-chevron-right"></i> Register</a></li>
+            <li><a href="jam.html"><i class="fa-solid fa-chevron-right"></i> JAMB Prep</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Programs</h4>
+          <ul>
+            <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> Technology &amp; Computing</a></li>
+            <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> Vocational &amp; Agricultural</a></li>
+            <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> Health &amp; Wellness</a></li>
+            <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> 2-Year Diploma</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Contact Us</h4>
+          <ul class="f-contact">
+            <li><i class="fa-solid fa-user-tie"></i><div><b>CEO — Ubaida Aliyu</b><small>Partnerships, sponsorship &amp; general enquiries</small></div></li>
+            <li><a href="tel:+2349131264928"><i class="fa-solid fa-phone"></i><div><b>+234 913 126 4928</b><small>Call the CEO</small></div></a></li>
+            <li><a href="https://wa.me/2349131264928" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i><div><b>WhatsApp CEO</b><small>Chat directly</small></div></a></li>
+            <li><i class="fa-solid fa-headset"></i><div><b>Customer Care — Surajo Habibu Ibrahim</b><small>Payment issues, course problems &amp; support</small></div></li>
+            <li><a href="tel:+2347068818760"><i class="fa-solid fa-phone"></i><div><b>+2347040831743</b><small>Call Customer Care</small></div></a></li>
+            <li><a href="https://wa.me234704 0831743" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i><div><b>WhatsApp Customer Care</b><small>Send a message</small></div></a></li>
+            <li><a href="mailto:idtacademy3@gmail.com"><i class="fa-solid fa-envelope"></i><div><b>idtacademy3@gmail.com</b><small>Email us anytime</small></div></a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; IDT Academy. All rights reserved.</span>
+        <span class="made">Made with <i class="fa-solid fa-heart"></i> for Nigerian learners</span>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<div id="toastWrap" class="toast-wrap"></div>
+
+<script type="module" src="referral.js"></script>
+</body>
+</html>

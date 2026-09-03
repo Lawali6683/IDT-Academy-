@@ -1,0 +1,50 @@
+{
+  "name": "IDT Academy",
+  "short_name": "IDT Academy",
+  "description": "The official IDT Academy app. Learn practical skills with video lessons, an AI tutor, verified exams and official certificates.",
+  "id": "/",
+  "lang": "en-US",
+  "dir": "ltr",
+  "start_url": "./register.html?mode=app",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#f8f6ff",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait-primary",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "https://i.imgur.com/mgRKw4Q.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://i.imgur.com/mgRKw4Q.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://i.imgur.com/mgRKw4Q.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "https://i.imgur.com/mgRKw4Q.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Register",
+      "short_name": "Register",
+      "description": "Create your IDT Academy account",
+      "url": "./register.html?mode=app"
+    }
+  ]
+}

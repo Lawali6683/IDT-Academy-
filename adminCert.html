@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#7c3aed">
+<meta name="description" content="Admin Certificate Manager - IDT Academy">
+<title>Admin • Certificates - IDT Academy</title>
+<link rel="icon" href="https://i.imgur.com/oyqM5oF.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --violet:#7c3aed;--violet-d:#6d28d9;--violet-l:#a78bfa;--cyan:#06b6d4;--amber:#f59e0b;--rose:#f43f5e;--green:#10b981;--ink:#1e1b4b;--muted:#6d6a8a;--line:rgba(124,58,237,.15);--shadow:0 24px 60px rgba(80,40,160,.16);
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Poppins',system-ui,-apple-system,sans-serif;color:var(--ink);min-height:100vh;
+  background:radial-gradient(820px 480px at 6% -6%,rgba(167,139,250,.30),transparent 60%),radial-gradient(740px 480px at 98% 4%,rgba(34,211,238,.22),transparent 58%),radial-gradient(820px 540px at 50% 112%,rgba(251,191,36,.16),transparent 60%),linear-gradient(160deg,#f8f6ff 0%,#ffffff 50%,#eefbff 100%);
+  background-attachment:fixed;overflow-x:hidden;position:relative;
+}
+body::before{content:"";position:fixed;inset:0;z-index:-2;background:url('https://i.imgur.com/CQgjfNJ.png') center/cover no-repeat fixed;opacity:.08;pointer-events:none}
+body::after{content:"";position:fixed;inset:0;z-index:-1;background:url('https://i.imgur.com/oyqM5oF.png') center/contain no-repeat fixed;opacity:.05;pointer-events:none}
+::selection{background:rgba(124,58,237,.22)}
+img{max-width:100%;display:block}
+a{text-decoration:none;color:inherit}
+button{font-family:inherit}
+input{font-family:inherit}
+.hidden{display:none !important}
+.topbar{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 4%;background:rgba(255,255,255,.82);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid rgba(124,58,237,.12)}
+.brand{display:flex;align-items:center;gap:12px;cursor:pointer}
+.brand img{width:50px;height:50px;object-fit:contain;background:#fff;border-radius:50%;padding:6px;box-shadow:0 8px 22px rgba(124,58,237,.25)}
+.brand h1{font-size:18px;font-weight:900;line-height:1.1}
+.brand p{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1.4px;text-transform:uppercase}
+.top-right{display:flex;align-items:center;gap:10px}
+.btn-home{display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;font-weight:700;font-size:13.5px;padding:11px 18px;border-radius:12px;color:#fff;background:linear-gradient(135deg,#f59e0b,#f97316);box-shadow:0 10px 24px rgba(245,158,11,.32);transition:transform .2s ease,box-shadow .2s ease}
+.btn-home:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(245,158,11,.42)}
+.btn-logout{display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;font-weight:700;font-size:13px;padding:10px 16px;border-radius:12px;color:#fff;background:linear-gradient(135deg,#f43f5e,#be123c);box-shadow:0 10px 22px rgba(244,63,94,.3);transition:transform .2s ease,box-shadow .2s ease}
+.btn-logout:hover{transform:translateY(-2px);box-shadow:0 14px 28px rgba(244,63,94,.42)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border:none;cursor:pointer;font-weight:800;font-size:14.5px;padding:15px 26px;border-radius:14px;transition:transform .22s ease,box-shadow .22s ease}
+.btn:active{transform:scale(.97)}
+.btn-primary{width:100%;background:linear-gradient(135deg,var(--violet) 0%,var(--violet-d) 55%,var(--cyan) 140%);color:#fff;box-shadow:0 14px 30px rgba(109,40,217,.35)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 20px 40px rgba(109,40,217,.45)}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed;transform:none !important;box-shadow:none}
+.btn-green{width:100%;background:linear-gradient(135deg,#10b981,#059669);color:#fff;box-shadow:0 14px 30px rgba(16,185,129,.35)}
+.btn-green:hover{transform:translateY(-2px);box-shadow:0 20px 40px rgba(16,185,129,.45)}
+.btn-outline{width:100%;background:#fff;color:var(--violet-d);border:2px solid rgba(124,58,237,.3)}
+.btn-outline:hover{background:rgba(124,58,237,.06);border-color:var(--violet)}
+.btn-row{display:flex;gap:10px}
+.btn-row .btn{flex:1}
+.page-wrap{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:28px 18px 40px;animation:fadeUp .5s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.page-head{display:flex;align-items:center;gap:13px;margin-bottom:20px;background:linear-gradient(135deg,rgba(124,58,237,.09),rgba(6,182,212,.09));border:1px solid rgba(124,58,237,.14);border-radius:20px;padding:16px 18px}
+.ph-icon{width:54px;height:54px;border-radius:15px;flex-shrink:0;background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px rgba(109,40,217,.3)}
+.page-head div{flex:1;min-width:0}
+.page-head small{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:2px}
+.page-head h2{font-size:19px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.page-head p{font-size:11.5px;color:var(--muted);margin-top:2px}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;padding:6px 13px;border-radius:999px;flex-shrink:0}
+.badge.green{background:rgba(16,185,129,.14);color:#047857}
+.badge.rose{background:rgba(244,63,94,.12);color:var(--rose)}
+.badge.violet{background:rgba(124,58,237,.12);color:var(--violet-d)}
+.badge.cyan{background:rgba(6,182,212,.12);color:#0e7490}
+.card{background:rgba(255,255,255,.9);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.7);border-radius:22px;padding:20px;box-shadow:var(--shadow);margin-bottom:18px}
+.sec-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.sec-head .sh-icon{width:42px;height:42px;border-radius:12px;flex-shrink:0;background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(6,182,212,.12));color:var(--violet-d);font-size:15px;display:flex;align-items:center;justify-content:center}
+.sec-head small{font-size:10.5px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:1px;display:block}
+.sec-head b{font-size:15.5px;font-weight:900}
+.login-card{max-width:420px;margin:30px auto 0;background:rgba(255,255,255,.94);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.7);border-radius:26px;padding:32px 26px;box-shadow:var(--shadow);text-align:center}
+
+.login-card h2{font-size:20px;font-weight:900;margin-bottom:4px}
+.login-card>p{font-size:12px;color:var(--muted);margin-bottom:20px;line-height:1.6}
+.login-card label{display:block;text-align:left;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 6px}
+.login-card input{width:100%;border:1.5px solid var(--line);border-radius:14px;outline:none;font-size:13.5px;color:var(--ink);padding:13px 14px;background:#f8f7ff;transition:all .2s ease}
+.login-card input:focus{border-color:var(--violet);box-shadow:0 0 0 4px rgba(124,58,237,.1)}
+.pass-wrap{position:relative}
+.pass-wrap input{padding-right:48px}
+.pass-wrap button{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:rgba(124,58,237,.1);color:var(--violet-d);width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .2s ease}
+.pass-wrap button:hover{background:var(--violet);color:#fff}
+.login-card .btn{margin-top:22px}
+.login-err{background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.3);color:var(--rose);font-size:12px;font-weight:700;border-radius:12px;padding:11px 13px;margin-top:14px;line-height:1.5}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:18px}
+.stat-card{background:rgba(255,255,255,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.7);border-radius:18px;padding:16px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 14px 34px rgba(80,40,160,.1)}
+.stat-card i{width:44px;height:44px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px;background:rgba(124,58,237,.1);color:var(--violet-d)}
+.stat-card.gold i{background:rgba(245,158,11,.14);color:#b45309}
+.stat-card.cyan i{background:rgba(6,182,212,.12);color:#0e7490}
+.stat-card.rose i{background:rgba(244,63,94,.12);color:var(--rose)}
+.stat-card b{font-size:22px;font-weight:900;display:block;line-height:1.1}
+.stat-card span{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.await-list{display:flex;flex-direction:column;gap:10px}
+.await-item{display:flex;align-items:center;gap:12px;background:#f8f7ff;border:1.5px solid var(--line);border-radius:15px;padding:12px 14px;flex-wrap:wrap}
+.ai-img{width:48px;height:48px;border-radius:13px;object-fit:cover;flex-shrink:0;background:#eef0ff;border:1px solid var(--line)}
+.ai-info{flex:1;min-width:140px}
+.ai-info b{font-size:13.5px;font-weight:800;display:block;line-height:1.3}
+.ai-info span{font-size:11px;color:var(--muted);display:block;margin-top:2px;word-break:break-word}
+.btn-view{border:none;cursor:pointer;font-weight:800;font-size:11.5px;background:rgba(124,58,237,.1);color:var(--violet-d);padding:8px 14px;border-radius:10px;display:inline-flex;align-items:center;gap:6px;transition:all .2s ease;text-decoration:none}
+.btn-view:hover{background:var(--violet);color:#fff}
+.await-empty{text-align:center;padding:38px 16px}
+.await-empty i{font-size:36px;color:rgba(124,58,237,.3);display:block;margin-bottom:10px}
+.await-empty b{font-size:14px;display:block;margin-bottom:5px}
+.await-empty p{font-size:12px;color:var(--muted)}
+.ov-backdrop{position:fixed;inset:0;z-index:4000;background:rgba(15,12,41,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;visibility:hidden;transition:all .3s ease}
+.ov-backdrop.open{opacity:1;visibility:visible}
+.ov-card{width:100%;max-width:720px;max-height:92vh;display:flex;flex-direction:column;background:#fff;border-radius:26px;box-shadow:0 34px 80px rgba(15,12,41,.4);overflow:hidden;transform:translateY(22px) scale(.98);transition:all .3s ease}
+.ov-backdrop.open .ov-card{transform:translateY(0) scale(1)}
+.ov-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line);background:linear-gradient(135deg,rgba(124,58,237,.06),rgba(6,182,212,.06))}
+.ov-head h3{font-size:16px;font-weight:800;display:flex;align-items:center;gap:10px}
+.ov-head h3 i{color:var(--violet)}
+.ov-close{border:none;background:rgba(244,63,94,.1);color:var(--rose);width:38px;height:38px;border-radius:12px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s ease}
+.ov-close:hover{background:var(--rose);color:#fff;transform:rotate(90deg)}
+.ov-body{overflow-y:auto;padding:20px}
+.ov-foot{display:flex;gap:10px;padding:15px 20px;border-top:1px solid var(--line);background:#f8f7ff}
+.ov-foot .btn{padding:12px 16px;font-size:12.5px}
+.ov-foot .btn-grow{flex:1}
+.stu-top{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,rgba(124,58,237,.07),rgba(6,182,212,.07));border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px}
+.stu-top img{width:72px;height:72px;border-radius:16px;object-fit:cover;background:#fff;border:2px solid #fff;box-shadow:0 10px 24px rgba(80,40,160,.22);flex-shrink:0}
+.stu-info{flex:1;min-width:0}
+.stu-info b{font-size:16px;font-weight:900;display:block;line-height:1.3}
+.stu-info>span{font-size:12px;color:var(--muted);display:block;margin-top:2px;word-break:break-word}
+.stu-badges{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+.info-box{background:#f8f7ff;border:1.5px solid var(--line);border-radius:14px;padding:12px 13px}
+.info-box span{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px}
+.info-box b{font-size:13.5px;font-weight:900;word-break:break-word;line-height:1.4}
+.sub-head{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:900;color:var(--violet-d);margin:18px 0 10px}
+.sub-head i{width:32px;height:32px;border-radius:9px;background:rgba(124,58,237,.1);color:var(--violet-d);font-size:13px;display:flex;align-items:center;justify-content:center}
+.copy-row{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:4px}
+.copy-btn{border:none;cursor:pointer;font-weight:800;font-size:11.5px;background:rgba(124,58,237,.08);color:var(--violet-d);padding:9px 13px;border-radius:11px;display:inline-flex;align-items:center;gap:7px;transition:all .2s ease;border:1.5px solid transparent}
+.copy-btn:hover{background:var(--violet);color:#fff}
+.copy-btn.done{background:#10b981;color:#fff}
+.hist-box{margin-top:8px}
+.hist-row{display:flex;align-items:center;gap:11px;background:#f8f7ff;border:1.5px solid var(--line);border-radius:13px;padding:10px 13px;margin-bottom:8px}
+.hist-row>i{font-size:15px;flex-shrink:0}
+.hist-row div{flex:1;min-width:0}
+.hist-row b{font-size:12.5px;font-weight:800;display:block}
+.hist-row span{font-size:11px;color:var(--muted)}
+.hist-none{font-size:12px;color:var(--muted);text-align:center;padding:16px;background:#f8f7ff;border:1.5px dashed var(--line);border-radius:13px}
+.cert-box{background:linear-gradient(160deg,#f8f7ff,#ffffff);border:1.5px solid var(--line);border-radius:16px;padding:16px;margin-top:8px}
+.id-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.id-row b{font-size:17px;font-weight:900;color:var(--violet-d);letter-spacing:.5px;word-break:break-word}
+.qr-box{display:flex;justify-content:center;background:#fff;border:1.5px dashed var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+.qr-box canvas{width:200px;height:200px;max-width:100%}
+.qr-box .qr-hint{font-size:12px;color:var(--muted);text-align:center;padding:30px 10px}
+.up-box{margin-top:8px}
+.up-item{display:flex;align-items:center;gap:10px;background:#f8f7ff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.up-item .up-spin{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(124,58,237,.2);border-top-color:var(--violet);animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.up-item .up-name{flex:1;min-width:0;font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.up-item .up-status{font-size:11px;font-weight:800;color:var(--muted)}
+.up-item.ok .up-status{color:var(--green)}
+.up-item.bad .up-status{color:var(--rose)}
+.pdf-item{display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.pdf-item i{color:var(--rose);font-size:16px;flex-shrink:0}
+.pdf-item span{flex:1;font-size:12px;font-weight:800}
+.pdf-none{font-size:12px;color:var(--muted);text-align:center;padding:14px;background:#f8f7ff;border:1.5px dashed var(--line);border-radius:12px}
+.pdf-card .ov-body{padding:0}
+#pdfFrame{width:100%;height:72vh;border:none;display:block;background:#e9e9ef}
+.proj-box{background:linear-gradient(160deg,#f8f7ff,#ffffff);border:1.5px solid var(--line);border-radius:16px;padding:16px;margin-top:8px}
+.proj-title{font-size:15px;font-weight:900;color:var(--ink);margin-bottom:6px;word-break:break-word}
+.proj-desc{font-size:12.5px;color:var(--muted);line-height:1.7;margin-bottom:12px}
+.proj-link{display:flex;align-items:center;gap:10px;background:#f8f7ff;border:1.5px solid var(--line);border-radius:13px;padding:11px 13px;margin-bottom:10px;flex-wrap:wrap}
+.proj-link>span{flex:1;min-width:150px;font-size:12px;font-weight:800;color:var(--violet-d);word-break:break-all}
+.topics-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.topic-chip{font-size:10.5px;font-weight:800;background:rgba(124,58,237,.08);color:var(--violet-d);border:1px solid rgba(124,58,237,.18);border-radius:999px;padding:5px 11px;word-break:break-word}
+.loader-sm{position:fixed;inset:0;z-index:99990;background:rgba(15,12,41,.35);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;opacity:0;visibility:hidden;transition:all .25s ease}
+.loader-sm.open{opacity:1;visibility:visible}
+.loader-sm .ls-spin{width:56px;height:56px;border-radius:50%;border:5px solid rgba(255,255,255,.25);border-top-color:#fff;border-right-color:#fff;animation:lsSpin .8s linear infinite}
+@keyframes lsSpin{to{transform:rotate(360deg)}}
+.loader-sm .ls-text{color:#fff;font-size:12.5px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}
+.push-wrap{position:fixed;top:18px;right:18px;z-index:100000;display:flex;flex-direction:column;gap:10px;max-width:min(92vw,400px)}
+.push-card{display:flex;align-items:flex-start;gap:12px;background:rgba(255,255,255,.97);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(124,58,237,.16);border-radius:16px;padding:14px 15px;box-shadow:0 18px 44px rgba(30,27,75,.22);animation:pushIn .4s cubic-bezier(.22,.9,.35,1) both;position:relative;overflow:hidden}
+.push-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
+.push-card.success::before{background:var(--green)}
+.push-card.error::before{background:var(--rose)}
+.push-card.info::before{background:var(--cyan)}
+@keyframes pushIn{from{opacity:0;transform:translateX(60px) scale(.96)}to{opacity:1;transform:translateX(0) scale(1)}}
+.push-card.out{animation:pushOut .3s ease both}
+@keyframes pushOut{to{opacity:0;transform:translateX(60px) scale(.96)}}
+.push-logo{width:42px;height:42px;border-radius:12px;object-fit:contain;background:#fff;padding:5px;border:1px solid var(--line);flex-shrink:0;box-shadow:0 6px 14px rgba(80,40,160,.14)}
+.push-body{flex:1;min-width:0}
+.push-body b{display:block;font-size:13.5px;font-weight:900;margin-bottom:2px;display:flex;align-items:center;gap:7px}
+.push-body b i{font-size:14px}
+.push-card.success .push-body b i{color:var(--green)}
+.push-card.error .push-body b i{color:var(--rose)}
+.push-card.info .push-body b i{color:var(--cyan)}
+.push-body p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
+.push-x{border:none;background:rgba(239,68,68,.1);color:var(--rose);width:28px;height:28px;border-radius:9px;cursor:pointer;font-size:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s ease}
+.push-x:hover{background:var(--rose);color:#fff}
+
+
+
+
+
+@media(max-width:640px){
+  .topbar{padding:12px 4%}
+  .brand h1{font-size:16px}
+  .brand p{font-size:10px}
+  .page-wrap{padding:20px 12px 30px}
+  .page-head h2{font-size:16px}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .info-grid{grid-template-columns:1fr}
+  .ov-foot{flex-wrap:wrap}
+  .push-wrap{left:12px;right:12px;max-width:none}
+  .await-item{flex-wrap:wrap}
+  .btn-row{flex-direction:column}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand" onclick="location.href='dashboard.html'">
+    <img src="https://i.imgur.com/vLaejQ7.png" alt="IDT Academy Logo">
+    <div>
+      <h1>IDT Academy</h1>
+      <p>Admin Panel</p>
+    </div>
+  </div>
+  <div class="top-right">
+    <span class="badge violet hidden" id="adminBadge"><i class="fa-solid fa-shield-halved"></i> Admin</span>
+    <button class="btn-logout hidden" id="btnLogout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</button>
+  </div>
+</header>
+
+<main>
+
+  <section id="loginView" class="page-wrap">
+    <div class="login-card">
+      <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy">
+      <h2>Admin Login</h2>
+      <p>Sign in to manage student certificates and verify completions.</p>
+      <label for="loginEmail">Email</label>
+      <input type="email" id="loginEmail" placeholder="admin@idtacademy.com.ng" autocomplete="email">
+      <label for="loginPass">Password</label>
+      <div class="pass-wrap">
+        <input type="password" id="loginPass" placeholder="Enter your password" autocomplete="current-password">
+        <button type="button" id="togglePass" aria-label="Show password"><i class="fa-solid fa-eye"></i></button>
+      </div>
+      <button class="btn btn-primary" id="loginBtn"><i class="fa-solid fa-lock-open"></i> Submit</button>
+      <div class="login-err hidden" id="loginErr"></div>
+    </div>
+  </section>
+
+  <section id="dashView" class="page-wrap hidden">
+    <div class="page-head">
+      <div class="ph-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <div>
+        <small>IDT Academy • Certificate Manager</small>
+        <h2>Admin Dashboard</h2>
+        <p id="dashSub">Manage students who completed their exams and are awaiting certificates</p>
+      </div>
+      <span class="badge green"><i class="fa-solid fa-circle-check"></i> Active</span>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <i class="fa-solid fa-users"></i>
+        <div><b id="statRegistered">0</b><span>Registered</span></div>
+      </div>
+      <div class="stat-card gold">
+        <i class="fa-solid fa-graduation-cap"></i>
+        <div><b id="statStarted">0</b><span>Started Course</span></div>
+      </div>
+      <div class="stat-card cyan">
+        <i class="fa-solid fa-award"></i>
+        <div><b id="statCompleted">0</b><span>Completed</span></div>
+      </div>
+      <div class="stat-card rose">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <div><b id="statAwaiting">0</b><span>Awaiting Certificate</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-head">
+        <div class="sh-icon"><i class="fa-solid fa-file-circle-check"></i></div>
+        <div>
+          <small>Pending Issuance</small>
+          <b>Students Awaiting Certificates</b>
+        </div>
+      </div>
+      <div class="await-list" id="awaitList"></div>
+      <div class="await-empty" id="awaitEmpty">
+        <i class="fa-solid fa-party-horn"></i>
+        <b>All Clear!</b>
+        <p>No students are awaiting certificates right now.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+
+<section class="ov-backdrop" id="viewOverlay">
+  <div class="ov-card">
+    <div class="ov-head">
+      <h3><i class="fa-solid fa-user-graduate"></i> Student Details</h3>
+      <button class="ov-close" id="viewClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="ov-body">
+      <div class="stu-top">
+        <img id="viewAvatar" src="https://i.imgur.com/oyqM5oF.png" alt="Student photo">
+        <div class="stu-info">
+          <b id="vName">—</b>
+          <span id="vEmail">—</span>
+          <div class="stu-badges">
+            <span class="badge green" id="vGrade">—</span>
+            <span class="badge violet" id="vCourseNum">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="info-grid">
+        <div class="info-box"><span>Course Name</span><b id="vCourse">—</b></div>
+        <div class="info-box"><span>Date Completed</span><b id="vDateDone">—</b></div>
+      </div>
+      <div class="proj-box">
+        <div class="sub-head" style="margin-top:0"><i class="fa-solid fa-diagram-project"></i> Final Project Submission</div>
+        <div id="projContent"></div>
+      </div>
+      <div class="sub-head"><i class="fa-solid fa-copy"></i> Copy For Certificate</div>
+      <div class="copy-row" id="copyRow">
+        <button class="copy-btn" data-copy="name"><i class="fa-solid fa-user"></i> Name</button>
+        <button class="copy-btn" data-copy="course"><i class="fa-solid fa-book-open"></i> Course</button>
+        <button class="copy-btn" data-copy="num"><i class="fa-solid fa-hashtag"></i> Number</button>
+        <button class="copy-btn" data-copy="project"><i class="fa-solid fa-link"></i> Project Link</button>
+        <button class="copy-btn" data-copy="diploma"><i class="fa-solid fa-file-signature"></i> Diploma Line</button>
+      </div>
+      <div class="hist-box">
+        <div class="sub-head"><i class="fa-solid fa-clock-rotate-left"></i> Exam History</div>
+        <div id="histList"></div>
+      </div>
+      <div class="cert-box">
+        <div class="sub-head"><i class="fa-solid fa-id-badge"></i> Certificate ID & QR Code</div>
+        <div class="id-row">
+          <b id="genCertId">Not generated yet</b>
+          <button class="btn btn-outline" id="btnGenId" style="width:auto;padding:10px 16px;font-size:12.5px"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate ID</button>
+        </div>
+        <div class="qr-box" id="qrBox"><div class="qr-hint">Generate an ID first to see the QR code. Scanning it opens the public verification slip.</div></div>
+        <button class="btn btn-outline" id="btnQr" style="width:auto;padding:10px 16px;font-size:12.5px"><i class="fa-solid fa-download"></i> Download QR</button>
+      </div>
+      <div class="up-box">
+        <div class="sub-head"><i class="fa-solid fa-cloud-arrow-up"></i> Upload Certificate Images</div>
+        <input type="file" id="fileInput" accept="image/*" multiple hidden>
+        <button class="btn btn-outline" id="btnPickFiles" style="width:auto;padding:10px 16px;font-size:12.5px"><i class="fa-solid fa-images"></i> Choose Images</button>
+        <div id="uploadList"></div>
+        <div class="sub-head" style="margin-top:10px"><i class="fa-solid fa-file-pdf"></i> Generated PDFs</div>
+        <div id="pdfList"></div>
+      </div>
+    </div>
+    <div class="ov-foot">
+      <button class="btn btn-outline" id="btnViewBack"><i class="fa-solid fa-arrow-left"></i> Back</button>
+      <button class="btn btn-outline btn-grow" id="btnSaveCert"><i class="fa-solid fa-database"></i> Save Certificate</button>
+      <button class="btn btn-primary btn-grow" id="btnSendCert"><i class="fa-solid fa-paper-plane"></i> Send to Student</button>
+    </div>
+  </div>
+</section>
+
+<section class="ov-backdrop" id="pdfOverlay">
+  <div class="ov-card pdf-card">
+    <div class="ov-head">
+      <h3><i class="fa-solid fa-file-pdf"></i> Certificate PDF Preview</h3>
+      <button class="ov-close" id="pdfClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="ov-body">
+      <iframe id="pdfFrame" title="Certificate PDF"></iframe>
+    </div>
+  </div>
+</section>
+
+<div class="loader-sm" id="miniLoader">
+  <div class="ls-spin"></div>
+  <div class="ls-text" id="miniLoaderText">Please wait...</div>
+</div>
+
+<div class="push-wrap" id="pushWrap"></div>
+
+<script type="module" src="admincert.js"></script>
+</body>
+</html>
