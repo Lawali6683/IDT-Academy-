@@ -75,6 +75,23 @@ input,select,textarea{font-family:inherit}
 
 .hidden{display:none !important}
 
+.field{position:relative}
+
+.field-error .input-box,
+.field-error .select-box{border-color:var(--rose) !important;box-shadow:0 0 0 3px rgba(244,63,94,.16)}
+
+.field-error label{color:var(--rose)}
+
+.field-shake{animation:fieldShake .4s ease}
+
+@keyframes fieldShake{
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-7px)}
+  40%{transform:translateX(6px)}
+  60%{transform:translateX(-4px)}
+  80%{transform:translateX(3px)}
+}
+
 .bg-blob{
   position:fixed;
   border-radius:50%;
@@ -406,6 +423,8 @@ input,select,textarea{font-family:inherit}
 
 .btn-primary:hover{transform:translateY(-2px);box-shadow:0 20px 40px rgba(109,40,217,.45)}
 
+.btn:disabled{opacity:.6;cursor:not-allowed;transform:none !important;box-shadow:none}
+
 .forgot-row{text-align:right;margin-bottom:16px}
 
 .forgot-row a{font-size:12.5px;font-weight:700;color:var(--violet);display:inline-flex;align-items:center;gap:7px}
@@ -543,42 +562,41 @@ html.ready {
 <main class="auth-wrap">
   <div class="auth-card">
     <div class="auth-head">
-      <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="auth-log">
+      <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="auth-logo">
       <h2 id="authTitle">Create Your Account</h2>
       <p id="authSub">Join IDT Academy and start learning today</p>
     </div>
 
     <div class="tabs">
-      <button class="tab active" id="tabRegister" data-tab="register"><i class="fa-solid fa-user-plus"></i> Applying</button>
-      <button class="tab" id="tabLogin" data-tab="login"><i class="fa-solid fa-right-to-bracket"></i> Login Learning</button>
+      <button type="button" class="tab active" id="tabRegister" data-tab="register"><i class="fa-solid fa-user-plus"></i> Applying</button>
+      <button type="button" class="tab" id="tabLogin" data-tab="login"><i class="fa-solid fa-right-to-bracket"></i> Login Learning</button>
     </div>
 
-    <form id="registerForm" class="tab-panel active" novalidate>
+    <form id="registerForm" class="tab-panel active" novalidate autocomplete="off">
       <div class="two-col">
-        <div class="field">
+        <div class="field" data-field="fullName">
           <label for="regFullName">Full Name</label>
           <div class="input-box">
             <i class="fa-solid fa-user"></i>
-            <input type="text" id="regFullName" name="full_name" placeholder="e.g. Amina Musa" autocomplete="name">
+            <input type="text" id="regFullName" name="full_name" placeholder="e.g. Amina Musa" autocomplete="name" required>
           </div>
         </div>
-        <div class="field">
+        <div class="field" data-field="phone">
           <label for="regPhone">Phone Number</label>
           <div class="input-box">
             <i class="fa-solid fa-phone"></i>
-            <input type="tel" id="regPhone" name="phone" placeholder="e.g. 08123456789" inputmode="tel" autocomplete="tel">
+            <input type="tel" id="regPhone" name="phone" placeholder="e.g. 08123456789" inputmode="tel" autocomplete="tel" required>
           </div>
         </div>
       </div>
 
-      <div class="field">
+      <div class="field" data-field="course">
         <label for="regCourse">Select Course / Cluster</label>
         <div class="select-box">
           <i class="fa-solid fa-graduation-cap"></i>
-          <select id="regCourse" name="course_id">
+          <select id="regCourse" name="course_id" required>
             <option value="">Loading courses...</option>
           </select>
-
           <i class="fa-solid fa-chevron-down select-arrow"></i>
         </div>
         <div class="course-summary hidden" id="courseSummary">
@@ -598,11 +616,11 @@ html.ready {
             <input type="text" id="regPrice" name="price" readonly placeholder="0.00">
           </div>
         </div>
-        <div class="field">
+        <div class="field" data-field="gender">
           <label for="regGender">Gender</label>
           <div class="select-box">
             <i class="fa-solid fa-venus-mars"></i>
-            <select id="regGender" name="gender">
+            <select id="regGender" name="gender" required>
               <option value="">Select gender</option>
               <option value="Male">Male</option>
               <option value="Female">Female</option>
@@ -614,18 +632,18 @@ html.ready {
       </div>
 
       <div class="two-col">
-        <div class="field">
+        <div class="field" data-field="dob">
           <label for="regDob">Date of Birth</label>
           <div class="input-box">
             <i class="fa-solid fa-calendar-days"></i>
             <input type="text" id="regDob" name="dob" placeholder="DD/MM/YYYY e.g. 12/02/1999" maxlength="10">
           </div>
         </div>
-        <div class="field">
+        <div class="field" data-field="level">
           <label for="regLevel">Level of Education</label>
           <div class="select-box">
             <i class="fa-solid fa-school"></i>
-            <select id="regLevel" name="education_level">
+            <select id="regLevel" name="education_level" required>
               <option value="">Select level</option>
               <option value="Primary School">Primary School</option>
               <option value="Junior Secondary School (JSS)">Junior Secondary School (JSS)</option>
@@ -642,11 +660,11 @@ html.ready {
       </div>
 
       <div class="two-col">
-        <div class="field">
+        <div class="field" data-field="email">
           <label for="regEmail">Email Address</label>
           <div class="input-box">
             <i class="fa-solid fa-envelope"></i>
-            <input type="email" id="regEmail" name="email" placeholder="you@example.com" autocomplete="email">
+            <input type="email" id="regEmail" name="email" placeholder="you@example.com" autocomplete="off" required>
           </div>
         </div>
         <div class="field">
@@ -659,47 +677,46 @@ html.ready {
       </div>
 
       <div class="two-col">
-        <div class="field">
+        <div class="field" data-field="password">
           <label for="regPassword">Password</label>
           <div class="input-box">
             <i class="fa-solid fa-lock"></i>
-            <input type="password" id="regPassword" name="password" placeholder="Min 6 characters" autocomplete="new-password">
+            <input type="password" id="regPassword" name="password" placeholder="Min 6 characters" autocomplete="new-password" required>
             <button type="button" class="eye-btn" data-target="regPassword" aria-label="Show password"><i class="fa-solid fa-eye"></i></button>
           </div>
         </div>
-        <div class="field">
+        <div class="field" data-field="confirm">
           <label for="regConfirm">Confirm Password</label>
           <div class="input-box">
             <i class="fa-solid fa-lock"></i>
-            <input type="password" id="regConfirm" name="confirm_password" placeholder="Repeat password" autocomplete="new-password">
+            <input type="password" id="regConfirm" name="confirm_password" placeholder="Repeat password" autocomplete="new-password" required>
             <button type="button" class="eye-btn" data-target="regConfirm" aria-label="Show password"><i class="fa-solid fa-eye"></i></button>
           </div>
         </div>
       </div>
 
-      <button type="button" class="btn btn-primary" id="btnRegister" onclick="handleRegisterClick(event)">
-  <i class="fa-solid fa-user-plus" id="btnRegisterIcon"></i>
-  <span id="btnRegisterText">Applying</span>
-</button>
-      
-      
+      <button type="submit" class="btn btn-primary" id="btnRegister">
+        <i class="fa-solid fa-user-plus" id="btnRegisterIcon"></i>
+        <span id="btnRegisterText">Applying</span>
+      </button>
+
       <p class="terms">By registering you agree to the IDT Academy terms of service. Your information is safe with us.</p>
     </form>
 
-    <form id="loginForm" class="tab-panel" novalidate>
-      <div class="field">
+    <form id="loginForm" class="tab-panel" novalidate autocomplete="off">
+      <div class="field" data-field="loginEmail">
         <label for="loginEmail">Email Address</label>
         <div class="input-box">
           <i class="fa-solid fa-envelope"></i>
-          <input type="email" id="loginEmail" name="email" placeholder="you@example.com" autocomplete="email">
+          <input type="email" id="loginEmail" name="email" placeholder="you@example.com" autocomplete="off" required>
         </div>
       </div>
 
-      <div class="field">
+      <div class="field" data-field="loginPassword">
         <label for="loginPassword">Password</label>
         <div class="input-box">
           <i class="fa-solid fa-lock"></i>
-          <input type="password" id="loginPassword" name="password" placeholder="Enter your password" autocomplete="current-password">
+          <input type="password" id="loginPassword" name="password" placeholder="Enter your password" autocomplete="current-password" required>
           <button type="button" class="eye-btn" data-target="loginPassword" aria-label="Show password"><i class="fa-solid fa-eye"></i></button>
         </div>
       </div>
@@ -717,67 +734,6 @@ html.ready {
 
 <div id="toastWrap" class="toast-wrap"></div>
 
-<script>
-    
-    // Wannan function din zai yi aiki 100% duk lokacin da aka danna button din
-window.handleRegisterClick = function(event) {
-  if (event) event.preventDefault();
-
-  const btn = document.getElementById('btnRegister');
-  const icon = document.getElementById('btnRegisterIcon');
-  const text = document.getElementById('btnRegisterText');
-  const form = document.getElementById('registerForm');
-
-  // 1. Nuna alamar cewa an danna shi (Feedback nan take)
-  if (btn && icon && text) {
-    btn.style.opacity = '0.7';
-    btn.style.pointerEvents = 'none'; // Hana sake danna shi lokacin da yake sarrafawa
-    icon.className = 'fa-solid fa-spinner fa-spin'; // Juya icon din
-    text.innerText = 'Processing...';
-  }
-
-  // 2. Duba idan aka cika fom ko akwai matsala
-  setTimeout(() => {
-    try {
-      // Idan ana amfani da Supabase ko wani Custom Submit Handler
-      if (typeof handleRegisterSubmit === 'function') {
-        handleRegisterSubmit();
-      } else if (form) {
-        // Tura form din idan komai yana daidai
-        if (form.checkValidity && !form.checkValidity()) {
-          if (typeof showToast === 'function') {
-            showToast('Akwai filayen da ba a cike ba!', 'error');
-          } else {
-            alert('Tabbatar ka cike dukkan filayen da ake bukata!');
-          }
-          resetRegisterButton();
-          return;
-        }
-        
-        // Tura fom din kai tsaye
-        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-      }
-    } catch (err) {
-      console.error('Submit Error:', err);
-      resetRegisterButton();
-    }
-  }, 100);
-};
-
-// Function din mai da button din yadda yake idan aka samu matsala
-window.resetRegisterButton = function() {
-  const btn = document.getElementById('btnRegister');
-  const icon = document.getElementById('btnRegisterIcon');
-  const text = document.getElementById('btnRegisterText');
-
-  if (btn && icon && text) {
-    btn.style.opacity = '1';
-    btn.style.pointerEvents = 'auto';
-    icon.className = 'fa-solid fa-user-plus';
-    text.innerText = 'Applying';
-  }
-};
-</script>
 <script type="module" src="register.js"></script>
 </body>
 </html>
