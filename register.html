@@ -12,6 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
+
 :root{
   --violet:#7c3aed;
   --violet-d:#6d28d9;
@@ -25,7 +26,9 @@
   --line:rgba(124,58,237,.15);
   --shadow:0 24px 60px rgba(80,40,160,.16);
 }
+
 html{scroll-behavior:smooth}
+
 body{
   font-family:'Poppins',system-ui,-apple-system,sans-serif;
   color:var(--ink);
@@ -39,6 +42,7 @@ body{
   overflow-x:hidden;
   position:relative;
 }
+
 body::before{
   content:"";
   position:fixed;
@@ -48,6 +52,7 @@ body::before{
   opacity:.08;
   pointer-events:none;
 }
+
 body::after{
   content:"";
   position:fixed;
@@ -57,12 +62,19 @@ body::after{
   opacity:.05;
   pointer-events:none;
 }
+
 ::selection{background:rgba(124,58,237,.22)}
+
 img{max-width:100%;display:block}
+
 a{text-decoration:none;color:inherit}
+
 button{font-family:inherit}
+
 input,select,textarea{font-family:inherit}
+
 .hidden{display:none !important}
+
 .bg-blob{
   position:fixed;
   border-radius:50%;
@@ -72,9 +84,13 @@ input,select,textarea{font-family:inherit}
   pointer-events:none;
   animation:blobFloat 14s ease-in-out infinite;
 }
+
 .b1{width:420px;height:420px;left:-140px;top:-120px;background:rgba(124,58,237,.4)}
+
 .b2{width:380px;height:380px;right:-120px;top:30%;background:rgba(6,182,212,.32);animation-delay:3s}
+
 .b3{width:360px;height:360px;left:30%;bottom:-160px;background:rgba(245,158,11,.26);animation-delay:6s}
+
 @keyframes blobFloat{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(50px,-40px) scale(1.15)}}
 
 .topbar{
@@ -91,7 +107,9 @@ input,select,textarea{font-family:inherit}
   -webkit-backdrop-filter:blur(18px);
   border-bottom:1px solid rgba(124,58,237,.12);
 }
+
 .brand{display:flex;align-items:center;gap:12px;cursor:pointer}
+
 .brand img{
   width:50px;
   height:50px;
@@ -101,9 +119,13 @@ input,select,textarea{font-family:inherit}
   padding:6px;
   box-shadow:0 8px 22px rgba(124,58,237,.25);
 }
+
 .brand h1{font-size:18px;font-weight:900;line-height:1.1}
+
 .brand p{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1.4px;text-transform:uppercase}
+
 .top-right{display:flex;align-items:center;gap:10px}
+
 .btn-home{
   display:inline-flex;
   align-items:center;
@@ -119,8 +141,11 @@ input,select,textarea{font-family:inherit}
   box-shadow:0 10px 24px rgba(245,158,11,.32);
   transition:transform .2s ease,box-shadow .2s ease;
 }
+
 .btn-home:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(245,158,11,.42)}
+
 .menu-drop{position:relative}
+
 .menu-btn{
   width:46px;
   height:46px;
@@ -135,7 +160,9 @@ input,select,textarea{font-family:inherit}
   justify-content:center;
   transition:all .22s ease;
 }
+
 .menu-btn:hover{background:var(--violet);color:#fff;border-color:var(--violet)}
+
 .menu-items{
   position:absolute;
   top:54px;
@@ -152,7 +179,9 @@ input,select,textarea{font-family:inherit}
   transition:all .25s ease;
   z-index:200;
 }
+
 .menu-items.open{opacity:1;visibility:visible;transform:translateY(0)}
+
 .menu-items a{
   display:flex;
   align-items:center;
@@ -164,7 +193,9 @@ input,select,textarea{font-family:inherit}
   color:#3d3a6b;
   transition:all .2s ease;
 }
+
 .menu-items a:hover{background:rgba(124,58,237,.08);color:var(--violet)}
+
 .menu-items a i{width:20px;text-align:center;color:var(--violet)}
 
 .auth-wrap{
@@ -175,6 +206,7 @@ input,select,textarea{font-family:inherit}
   justify-content:center;
   padding:36px 18px 70px;
 }
+
 .auth-card{
   width:100%;
   max-width:600px;
@@ -187,8 +219,11 @@ input,select,textarea{font-family:inherit}
   box-shadow:var(--shadow);
   animation:cardIn .55s ease both;
 }
+
 @keyframes cardIn{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:translateY(0)}}
+
 .auth-head{text-align:center;margin-bottom:24px}
+
 .auth-logo{
   width:88px;
   height:88px;
@@ -198,7 +233,9 @@ input,select,textarea{font-family:inherit}
   padding:11px;
   box-shadow:0 16px 38px rgba(124,58,237,.28);
 }
+
 .auth-head h2{font-size:23px;font-weight:900;margin-bottom:4px}
+
 .auth-head p{font-size:13px;color:var(--muted)}
 
 .tabs{
@@ -211,6 +248,7 @@ input,select,textarea{font-family:inherit}
   padding:6px;
   margin-bottom:26px;
 }
+
 .tab{
   border:none;
   background:transparent;
@@ -226,20 +264,29 @@ input,select,textarea{font-family:inherit}
   gap:8px;
   transition:all .25s ease;
 }
+
 .tab i{font-size:14px}
+
 .tab.active{
   background:linear-gradient(135deg,var(--violet),var(--violet-d));
   color:#fff;
   box-shadow:0 10px 24px rgba(109,40,217,.35);
 }
+
 .tab-panel{display:none}
+
 .tab-panel.active{display:block;animation:fadeUp .4s ease both}
+
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
 .field{margin-bottom:15px}
+
 .field label{display:block;font-size:12.5px;font-weight:700;margin-bottom:7px;color:#3d3a6b}
+
 .field label .opt{color:var(--muted);font-weight:500;font-size:11px}
+
 .input-box{
   position:relative;
   display:flex;
@@ -250,8 +297,11 @@ input,select,textarea{font-family:inherit}
   padding:0 14px;
   transition:border-color .2s ease,box-shadow .2s ease;
 }
+
 .input-box:focus-within{border-color:var(--violet);box-shadow:0 0 0 4px rgba(124,58,237,.12)}
+
 .input-box > i{color:var(--violet);font-size:14px;margin-right:11px;flex-shrink:0}
+
 .input-box input{
   width:100%;
   border:none;
@@ -261,7 +311,9 @@ input,select,textarea{font-family:inherit}
   color:var(--ink);
   padding:13px 0;
 }
+
 .input-box input[readonly]{background:rgba(245,158,11,.06);color:var(--amber-d,#b45309);font-weight:800;cursor:not-allowed}
+
 .eye-btn{
   border:none;
   background:transparent;
@@ -271,7 +323,9 @@ input,select,textarea{font-family:inherit}
   padding:6px;
   flex-shrink:0;
 }
+
 .eye-btn:hover{color:var(--violet)}
+
 .select-box{
   position:relative;
   display:flex;
@@ -282,8 +336,11 @@ input,select,textarea{font-family:inherit}
   padding:0 14px;
   transition:border-color .2s ease,box-shadow .2s ease;
 }
+
 .select-box:focus-within{border-color:var(--violet);box-shadow:0 0 0 4px rgba(124,58,237,.12)}
+
 .select-box > i{color:var(--violet);font-size:14px;margin-right:11px;flex-shrink:0}
+
 .select-box select{
   width:100%;
   border:none;
@@ -297,6 +354,7 @@ input,select,textarea{font-family:inherit}
   -webkit-appearance:none;
   padding-right:28px;
 }
+
 .select-arrow{
   position:absolute;
   right:14px;
@@ -305,6 +363,7 @@ input,select,textarea{font-family:inherit}
   font-size:12px;
   margin:0 !important;
 }
+
 .course-summary{
   display:flex;
   align-items:center;
@@ -315,9 +374,13 @@ input,select,textarea{font-family:inherit}
   border-radius:14px;
   padding:10px 13px;
 }
+
 .course-summary img{width:46px;height:46px;border-radius:11px;object-fit:cover;box-shadow:0 4px 10px rgba(80,40,160,.18)}
+
 .course-summary b{font-size:13px;display:block;line-height:1.25}
+
 .course-summary small{font-size:11px;color:var(--muted)}
+
 .btn{
   display:inline-flex;
   align-items:center;
@@ -331,17 +394,24 @@ input,select,textarea{font-family:inherit}
   border-radius:14px;
   transition:transform .22s ease,box-shadow .22s ease;
 }
+
 .btn:active{transform:scale(.97)}
+
 .btn-primary{
   width:100%;
   background:linear-gradient(135deg,var(--violet) 0%,var(--violet-d) 55%,var(--cyan) 140%);
   color:#fff;
   box-shadow:0 14px 30px rgba(109,40,217,.35);
 }
+
 .btn-primary:hover{transform:translateY(-2px);box-shadow:0 20px 40px rgba(109,40,217,.45)}
+
 .forgot-row{text-align:right;margin-bottom:16px}
+
 .forgot-row a{font-size:12.5px;font-weight:700;color:var(--violet);display:inline-flex;align-items:center;gap:7px}
+
 .forgot-row a:hover{text-decoration:underline}
+
 .terms{text-align:center;font-size:11.5px;color:var(--muted);margin-top:14px;line-height:1.55}
 
 .toast-wrap{
@@ -354,6 +424,7 @@ input,select,textarea{font-family:inherit}
   gap:10px;
   max-width:min(92vw,400px);
 }
+
 .toast{
   display:flex;
   align-items:flex-start;
@@ -370,16 +441,27 @@ input,select,textarea{font-family:inherit}
   color:var(--ink);
   animation:toastIn .35s ease both;
 }
+
 .toast.out{animation:toastOut .3s ease both}
+
 @keyframes toastIn{from{opacity:0;transform:translateX(44px)}to{opacity:1;transform:translateX(0)}}
+
 @keyframes toastOut{to{opacity:0;transform:translateX(44px)}}
+
 .toast > i{font-size:18px;margin-top:1px;flex-shrink:0}
+
 .toast.success > i{color:var(--green)}
+
 .toast.error > i{color:var(--rose)}
+
 .toast.info > i{color:var(--violet)}
+
 .toast-body{flex:1;min-width:0}
+
 .toast-body b{display:block;font-size:13.5px;margin-bottom:2px}
+
 .toast-body p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.5}
+
 .toast-raw{
   display:block;
   margin-top:7px;
@@ -391,6 +473,7 @@ input,select,textarea{font-family:inherit}
   line-height:1.45;
   word-break:break-word;
 }
+
 .toast-x{
   border:none;
   background:rgba(239,68,68,.1);
@@ -406,6 +489,7 @@ input,select,textarea{font-family:inherit}
   justify-content:center;
   transition:all .2s ease;
 }
+
 .toast-x:hover{background:var(--rose);color:#fff}
 
 @media(max-width:640px){
@@ -419,20 +503,17 @@ input,select,textarea{font-family:inherit}
   .toast-wrap{left:12px;right:12px;max-width:none}
 }
 
-
 html {
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out;
-  }
- 
-  html.ready {
-    opacity: 1;
-  }
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
 
+html.ready {
+  opacity: 1;
+}
 </style>
 </head>
 <body>
-
 <div class="bg-blob b1"></div>
 <div class="bg-blob b2"></div>
 <div class="bg-blob b3"></div>
@@ -475,32 +556,33 @@ html {
     <form id="registerForm" class="tab-panel active" novalidate>
       <div class="two-col">
         <div class="field">
-          <label>Full Name</label>
+          <label for="regFullName">Full Name</label>
           <div class="input-box">
             <i class="fa-solid fa-user"></i>
-            <input type="text" id="regFullName" placeholder="e.g. Amina Musa" autocomplete="name">
+            <input type="text" id="regFullName" name="full_name" placeholder="e.g. Amina Musa" autocomplete="name">
           </div>
         </div>
         <div class="field">
-          <label>Phone Number</label>
+          <label for="regPhone">Phone Number</label>
           <div class="input-box">
             <i class="fa-solid fa-phone"></i>
-            <input type="tel" id="regPhone" placeholder="e.g. 08123456789" inputmode="tel" autocomplete="tel">
+            <input type="tel" id="regPhone" name="phone" placeholder="e.g. 08123456789" inputmode="tel" autocomplete="tel">
           </div>
         </div>
       </div>
 
       <div class="field">
-        <label>Select Course / Cluster</label>
+        <label for="regCourse">Select Course / Cluster</label>
         <div class="select-box">
           <i class="fa-solid fa-graduation-cap"></i>
-          <select id="regCourse">
+          <select id="regCourse" name="course_id">
             <option value="">Loading courses...</option>
           </select>
+
           <i class="fa-solid fa-chevron-down select-arrow"></i>
         </div>
         <div class="course-summary hidden" id="courseSummary">
-          <img id="courseImg" src="" alt="">
+          <img id="courseImg" src="" alt="Course Image">
           <div>
             <b id="courseSummaryName"></b>
             <small id="courseSummaryMeta"></small>
@@ -510,17 +592,17 @@ html {
 
       <div class="two-col">
         <div class="field">
-          <label>Course Price (₦)</label>
+          <label for="regPrice">Course Price (₦)</label>
           <div class="input-box">
             <i class="fa-solid fa-naira-sign"></i>
-            <input type="text" id="regPrice" readonly placeholder="0.00">
+            <input type="text" id="regPrice" name="price" readonly placeholder="0.00">
           </div>
         </div>
         <div class="field">
-          <label>Gender</label>
+          <label for="regGender">Gender</label>
           <div class="select-box">
             <i class="fa-solid fa-venus-mars"></i>
-            <select id="regGender">
+            <select id="regGender" name="gender">
               <option value="">Select gender</option>
               <option value="Male">Male</option>
               <option value="Female">Female</option>
@@ -533,17 +615,17 @@ html {
 
       <div class="two-col">
         <div class="field">
-          <label>Date of Birth</label>
+          <label for="regDob">Date of Birth</label>
           <div class="input-box">
             <i class="fa-solid fa-calendar-days"></i>
-            <input type="date" id="regDob">
+            <input type="text" id="regDob" name="dob" placeholder="DD/MM/YYYY e.g. 12/02/1999" maxlength="10">
           </div>
         </div>
         <div class="field">
-          <label>Level of Education</label>
+          <label for="regLevel">Level of Education</label>
           <div class="select-box">
             <i class="fa-solid fa-school"></i>
-            <select id="regLevel">
+            <select id="regLevel" name="education_level">
               <option value="">Select level</option>
               <option value="Primary School">Primary School</option>
               <option value="Junior Secondary School (JSS)">Junior Secondary School (JSS)</option>
@@ -561,41 +643,39 @@ html {
 
       <div class="two-col">
         <div class="field">
-          <label>Email Address</label>
+          <label for="regEmail">Email Address</label>
           <div class="input-box">
             <i class="fa-solid fa-envelope"></i>
-            <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
+            <input type="email" id="regEmail" name="email" placeholder="you@example.com" autocomplete="email">
           </div>
         </div>
         <div class="field">
-          <label>Referral Code <span class="opt">(optional)</span></label>
+          <label for="regRef">Referral Code <span class="opt">(optional)</span></label>
           <div class="input-box">
             <i class="fa-solid fa-gift"></i>
-            <input type="text" id="regRef" placeholder="e.g. AB12CD" maxlength="8" autocomplete="off">
+            <input type="text" id="regRef" name="referral_code" placeholder="e.g. AB12CD" maxlength="8" autocomplete="off">
           </div>
         </div>
       </div>
 
       <div class="two-col">
         <div class="field">
-          <label>Password</label>
+          <label for="regPassword">Password</label>
           <div class="input-box">
             <i class="fa-solid fa-lock"></i>
-            <input type="password" id="regPassword" placeholder="Min 6 characters" autocomplete="new-password">
+            <input type="password" id="regPassword" name="password" placeholder="Min 6 characters" autocomplete="new-password">
             <button type="button" class="eye-btn" data-target="regPassword" aria-label="Show password"><i class="fa-solid fa-eye"></i></button>
           </div>
         </div>
         <div class="field">
-          <label>Confirm Password</label>
+          <label for="regConfirm">Confirm Password</label>
           <div class="input-box">
             <i class="fa-solid fa-lock"></i>
-            <input type="password" id="regConfirm" placeholder="Repeat password" autocomplete="new-password">
+            <input type="password" id="regConfirm" name="confirm_password" placeholder="Repeat password" autocomplete="new-password">
             <button type="button" class="eye-btn" data-target="regConfirm" aria-label="Show password"><i class="fa-solid fa-eye"></i></button>
           </div>
         </div>
       </div>
-
-    
 
       <button type="submit" class="btn btn-primary" id="btnRegister">
         <i class="fa-solid fa-user-plus"></i> <span>Applying</span>
@@ -605,23 +685,26 @@ html {
 
     <form id="loginForm" class="tab-panel" novalidate>
       <div class="field">
-        <label>Email Address</label>
+        <label for="loginEmail">Email Address</label>
         <div class="input-box">
           <i class="fa-solid fa-envelope"></i>
-          <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
+          <input type="email" id="loginEmail" name="email" placeholder="you@example.com" autocomplete="email">
         </div>
       </div>
+
       <div class="field">
-        <label>Password</label>
+        <label for="loginPassword">Password</label>
         <div class="input-box">
           <i class="fa-solid fa-lock"></i>
-          <input type="password" id="loginPassword" placeholder="Enter your password" autocomplete="current-password">
-          <button type="button" class="eye-btn" data-target="loginPassword" aria-label="Show password"><ilo class="fa-solid fa-eye"></i></button>
+          <input type="password" id="loginPassword" name="password" placeholder="Enter your password" autocomplete="current-password">
+          <button type="button" class="eye-btn" data-target="loginPassword" aria-label="Show password"><i class="fa-solid fa-eye"></i></button>
         </div>
       </div>
+
       <div class="forgot-row">
         <a href="forget.html"><i class="fa-solid fa-key"></i> Forgot password?</a>
       </div>
+
       <button type="submit" class="btn btn-primary" id="btnLogin">
         <i class="fa-solid fa-right-to-bracket"></i> <span>Login</span>
       </button>
@@ -630,7 +713,6 @@ html {
 </main>
 
 <div id="toastWrap" class="toast-wrap"></div>
-
 <script type="module" src="register.js"></script>
 </body>
 </html>
