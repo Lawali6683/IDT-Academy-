@@ -67,7 +67,7 @@ function showToast(type, title, message, raw) {
     '<div class="toast-body"><b>' + escapeHtml(title) + '</b><p>' + escapeHtml(message) + '</p>' + rawHtml + '</div>' +
     '<button class="toast-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>';
   el.querySelector('.toast-x').addEventListener('click', () => removeToast(el));
-  toastWrap.appendChild(el);
+  if (toastWrap) toastWrap.appendChild(el);
   if (type === 'success') setTimeout(() => removeToast(el), 2600);
   return el;
 }
@@ -267,31 +267,42 @@ async function loadCourses() {
     const { data, error } = await supabase.from('courses').select('*');
     if (error) throw error;
 
+    // Gyaran gano course data (ko row.course_data ko kuma row na kanta)
     let list = (data || [])
-      .map((row) => row.course_data || {})
-      .filter((c) => c && c.id)
+      .map((row) => {
+        if (row.course_data) {
+          return typeof row.course_data === 'string' ? JSON.parse(row.course_data) : row.course_data;
+        }
+        return row;
+      })
+      .filter((c) => c && (c.id || c.course_id))
+      .map((c) => ({ ...c, id: String(c.id || c.course_id) }))
       .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
 
     try {
       const { data: acData, error: acErr } = await supabase.from('all_couse_post').select('*');
       if (!acErr && Array.isArray(acData)) {
+        // GYARA: Cire id dake cikin row.all_course maimakon row.id
         const activeIds = acData
           .filter((row) => row.all_course && row.all_course.active === true)
-          .map((row) => row.id);
+          .map((row) => String(row.all_course.id || row.course_id || row.id));
+        
         if (activeIds.length > 0) {
-          const filtered = list.filter((c) => activeIds.indexOf(c.id) !== -1);
+          const filtered = list.filter((c) => activeIds.indexOf(String(c.id)) !== -1);
           if (filtered.length > 0) list = filtered;
         }
       }
     } catch (e2) {}
 
     sel.innerHTML = '<option value="">Choose your course</option>';
+    courseMap = {};
+
     list.forEach((c) => {
       courseMap[c.id] = c;
       const opt = document.createElement('option');
       opt.value = c.id;
-      opt.textContent = c.course_name + ' - \u20A6' + Number(c.price || 0).toLocaleString('en-NG');
-      if (c.id === urlCourseId) opt.selected = true;
+      opt.textContent = (c.course_name || 'Course') + ' - \u20A6' + Number(c.price || 0).toLocaleString('en-NG');
+      if (String(c.id) === String(urlCourseId)) opt.selected = true;
       sel.appendChild(opt);
     });
 
@@ -462,15 +473,16 @@ async function handleLogin(e) {
     let userObj = {
       id: data.user.id,
       email: data.user.email,
-      ...data.user.user_metadata
+      ...(data.user.user_metadata || {})
     };
 
     try {
+      // GYARA: Dubawa ta hanyar email ko ID domin gujewa kuskuren supabase profiles
       const { data: profData } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', data.user.id)
-        .single();
+        .or(`id.eq.${data.user.id},email.eq.${email}`)
+        .maybeSingle();
 
       if (profData) {
         userObj = { ...userObj, ...profData };
@@ -532,7 +544,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const localUser = localStorage.getItem('idt_user');
     const { data: sessionData } = await supabase.auth.getSession();
 
-    if (sessionData?.session || localUser) {
+    if (sessionData?.session && localUser) {
       window.location.replace('dashboard.html');
       return;
     }
