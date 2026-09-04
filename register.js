@@ -1,6 +1,12 @@
 import { supabase } from './supabase.js';
 
 const $ = (id) => document.getElementById(id);
+
+const getValue = (id) => {
+  const el = $(id);
+  return el ? el.value : '';
+};
+
 const toastWrap = $('toastWrap');
 
 const CATEGORIES = {
@@ -40,23 +46,29 @@ function removeToast(el) {
 }
 
 function showToast(type, title, message, raw) {
-  if (!toastWrap) return;
+  const container = $('toastWrap') || toastWrap;
+  if (!container) return;
   const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
   const el = document.createElement('div');
   el.className = 'toast ' + type;
   const rawHtml = raw ? '<small class="toast-raw"><i class="fa-solid fa-bug"></i> ' + escapeHtml(raw) + '</small>' : '';
-  el.innerHTML = '<i class="fa-solid ' + icons[type] + '"></i>' +
+  el.innerHTML = '<i class="fa-solid ' + (icons[type] || 'fa-circle-info') + '"></i>' +
     '<div class="toast-body"><b>' + escapeHtml(title) + '</b><p>' + escapeHtml(message) + '</p>' + rawHtml + '</div>' +
     '<button class="toast-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>';
-  el.querySelector('.toast-x').addEventListener('click', () => removeToast(el));
-  toastWrap.appendChild(el);
+  
+  const closeBtn = el.querySelector('.toast-x');
+  if (closeBtn) closeBtn.addEventListener('click', () => removeToast(el));
+  
+  container.appendChild(el);
   if (type === 'success') setTimeout(() => removeToast(el), 2600);
   return el;
 }
 
 function showLoading() {
   let loader = document.getElementById('idt-loader-2');
-  if (loader) { loader.classList.remove('idt-hide'); } else {
+  if (loader) { 
+    loader.classList.remove('idt-hide'); 
+  } else {
     const loaderHTML = `
       <div class="idt-loader-2" id="idt-loader-2">
         <div class="i2-bg">
@@ -153,7 +165,11 @@ function showLoading() {
   var n = document.getElementById('i2num');
   var c = 0;
   if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
-  window.idtLoaderInterval = setInterval(function() { c += 5; if (n) n.textContent = (c >= 100 ? 100 : c); if (c >= 100) clearInterval(window.idtLoaderInterval); }, 30);
+  window.idtLoaderInterval = setInterval(function() { 
+    c += 5; 
+    if (n) n.textContent = (c >= 100 ? 100 : c); 
+    if (c >= 100) clearInterval(window.idtLoaderInterval); 
+  }, 30);
 }
 
 function hideLoading() {
@@ -246,25 +262,30 @@ function friendlyLoginError(json) {
 async function loadCourses() {
   const sel = $('regCourse');
   if (!sel) return;
+
   try {
     const { data, error } = await supabase.from('courses').select('*');
     if (error) throw error;
+
     let list = (data || [])
       .map((row) => row.course_data || {})
       .filter((c) => c && c.id)
       .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+
     try {
       const { data: acData, error: acErr } = await supabase.from('all_couse_post').select('*');
       if (!acErr && Array.isArray(acData)) {
         const activeIds = acData
           .filter((row) => row.all_course && row.all_course.active === true)
           .map((row) => row.id);
+
         if (activeIds.length > 0) {
           const filtered = list.filter((c) => activeIds.indexOf(c.id) !== -1);
           if (filtered.length > 0) list = filtered;
         }
       }
     } catch (e2) {}
+
     sel.innerHTML = '<option value="">Choose your course</option>';
     list.forEach((c) => {
       courseMap[c.id] = c;
@@ -274,8 +295,16 @@ async function loadCourses() {
       if (c.id === urlCourseId) opt.selected = true;
       sel.appendChild(opt);
     });
+
     if (urlCourseId && !courseMap[urlCourseId]) {
-      const fake = { id: urlCourseId, course_name: urlCourseName || 'Selected Course', course_number: urlCourseNumber || '', price: Number(urlCoursePrice || 0), info_text: urlCourseInfo || '', image_url: urlCourseImage || '' };
+      const fake = { 
+        id: urlCourseId, 
+        course_name: urlCourseName || 'Selected Course', 
+        course_number: urlCourseNumber || '', 
+        price: Number(urlCoursePrice || 0), 
+        info_text: urlCourseInfo || '', 
+        image_url: urlCourseImage || '' 
+      };
       courseMap[urlCourseId] = fake;
       const opt = document.createElement('option');
       opt.value = fake.id;
@@ -283,7 +312,12 @@ async function loadCourses() {
       opt.selected = true;
       sel.appendChild(opt);
     }
-    if (!list.length && !urlCourseId) { sel.innerHTML = '<option value="">No courses available yet</option>'; showToast('info', 'No Courses Yet', 'Courses are being prepared. Please check back soon.', ''); }
+
+    if (!list.length && !urlCourseId) { 
+      sel.innerHTML = '<option value="">No courses available yet</option>'; 
+      showToast('info', 'No Courses Yet', 'Courses are being prepared. Please check back soon.', ''); 
+    }
+
     updateCourseSummary();
   } catch (err) {
     sel.innerHTML = '<option value="">Could not load courses</option>';
@@ -294,41 +328,53 @@ async function loadCourses() {
 function updateCourseSummary() {
   const sel = $('regCourse');
   if (!sel) return;
+
   const id = sel.value;
   const summary = $('courseSummary');
   const regPrice = $('regPrice');
+
   if (!id || !courseMap[id]) { 
     if (summary) summary.classList.add('hidden'); 
     if (regPrice) regPrice.value = ''; 
     return; 
   }
+
   const c = courseMap[id];
   if (regPrice) regPrice.value = Number(c.price || 0).toLocaleString('en-NG');
+
   const summaryName = $('courseSummaryName');
   if (summaryName) summaryName.textContent = c.course_name || 'Course';
+
   const cat = CATEGORIES[String(c.category || '')] || '';
   const summaryMeta = $('courseSummaryMeta');
   if (summaryMeta) summaryMeta.textContent = [cat, c.course_number ? '#' + c.course_number : ''].filter(Boolean).join(' - ');
+
   const img = $('courseImg');
   if (img) {
-    if (c.image_url) { img.src = c.image_url; img.style.display = 'block'; } else { img.style.display = 'none'; }
+    if (c.image_url) { 
+      img.src = c.image_url; 
+      img.style.display = 'block'; 
+    } else { 
+      img.style.display = 'none'; 
+    }
   }
+
   if (summary) summary.classList.remove('hidden');
 }
 
 async function handleRegister(e) {
   e.preventDefault();
-  const fullName = $('regFullName') ? $('regFullName').value.trim() : '';
-  const phone = $('regPhone') ? $('regPhone').value.trim() : '';
-  const courseId = $('regCourse') ? $('regCourse').value : '';
-  const gender = $('regGender') ? $('regGender').value : '';
-  const dob = $('regDob') ? $('regDob').value : '';
-  const level = $('regLevel') ? $('regLevel').value : '';
-  const email = $('regEmail') ? $('regEmail').value.trim().toLowerCase() : '';
-  const password = $('regPassword') ? $('regPassword').value : '';
-  const confirm = $('regConfirm') ? $('regConfirm').value : '';
-  const ref = $('regRef') ? $('regRef').value.trim().toUpperCase() : '';
-  const paymentNo = $('regPaymentNo') ? $('regPaymentNo').value.trim() : '';
+
+  const fullName = getValue('regFullName').trim();
+  const phone = getValue('regPhone').trim();
+  const courseId = getValue('regCourse');
+  const gender = getValue('regGender');
+  const dob = getValue('regDob');
+  const level = getValue('regLevel');
+  const email = getValue('regEmail').trim().toLowerCase();
+  const password = getValue('regPassword');
+  const confirm = getValue('regConfirm');
+  const ref = getValue('regRef').trim().toUpperCase();
 
   if (fullName.length < 3) { showToast('error', 'Full Name Required', 'Please enter your full name.', ''); if ($('regFullName')) $('regFullName').focus(); return; }
   if (!validPhone(phone)) { showToast('error', 'Invalid Phone Number', 'Please enter a valid Nigerian phone number, e.g. 08123456789.', ''); if ($('regPhone')) $('regPhone').focus(); return; }
@@ -351,7 +397,6 @@ async function handleRegister(e) {
     course_name: course.course_name || urlCourseName || 'Selected Course',
     course_price: Number(course.price || urlCoursePrice || 0),
     course_number: course.course_number || urlCourseNumber || '',
-    payment_no: paymentNo,
     date_of_birth: dob,
     school_level: level,
     password: password,
@@ -359,6 +404,7 @@ async function handleRegister(e) {
   };
 
   showLoading();
+
   try {
     const res = await fetch('/api/register', {
       method: 'POST',
@@ -366,14 +412,18 @@ async function handleRegister(e) {
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(30000)
     });
+
     const json = await res.json().catch(() => ({}));
     hideLoading();
+
     if (!res.ok || !json.success) {
       showToast('error', 'Registration Failed', friendlyRegisterError(json), json.error || json.message || ('HTTP ' + res.status));
       return;
     }
+
     localStorage.setItem('idt_user', JSON.stringify(json.user));
     localStorage.removeItem('idt_ref');
+
     showToast('success', 'Welcome To IDT Academy!', json.message || 'Account created. Redirecting to your dashboard...');
     setTimeout(() => window.location.replace('dashboard.html'), 1800);
   } catch (err) {
@@ -384,13 +434,15 @@ async function handleRegister(e) {
 
 async function handleLogin(e) {
   e.preventDefault();
-  const email = $('loginEmail') ? $('loginEmail').value.trim().toLowerCase() : '';
-  const password = $('loginPassword') ? $('loginPassword').value : '';
+
+  const email = getValue('loginEmail').trim().toLowerCase();
+  const password = getValue('loginPassword');
 
   if (!validEmail(email)) { showToast('error', 'Invalid Email', 'Please enter the email you registered with.', ''); if ($('loginEmail')) $('loginEmail').focus(); return; }
   if (!password) { showToast('error', 'Password Required', 'Please enter your password.', ''); if ($('loginPassword')) $('loginPassword').focus(); return; }
 
   showLoading();
+
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email,
@@ -413,6 +465,7 @@ async function handleLogin(e) {
 
     localStorage.setItem('idt_user', JSON.stringify(userObj));
     hideLoading();
+
     showToast('success', 'Welcome Back!', 'Login successful. Opening your dashboard...');
     setTimeout(() => window.location.replace('dashboard.html'), 1600);
   } catch (err) {
@@ -445,12 +498,21 @@ const menuBtn = $('menuBtn');
 const menuItems = $('menuItems');
 
 if (menuBtn && menuItems) {
-  menuBtn.addEventListener('click', (e) => { e.stopPropagation(); menuItems.classList.toggle('open'); });
-  document.addEventListener('click', (e) => { if (!menuItems.contains(e.target) && !menuBtn.contains(e.target)) menuItems.classList.remove('open'); });
+  menuBtn.addEventListener('click', (e) => { 
+    e.stopPropagation(); 
+    menuItems.classList.toggle('open'); 
+  });
+
+  document.addEventListener('click', (e) => { 
+    if (!menuItems.contains(e.target) && !menuBtn.contains(e.target)) {
+      menuItems.classList.remove('open'); 
+    }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
   showLoading();
+
   try {
     const sessionData = localStorage.getItem('idt_user');
     if (sessionData) {
@@ -464,6 +526,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   parseUrl();
   const ref = getUrlRef();
+
   if (ref && $('regRef')) { 
     $('regRef').value = ref; 
     localStorage.setItem('idt_ref', ref); 
@@ -476,7 +539,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (visited) { switchTab('login'); } else { switchTab('register'); }
   localStorage.setItem('idt_visited', '1');
 
-  loadCourses();
+  await loadCourses();
   setTimeout(hideLoading, 500);
 });
 
