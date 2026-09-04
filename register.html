@@ -677,9 +677,12 @@ html.ready {
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary" id="btnRegister">
-        <i class="fa-solid fa-user-plus"></i> <span>Applying</span>
-      </button>
+      <button type="button" class="btn btn-primary" id="btnRegister" onclick="handleRegisterClick(event)">
+  <i class="fa-solid fa-user-plus" id="btnRegisterIcon"></i>
+  <span id="btnRegisterText">Applying</span>
+</button>
+      
+      
       <p class="terms">By registering you agree to the IDT Academy terms of service. Your information is safe with us.</p>
     </form>
 
@@ -713,6 +716,68 @@ html.ready {
 </main>
 
 <div id="toastWrap" class="toast-wrap"></div>
+
+<script>
+    
+    // Wannan function din zai yi aiki 100% duk lokacin da aka danna button din
+window.handleRegisterClick = function(event) {
+  if (event) event.preventDefault();
+
+  const btn = document.getElementById('btnRegister');
+  const icon = document.getElementById('btnRegisterIcon');
+  const text = document.getElementById('btnRegisterText');
+  const form = document.getElementById('registerForm');
+
+  // 1. Nuna alamar cewa an danna shi (Feedback nan take)
+  if (btn && icon && text) {
+    btn.style.opacity = '0.7';
+    btn.style.pointerEvents = 'none'; // Hana sake danna shi lokacin da yake sarrafawa
+    icon.className = 'fa-solid fa-spinner fa-spin'; // Juya icon din
+    text.innerText = 'Processing...';
+  }
+
+  // 2. Duba idan aka cika fom ko akwai matsala
+  setTimeout(() => {
+    try {
+      // Idan ana amfani da Supabase ko wani Custom Submit Handler
+      if (typeof handleRegisterSubmit === 'function') {
+        handleRegisterSubmit();
+      } else if (form) {
+        // Tura form din idan komai yana daidai
+        if (form.checkValidity && !form.checkValidity()) {
+          if (typeof showToast === 'function') {
+            showToast('Akwai filayen da ba a cike ba!', 'error');
+          } else {
+            alert('Tabbatar ka cike dukkan filayen da ake bukata!');
+          }
+          resetRegisterButton();
+          return;
+        }
+        
+        // Tura fom din kai tsaye
+        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      }
+    } catch (err) {
+      console.error('Submit Error:', err);
+      resetRegisterButton();
+    }
+  }, 100);
+};
+
+// Function din mai da button din yadda yake idan aka samu matsala
+window.resetRegisterButton = function() {
+  const btn = document.getElementById('btnRegister');
+  const icon = document.getElementById('btnRegisterIcon');
+  const text = document.getElementById('btnRegisterText');
+
+  if (btn && icon && text) {
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = 'auto';
+    icon.className = 'fa-solid fa-user-plus';
+    text.innerText = 'Applying';
+  }
+};
+</script>
 <script type="module" src="register.js"></script>
 </body>
 </html>
