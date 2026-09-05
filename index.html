@@ -67,7 +67,11 @@
     
     
 
-    <style>
+   
+
+
+
+ <style>
         :root{
   --pwa-top:54px;
   --pwa-right:150px;
@@ -81,6 +85,7 @@
   --pwa-shadow:0 6px 3px rgba(80,40,160,.35);
 }
 .idt-pwa-btn{
+ 
   position:fixed;
   top:var(--pwa-top);
   right:var(--pwa-right);
@@ -314,10 +319,7 @@
 })();
     </script>
 
-
     
-
-
 <style>        
    
 *{margin:0;padding:0;box-sizing:border-box}
@@ -351,6 +353,10 @@ a{text-decoration:none;color:inherit}
 button{font-family:inherit}
 .hidden{display:none !important}
 .container{width:min(1200px,92%);margin:0 auto}
+
+
+
+
 .section{padding:84px 0;position:relative;overflow:hidden}
 .section-head{text-align:center;max-width:760px;margin:0 auto 46px;padding:0 8px}
 .eyebrow{
@@ -366,6 +372,9 @@ button{font-family:inherit}
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
 }
 .section-head p{color:var(--muted);font-size:15px;line-height:1.7}
+
+
+
 
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:9px;
@@ -1499,6 +1508,629 @@ html {
     --jamb-top: 12px;
   }
 }
+
+
+.referral-section {
+  padding: 40px 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.referral-card {
+  background: #0f172a;
+  border-radius: 20px;
+  padding: 32px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
+  width: 100%;
+  overflow: visible; 
+}
+
+.ref-info {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+
+.eyebrow-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  padding: 6px 14px;
+  border-radius: 50px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  width: fit-content;
+}
+
+
+.ref-info h2 {
+  color: #ffffff;
+  font-size: clamp(1.5rem, 4vw, 2.25rem); 
+  line-height: 1.3;
+  margin: 0;
+  font-weight: 700;
+}
+
+.ref-info h2 .highlight {
+  color: #fbbf24;
+}
+
+.ref-desc {
+  color: #94a3b8;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.ref-desc b {
+  color: #f8fafc;
+}
+
+
+.ref-bonus-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 10px 0;
+}
+
+.rb-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rb-card b {
+  color: #fbbf24;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.rb-card span {
+  color: #cbd5e1;
+  font-size: 0.8rem;
+}
+
+
+.ref-steps-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ref-steps-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.step-num {
+  background: #fbbf24;
+  color: #0f172a;
+  font-weight: 700;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+
+.btn-modern-amber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #fbbf24;
+  color: #0f172a;
+  font-weight: 700;
+  padding: 14px 28px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.btn-modern-amber:hover {
+  background: #f59e0b;
+  transform: translateY(-2px);
+}
+
+@media (min-width: 640px) {
+  .btn-modern-amber {
+    width: auto;
+  }
+}
+
+
+
+
+
+.idt-tech-showcase {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  padding: 38px 14px 45px;
+  background: transparent;
+  isolation: isolate;
+}
+
+.idt-tech-content {
+  position: relative;
+  z-index: 3;
+  max-width: 1000px;
+  margin: auto;
+  text-align: center;
+}
+
+
+
+.idt-tech-bg {
+  position: absolute;
+  width: 420px;
+  height: 420px;
+
+  left: 50%;
+  top: 45%;
+
+  transform: translate(-50%, -50%);
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(93, 45, 220, .12) 0%,
+      rgba(0, 170, 255, .06) 35%,
+      transparent 70%
+    );
+
+  filter: blur(10px);
+  pointer-events: none;
+}
+
+
+
+.idt-tech-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  padding: 7px 13px;
+
+  border-radius: 30px;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .8px;
+
+  color: #5630d8;
+
+  background: rgba(255,255,255,.72);
+
+  border: 1px solid rgba(93,45,220,.12);
+
+  box-shadow:
+    0 5px 20px rgba(80,50,180,.07);
+
+  backdrop-filter: blur(8px);
+}
+
+.idt-tech-label i {
+  font-size: 12px;
+}
+
+
+
+.idt-tech-content h2 {
+  margin: 13px auto 6px;
+
+  max-width: 650px;
+
+  font-size: clamp(26px, 5vw, 46px);
+
+  line-height: 1.08;
+
+  font-weight: 900;
+
+  letter-spacing: -1.2px;
+
+  color: #171743;
+}
+
+.idt-tech-content h2 span {
+  display: block;
+
+  background:
+    linear-gradient(
+      90deg,
+      #6428e8,
+      #147cf5,
+      #08a7a1
+    );
+
+  -webkit-background-clip: text;
+  background-clip: text;
+
+  -webkit-text-fill-color: transparent;
+}
+
+
+.idt-tech-subtitle {
+  margin: 0 auto 20px;
+
+  font-size: 13px;
+
+  color: #77758b;
+}
+
+
+.idt-tech-image-wrap {
+  position: relative;
+
+  width: 100%;
+  max-width: 850px;
+
+  margin: 0 auto;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+
+
+.tech-glow {
+  position: absolute;
+
+  width: 65%;
+  height: 45%;
+
+  left: 50%;
+  top: 50%;
+
+  transform: translate(-50%, -50%);
+
+  background:
+    radial-gradient(
+      ellipse,
+      rgba(95, 45, 230, .16),
+      rgba(0, 180, 255, .08),
+      transparent 72%
+    );
+
+  filter: blur(25px);
+
+  z-index: -1;
+
+  animation: techPulse 4s ease-in-out infinite;
+}
+
+
+@keyframes techPulse {
+
+  0%,100% {
+    opacity: .55;
+    transform: translate(-50%, -50%) scale(.95);
+  }
+
+  50% {
+    opacity: .9;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+
+}
+
+
+
+.idt-tech-image {
+  display: block;
+
+  width: 100%;
+  max-width: 850px;
+
+  height: auto;
+
+  object-fit: contain;
+
+  filter:
+    drop-shadow(0 18px 28px rgba(37, 30, 100, .10));
+
+  animation: imageFloat 6s ease-in-out infinite;
+
+  transition: transform .4s ease;
+}
+
+
+@keyframes imageFloat {
+
+  0%,100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-7px);
+  }
+
+}
+
+
+
+.floating-tech {
+  position: absolute;
+
+  width: 42px;
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 14px;
+
+  color: white;
+
+  font-size: 15px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #6630e8,
+      #1684f4
+    );
+
+  box-shadow:
+    0 10px 25px rgba(75,45,180,.18);
+
+  z-index: 4;
+
+  animation: floatingIcon 4s ease-in-out infinite;
+}
+
+.tech-one {
+  left: 5%;
+  top: 35%;
+}
+
+.tech-two {
+  right: 7%;
+  top: 20%;
+  animation-delay: 1s;
+}
+
+.tech-three {
+  right: 4%;
+  bottom: 20%;
+  animation-delay: 2s;
+}
+
+
+@keyframes floatingIcon {
+
+  0%,100% {
+    transform: translateY(0) rotate(0);
+  }
+
+  50% {
+    transform: translateY(-10px) rotate(4deg);
+  }
+
+}
+
+
+
+.idt-tech-services {
+
+  display: flex;
+
+  justify-content: center;
+
+  flex-wrap: wrap;
+
+  gap: 8px;
+
+  margin: 4px auto 20px;
+
+  max-width: 700px;
+}
+
+
+.tech-service {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  padding: 8px 11px;
+
+  border-radius: 30px;
+
+  background: rgba(255,255,255,.82);
+
+  border: 1px solid rgba(80,60,180,.09);
+
+  box-shadow:
+    0 5px 18px rgba(50,40,120,.06);
+
+  color: #454363;
+
+  font-size: 10px;
+
+  font-weight: 700;
+
+  backdrop-filter: blur(8px);
+
+  transition: .25s ease;
+}
+
+.tech-service i {
+  color: #6332e5;
+  font-size: 11px;
+}
+
+.tech-service:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 10px 22px rgba(70,50,160,.11);
+}
+
+
+
+.idt-tech-button {
+
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 10px;
+
+  padding: 12px 18px;
+
+  border-radius: 14px;
+
+  text-decoration: none;
+
+  color: white;
+
+  font-size: 12px;
+
+  font-weight: 800;
+
+  background:
+    linear-gradient(
+      100deg,
+      #6429e8,
+      #2876ed,
+      #08a59d
+    );
+
+  box-shadow:
+    0 9px 25px rgba(85,45,200,.18);
+
+  transition: .25s ease;
+}
+
+.idt-tech-button i {
+  transition: .25s ease;
+}
+
+.idt-tech-button:hover {
+  transform: translateY(-3px);
+
+  box-shadow:
+    0 14px 30px rgba(70,50,180,.23);
+}
+
+.idt-tech-button:hover i {
+  transform: translateX(4px);
+}
+
+
+
+@media (max-width: 600px) {
+
+  .idt-tech-showcase {
+    padding: 25px 10px 35px;
+  }
+
+  .idt-tech-content h2 {
+    font-size: 27px;
+    letter-spacing: -.8px;
+  }
+
+  .idt-tech-subtitle {
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+
+  .idt-tech-image-wrap {
+    margin-top: 0;
+  }
+
+  .floating-tech {
+    width: 32px;
+    height: 32px;
+
+    border-radius: 10px;
+
+    font-size: 11px;
+  }
+
+  .tech-one {
+    left: 2%;
+  }
+
+  .tech-two {
+    right: 2%;
+  }
+
+  .tech-three {
+    right: 1%;
+  }
+
+  .idt-tech-services {
+    gap: 5px;
+  }
+
+  .tech-service {
+    padding: 6px 8px;
+    font-size: 9px;
+  }
+
+  .tech-service i {
+    font-size: 9px;
+  }
+
+  .idt-tech-button {
+    width: auto;
+    padding: 11px 15px;
+    font-size: 11px;
+  }
+
+}
+
+
+
+@media (max-width: 380px) {
+
+  .idt-tech-content h2 {
+    font-size: 24px;
+  }
+
+  .idt-tech-services {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .tech-service {
+    justify-content: center;
+  }
+
+}
+
 </style>
 </head>
 <body>
@@ -1907,7 +2539,7 @@ html {
 <span class="academy-badge"><i class="fa-solid fa-bolt"></i>Powered by CEO </span>
 <h2>Why Choose IDT Academy?</h2>
 <p>We teach what the market actually uses — practical-based learning that takes you from zero to expert. No prior experience needed. Our AI companion guides you in English and your native language, runs assessments, and ensures every certificate you earn is earned honestly.</p>
-<a class="btn btn-primary btn-sm" href="https://wa.me/+2349131264928?text=Hello%20IDT%20Academy%2C%20I%20want%20to%20enroll." target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> Enroll Now</a>
+
 </div>
 </div>
 </div>
@@ -1959,33 +2591,157 @@ html {
 
 
 
-<section class="section" id="referral" style="padding-top:10px">
+<section class="section referral-section" id="referral">
   <div class="container">
-    <div class="referral reveal">
+    <div class="referral-card reveal">
       <div class="ref-grid">
         <div class="ref-info">
-          <span class="eyebrow" style="color:#fbbf24;background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.3)"><i class="fa-solid fa-hand-holding-dollar"></i> Referral Bonus</span>
-          <h2>Earn <span>₦1,500</span> For Every Student You Bring</h2>
-          <p>Share your referral link with anyone — friends, family, your YouTube channel, Facebook page, WhatsApp group, or social media ads. When someone you referred registers and pays for any course, you get <b>₦1,500 instantly</b>. You don't even need to buy a course yourself — just register to get your own referral link and start earning.</p>
-          <div class="ref-bonus">
-            <div class="rb"><b>₦1,500</b><span>Per Paid Referral</span></div>
-            <div class="rb"><b>₦1,500</b><span>Minimum Withdrawal</span></div>
-            <div class="rb"><b>Unlimited</b><span>No Limit On Earnings</span></div>
+          
+        
+          <div class="eyebrow-badge">
+            <i class="fa-solid fa-hand-holding-dollar"></i> 
+            <span>Referral Bonus</span>
           </div>
-          <ul class="ref-steps">
-            <li><i class="fa-solid fa-1"></i><span>Register free and open your dashboard to copy your personal referral link.</span></li>
-            <li><i class="fa-solid fa-2"></i><span>Share the link on your social media, groups and channels.</span></li>
-            <li><i class="fa-solid fa-3"></i><span>Each person who registers and pays any course earns you ₦1,500. Withdraw when you reach ₦1,500.</span></li>
+
+        
+          <h2>Earn <span class="highlight">₦1,500</span> For Every Student You Bring</h2>
+          
+        
+          <p class="ref-desc">
+            Share your referral link with anyone — friends, family, YouTube channel, Facebook page, WhatsApp group, or social media ads. When someone registers and pays for any course, you get <b>₦1,500 instantly</b>.
+          </p>
+
+    
+          <div class="ref-bonus-grid">
+            <div class="rb-card">
+              <b>₦1,500</b>
+              <span>Per Paid Referral</span>
+            </div>
+            <div class="rb-card">
+              <b>₦1,500</b>
+              <span>Minimum Withdrawal</span>
+            </div>
+            <div class="rb-card">
+              <b>Unlimited</b>
+              <span>No Limit On Earnings</span>
+            </div>
+          </div>
+
+          
+          <ul class="ref-steps-list">
+            <li>
+              <div class="step-num">1</div>
+              <span>Register free and open your dashboard to copy your personal referral link.</span>
+            </li>
+            <li>
+              <div class="step-num">2</div>
+              <span>Share the link on your social media, groups, and channels.</span>
+            </li>
+            <li>
+              <div class="step-num">3</div>
+              <span>Each person who registers and pays for any course earns you ₦1,500. Withdraw anytime from ₦1,500.</span>
+            </li>
           </ul>
-          <a href="register.html" class="btn btn-amber btn-lg"><i class="fa-solid fa-user-plus"></i> Get Your Referral Link Now</a>
+
+         
+          <div class="action-wrapper">
+            <a href="register.html" class="btn-modern-amber">
+              <i class="fa-solid fa-user-plus"></i> Get Your Referral Link Now
+            </a>
+          </div>
+
         </div>
-                                  
       </div>
     </div>
   </div>
 </section>
 
 
+
+
+
+<section class="idt-tech-showcase">
+
+  <div class="idt-tech-bg"></div>
+
+  <div class="idt-tech-content">
+
+    <span class="idt-tech-label">
+      <i class="fa-solid fa-microchip"></i>
+      IDT DIGITAL TECHNOLOGY
+    </span>
+
+    <h2>
+      Your Business,
+      <span>Powered by Technology</span>
+    </h2>
+
+    <p class="idt-tech-subtitle">
+      Smart digital solutions for modern businesses.
+    </p>
+    
+    <div class="idt-tech-image-wrap">
+
+      <div class="tech-glow"></div>
+
+      <div class="floating-tech tech-one">
+        <i class="fa-solid fa-code"></i>
+      </div>
+
+      <div class="floating-tech tech-two">
+        <i class="fa-solid fa-brain"></i>
+      </div>
+
+      <div class="floating-tech tech-three">
+        <i class="fa-solid fa-mobile-screen"></i>
+      </div>
+
+      <img
+        src="https://i.imgur.com/MWIr4xU.png"
+        alt="IDT Digital Technology"
+        class="idt-tech-image"
+        loading="lazy"
+      >
+
+    </div>
+    
+    <div class="idt-tech-services">
+
+      <div class="tech-service">
+        <i class="fa-solid fa-globe"></i>
+        <span>Website</span>
+      </div>
+
+      <div class="tech-service">
+        <i class="fa-solid fa-laptop-code"></i>
+        <span>Software</span>
+      </div>
+
+      <div class="tech-service">
+        <i class="fa-solid fa-mobile-screen-button"></i>
+        <span>Apps</span>
+      </div>
+
+      <div class="tech-service">
+        <i class="fa-solid fa-robot"></i>
+        <span>AI</span>
+      </div>
+
+      <div class="tech-service">
+        <i class="fa-solid fa-bullhorn"></i>
+        <span>Marketing</span>
+      </div>
+
+    </div>
+   
+    <a href="https://www.idt.com.ng" class="idt-tech-button">
+      <span>Explore IDT Technology</span>
+      <i class="fa-solid fa-arrow-right"></i>
+    </a>
+
+  </div>
+
+</section>
 
 
       
@@ -2399,19 +3155,7 @@ html {
           <span>One-time payment — start learning immediately</span>
         </div>
         <i class="fa-solid fa-badge-check" style="font-size:30px;color:#10b981"></i>
-      </div>
-      <div class="m-langs">
-        <b><i class="fa-solid fa-language"></i> Read This Course In Your Language</b>
-        <div class="lang-row" id="langRow">
-          <button class="lang-btn" data-lang="ha"><i class="fa-solid fa-language"></i> Hausa</button>
-          <button class="lang-btn" data-lang="yo"><i class="fa-solid fa-language"></i> Yoruba</button>
-          <button class="lang-btn" data-lang="ig"><i class="fa-solid fa-language"></i> Igbo</button>
-          <button class="lang-btn" data-lang="fr"><i class="fa-solid fa-language"></i> French</button>
-          <button class="lang-btn" data-lang="es"><i class="fa-solid fa-language"></i> Spanish</button>
-        </div>
-        <div class="lang-loading" lid="langLoading"><span class="spin"></span> Translating to your language...</div>
-        <div class="lang-note" id="langNote"><i class="fa-solid fa-circle-info"></i> Translation is not available right now. Showing the original English text.</div>
-      </div>
+      
       <button class="btn btn-primary btn-block m-start" id="mStart"><i class="fa-solid fa-rocket"></i> Start This Course</button>
     </div>
   </div>
