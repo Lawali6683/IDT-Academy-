@@ -124,18 +124,9 @@ const CATEGORIES = {
   '4': '2-Year Diploma Program'
 };
 
-const LANGS = {
-  ha: 'Hausa',
-  yo: 'Yoruba',
-  ig: 'Igbo',
-  fr: 'French',
-  es: 'Spanish'
-};
-
 let allCourses = [];
 let currentCourse = null;
 let originalInfo = '';
-let translating = false;
 let windowLoaded = false;
 let coursesDone = false;
 
@@ -207,6 +198,9 @@ function cardHTML(course) {
   const catName = CATEGORIES[String(course.category)] || 'Course';
   const desc = String(course.info_text || '').replace(/\s+/g, ' ').trim();
   const shortDesc = desc.length > 110 ? desc.slice(0, 110) + '...' : desc;
+  const isDiploma = String(course.category) === '4';
+  const priceTag = isDiploma ? 'Per Year' : 'One-time';
+
   return '<div class="course-card" data-id="' + escapeHtml(course.id) + '">' +
     '<div class="c-img">' +
       '<span class="c-badge"><i class="fa-solid fa-layer-group"></i> ' + escapeHtml(catName) + '</span>' +
@@ -218,7 +212,7 @@ function cardHTML(course) {
       '<p class="c-desc">' + escapeHtml(shortDesc) + '</p>' +
       '<div class="c-price">' +
         '<b><i class="fa-solid fa-naira-sign"></i>' + formatNaira(course.price) + '</b>' +
-        '<span>One-time</span>' +
+        '<span>' + priceTag + '</span>' +
       '</div>' +
       '<div class="c-actions">' +
         '<button class="btn btn-view" data-action="view"><i class="fa-solid fa-eye"></i> View</button>' +
@@ -248,9 +242,7 @@ async function loadCourses() {
     const { data, error } = await supabase
       .from('courses')
       .select('*');
-
     if (error) throw error;
-
     let parsedCourses = (data || []).map((row) => {
       let cData = row.course_data;
       if (typeof cData === 'string') {
@@ -258,32 +250,25 @@ async function loadCourses() {
       }
       return cData || {};
     }).filter((c) => c && c.id);
-
     parsedCourses.sort((a, b) => {
       const dateA = new Date(a.created_at || 0);
       const dateB = new Date(b.created_at || 0);
       return dateB - dateA;
     });
-
     allCourses = parsedCourses;
-
     const grouped = { '1': [], '2': [], '3': [], '4': [] };
-
     allCourses.forEach((c) => {
       const cat = String(c.category || '1');
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push(c);
     });
-
     let any = false;
-
     ['1', '2', '3', '4'].forEach((cat) => {
       const sec = document.querySelector('.ps-' + cat);
       const row = $('row-' + cat);
       const empty = $('empty-' + cat);
       const count = $('count-' + cat);
       const items = grouped[cat] || [];
-
       if (!items.length) {
         if (sec) sec.classList.add('hidden');
         if (row) row.innerHTML = '';
@@ -291,14 +276,12 @@ async function loadCourses() {
         if (count) count.textContent = '0 courses';
         return;
       }
-
       any = true;
       if (sec) sec.classList.remove('hidden');
       if (count) count.textContent = items.length + (items.length === 1 ? ' course' : ' courses');
       if (row) row.innerHTML = items.map(cardHTML).join('');
       if (empty) empty.classList.add('hidden');
     });
-
     if (!any) {
       const el = injectAllEmptyBlock();
       el.classList.remove('hidden');
@@ -306,11 +289,9 @@ async function loadCourses() {
       const el = $('allEmpty');
       if (el) el.classList.add('hidden');
     }
-
     if (allCourses.length) {
       setupRowInteractions();
     }
-
   } catch (err) {
     showToast('Load Failed', err.message || 'Could not load courses. Please check your Supabase connection.', 'error');
     ['1', '2', '3', '4'].forEach((cat) => {
@@ -333,7 +314,6 @@ function setupRowInteractions() {
     let startX = 0;
     let startScroll = 0;
     let moved = false;
-
     row.addEventListener('mousedown', (e) => {
       if (e.target.closest('.btn')) return;
       isDown = true;
@@ -342,7 +322,6 @@ function setupRowInteractions() {
       startScroll = row.scrollLeft;
       row.classList.add('dragging');
     });
-
     row.addEventListener('mousemove', (e) => {
       if (!isDown) return;
       const x = e.pageX - row.offsetLeft;
@@ -350,21 +329,17 @@ function setupRowInteractions() {
       if (Math.abs(walk) > 6) moved = true;
       row.scrollLeft = startScroll - walk;
     });
-
     row.addEventListener('mouseup', () => {
       isDown = false;
       row.classList.remove('dragging');
     });
-
     row.addEventListener('mouseleave', () => {
       isDown = false;
       row.classList.remove('dragging');
     });
-
     row.addEventListener('touchstart', () => {
       row.classList.remove('dragging');
     }, { passive: true });
-
     row.addEventListener('click', (e) => {
       if (moved) {
         e.preventDefault();
@@ -378,7 +353,6 @@ function setupRowInteractions() {
       if (!card) return;
       const course = allCourses.find((c) => String(c.id) === String(card.dataset.id));
       if (!course) return;
-
       if (btn.dataset.action === 'view') {
         openModal(course);
       } else if (btn.dataset.action === 'start') {
@@ -386,7 +360,6 @@ function setupRowInteractions() {
       }
     });
   });
-
   document.querySelectorAll('.scroll-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const dir = Number(btn.dataset.scroll || 1);
@@ -405,14 +378,8 @@ function openModal(course) {
   const mName = $('mName');
   const mInfo = $('mInfo');
   const mPrice = $('mPrice');
-  const langRow = $('langRow');
-  const langLoading = $('langLoading');
-  const langNote = $('langNote');
-
   currentCourse = course;
   originalInfo = course.info_text || '';
-  translating = false;
-
   if (mCatText) mCatText.textContent = CATEGORIES[String(course.category)] || 'Course';
   if (mImg) {
     mImg.src = course.image_url || PLACEHOLDER_IMG;
@@ -428,10 +395,6 @@ function openModal(course) {
     mInfo.classList.remove('hidden');
   }
   if (mPrice) mPrice.textContent = formatNaira(course.price);
-
-  if (langRow) langRow.querySelectorAll('.lang-btn').forEach((b) => b.classList.remove('active'));
-  if (langLoading) langLoading.classList.remove('show');
-  if (langNote) langNote.classList.remove('show');
   if (courseModal) courseModal.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -439,70 +402,12 @@ function openModal(course) {
 function closeModal() {
   const courseModal = $('courseModal');
   const mInfo = $('mInfo');
-  const langLoading = $('langLoading');
-  const langNote = $('langNote');
-  const langRow = $('langRow');
-
   if (courseModal) courseModal.classList.remove('open');
   document.body.style.overflow = '';
   currentCourse = null;
-  translating = false;
   if (mInfo) {
     mInfo.textContent = originalInfo;
     mInfo.classList.remove('hidden');
-  }
-  if (langLoading) langLoading.classList.remove('show');
-  if (langNote) langNote.classList.remove('show');
-  if (langRow) langRow.querySelectorAll('.lang-btn').forEach((b) => b.classList.remove('active'));
-}
-
-async function translateText(text, lang) {
-  const res = await fetch('/api/tran', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: text, target: lang })
-  });
-  if (!res.ok) throw new Error('Translation service error ' + res.status);
-  const json = await res.json();
-  const out = (json && (json.translated || json.translated_text || json.text || json.data)) || null;
-  if (typeof out === 'object' && out !== null) {
-    if (out.translated || out.translated_text || out.text) return out.translated || out.translated_text || out.text;
-    throw new Error('Translation returned no text');
-  }
-  if (out) return out;
-  throw new Error('Translation returned no text');
-}
-
-async function handleTranslate(lang) {
-  const langRow = $('langRow');
-  const langLoading = $('langLoading');
-  const langNote = $('langNote');
-  const mInfo = $('mInfo');
-
-  if (translating || !currentCourse) return;
-  translating = true;
-
-  if (langRow) langRow.querySelectorAll('.lang-btn').forEach((b) => b.disabled = true);
-  if (langLoading) langLoading.classList.add('show');
-  if (langNote) langNote.classList.remove('show');
-  if (mInfo) mInfo.classList.add('hidden');
-
-  try {
-    const translated = await translateText(originalInfo, lang);
-    if (mInfo) {
-      mInfo.textContent = translated;
-      mInfo.classList.remove('hidden');
-    }
-  } catch (err) {
-    if (mInfo) {
-      mInfo.textContent = originalInfo;
-      mInfo.classList.remove('hidden');
-    }
-    if (langNote) langNote.classList.add('show');
-  } finally {
-    translating = false;
-    if (langLoading) langLoading.classList.remove('show');
-    if (langRow) langRow.querySelectorAll('.lang-btn').forEach((b) => b.disabled = false);
   }
 }
 
@@ -525,16 +430,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalClose = $('modalClose');
   const courseModal = $('courseModal');
   const mStart = $('mStart');
-  const langRow = $('langRow');
   const refBannerClose = $('refBannerClose');
   const topbar = $('topbar');
-
   showLoading();
   handleRefCode();
   loadCourses();
-
   document.documentElement.classList.add('ready');
-
   if (burgerBtn) {
     burgerBtn.addEventListener('click', () => {
       if (spanMenu && spanMenu.classList.contains('open')) {
@@ -545,14 +446,12 @@ document.addEventListener('DOMContentLoaded', () => {
       burgerBtn.classList.toggle('open');
     });
   }
-
   if (spanClose) {
     spanClose.addEventListener('click', () => {
       closeSpanMenu();
       if (burgerBtn) burgerBtn.classList.remove('open');
     });
   }
-
   if (spanMenu) {
     spanMenu.querySelectorAll('.span-links a').forEach((a) => {
       a.addEventListener('click', () => {
@@ -561,15 +460,12 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   }
-
   if (modalClose) modalClose.addEventListener('click', closeModal);
-
   if (courseModal) {
     courseModal.addEventListener('click', (e) => {
       if (e.target === courseModal) closeModal();
     });
   }
-
   if (mStart) {
     mStart.addEventListener('click', () => {
       if (currentCourse) {
@@ -577,24 +473,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-
-  if (langRow) {
-    langRow.addEventListener('click', (e) => {
-      const btn = e.target.closest('.lang-btn');
-      if (!btn || translating) return;
-      langRow.querySelectorAll('.lang-btn').forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      handleTranslate(btn.dataset.lang);
-    });
-  }
-
   if (refBannerClose) {
     refBannerClose.addEventListener('click', () => {
       const refBanner = $('refBanner');
       if (refBanner) refBanner.classList.remove('show');
     });
   }
-
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (courseModal && courseModal.classList.contains('open')) closeModal();
@@ -604,7 +488,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
-
   window.addEventListener('scroll', () => {
     if (topbar) {
       if (window.scrollY > 30) {
@@ -614,7 +497,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   }, { passive: true });
-
   const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
       if (entry.isIntersecting) {
@@ -623,9 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }, { threshold: 0.12 });
-
   document.querySelectorAll('.reveal').forEach((el) => revealObserver.observe(el));
-
   document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
     anchor.addEventListener('click', function (e) {
       const targetId = this.getAttribute('href');
@@ -644,7 +524,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
-
   window.addEventListener('load', () => {
     windowLoaded = true;
     setTimeout(maybeHideLoader, 500);
