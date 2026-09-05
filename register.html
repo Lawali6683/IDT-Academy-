@@ -12,7 +12,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-
 :root{
   --violet:#7c3aed;
   --violet-d:#6d28d9;
@@ -26,9 +25,7 @@
   --line:rgba(124,58,237,.15);
   --shadow:0 24px 60px rgba(80,40,160,.16);
 }
-
 html{scroll-behavior:smooth}
-
 body{
   font-family:'Poppins',system-ui,-apple-system,sans-serif;
   color:var(--ink);
@@ -42,7 +39,6 @@ body{
   overflow-x:hidden;
   position:relative;
 }
-
 body::before{
   content:"";
   position:fixed;
@@ -52,7 +48,6 @@ body::before{
   opacity:.08;
   pointer-events:none;
 }
-
 body::after{
   content:"";
   position:fixed;
@@ -62,19 +57,12 @@ body::after{
   opacity:.05;
   pointer-events:none;
 }
-
 ::selection{background:rgba(124,58,237,.22)}
-
 img{max-width:100%;display:block}
-
 a{text-decoration:none;color:inherit}
-
 button{font-family:inherit}
-
 input,select,textarea{font-family:inherit}
-
 .hidden{display:none !important}
-
 .bg-blob{
   position:fixed;
   border-radius:50%;
@@ -84,15 +72,10 @@ input,select,textarea{font-family:inherit}
   pointer-events:none;
   animation:blobFloat 14s ease-in-out infinite;
 }
-
 .b1{width:420px;height:420px;left:-140px;top:-120px;background:rgba(124,58,237,.4)}
-
 .b2{width:380px;height:380px;right:-120px;top:30%;background:rgba(6,182,212,.32);animation-delay:3s}
-
 .b3{width:360px;height:360px;left:30%;bottom:-160px;background:rgba(245,158,11,.26);animation-delay:6s}
-
 @keyframes blobFloat{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(50px,-40px) scale(1.15)}}
-
 .topbar{
   position:sticky;
   top:0;
@@ -107,9 +90,7 @@ input,select,textarea{font-family:inherit}
   -webkit-backdrop-filter:blur(18px);
   border-bottom:1px solid rgba(124,58,237,.12);
 }
-
 .brand{display:flex;align-items:center;gap:12px;cursor:pointer}
-
 .brand img{
   width:50px;
   height:50px;
@@ -119,13 +100,9 @@ input,select,textarea{font-family:inherit}
   padding:6px;
   box-shadow:0 8px 22px rgba(124,58,237,.25);
 }
-
 .brand h1{font-size:18px;font-weight:900;line-height:1.1}
-
 .brand p{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1.4px;text-transform:uppercase}
-
 .top-right{display:flex;align-items:center;gap:10px}
-
 .btn-home{
   display:inline-flex;
   align-items:center;
@@ -141,11 +118,8 @@ input,select,textarea{font-family:inherit}
   box-shadow:0 10px 24px rgba(245,158,11,.32);
   transition:transform .2s ease,box-shadow .2s ease;
 }
-
 .btn-home:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(245,158,11,.42)}
-
 .menu-drop{position:relative}
-
 .menu-btn{
   width:46px;
   height:46px;
@@ -160,9 +134,7 @@ input,select,textarea{font-family:inherit}
   justify-content:center;
   transition:all .22s ease;
 }
-
 .menu-btn:hover{background:var(--violet);color:#fff;border-color:var(--violet)}
-
 .menu-items{
   position:absolute;
   top:54px;
@@ -179,9 +151,7 @@ input,select,textarea{font-family:inherit}
   transition:all .25s ease;
   z-index:200;
 }
-
 .menu-items.open{opacity:1;visibility:visible;transform:translateY(0)}
-
 .menu-items a{
   display:flex;
   align-items:center;
@@ -193,11 +163,8 @@ input,select,textarea{font-family:inherit}
   color:#3d3a6b;
   transition:all .2s ease;
 }
-
 .menu-items a:hover{background:rgba(124,58,237,.08);color:var(--violet)}
-
 .menu-items a i{width:20px;text-align:center;color:var(--violet)}
-
 .auth-wrap{
   position:relative;
   z-index:1;
@@ -206,7 +173,6 @@ input,select,textarea{font-family:inherit}
   justify-content:center;
   padding:36px 18px 70px;
 }
-
 .auth-card{
   width:100%;
   max-width:600px;
@@ -219,15 +185,10 @@ input,select,textarea{font-family:inherit}
   box-shadow:var(--shadow);
   animation:cardIn .55s ease both;
 }
-
 @keyframes cardIn{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:translateY(0)}}
-
 .auth-head{text-align:center;margin-bottom:24px}
-
 .auth-head h2{font-size:23px;font-weight:900;margin-bottom:4px}
-
 .auth-head p{font-size:13px;color:var(--muted)}
-
 .tabs{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -238,7 +199,6 @@ input,select,textarea{font-family:inherit}
   padding:6px;
   margin-bottom:26px;
 }
-
 .tab{
   border:none;
   background:transparent;
@@ -254,29 +214,19 @@ input,select,textarea{font-family:inherit}
   gap:8px;
   transition:all .25s ease;
 }
-
 .tab i{font-size:14px}
-
 .tab.active{
   background:linear-gradient(135deg,var(--violet),var(--violet-d));
   color:#fff;
   box-shadow:0 10px 24px rgba(109,40,217,.35);
 }
-
 .tab-panel{display:none}
-
 .tab-panel.active{display:block;animation:fadeUp .4s ease both}
-
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-
 .field{margin-bottom:15px}
-
 .field label{display:block;font-size:12.5px;font-weight:700;margin-bottom:7px;color:#3d3a6b}
-
 .field label .opt{color:var(--muted);font-weight:500;font-size:11px}
-
 .input-box, .select-box{
   position:relative;
   display:flex;
@@ -287,23 +237,18 @@ input,select,textarea{font-family:inherit}
   padding:0 14px;
   transition:border-color .2s ease,box-shadow .2s ease;
 }
-
 .input-box:focus-within, .select-box:focus-within{border-color:var(--violet);box-shadow:0 0 0 4px rgba(124,58,237,.12)}
-
 .input-box.field-error, .select-box.field-error{
   border-color:var(--rose) !important;
   box-shadow:0 0 0 4px rgba(244,63,94,.18) !important;
   animation:shake 0.35s ease-in-out;
 }
-
 @keyframes shake{
   0%, 100%{transform:translateX(0)}
   20%, 60%{transform:translateX(-6px)}
   40%, 80%{transform:translateX(6px)}
 }
-
 .input-box > i, .select-box > i{color:var(--violet);font-size:14px;margin-right:11px;flex-shrink:0}
-
 .input-box input{
   width:100%;
   border:none;
@@ -313,9 +258,7 @@ input,select,textarea{font-family:inherit}
   color:var(--ink);
   padding:13px 0;
 }
-
 .input-box input[readonly]{background:rgba(245,158,11,.06);color:#b45309;font-weight:800;cursor:not-allowed}
-
 .eye-btn{
   border:none;
   background:transparent;
@@ -325,9 +268,7 @@ input,select,textarea{font-family:inherit}
   padding:6px;
   flex-shrink:0;
 }
-
 .eye-btn:hover{color:var(--violet)}
-
 .select-box select{
   width:100%;
   border:none;
@@ -341,7 +282,6 @@ input,select,textarea{font-family:inherit}
   -webkit-appearance:none;
   padding-right:28px;
 }
-
 .select-arrow{
   position:absolute;
   right:14px;
@@ -350,13 +290,11 @@ input,select,textarea{font-family:inherit}
   font-size:12px;
   margin:0 !important;
 }
-
 .dob-group{
   display:grid;
   grid-template-columns:1fr 1fr 1.2fr;
   gap:8px;
 }
-
 .course-summary{
   display:flex;
   align-items:center;
@@ -367,13 +305,9 @@ input,select,textarea{font-family:inherit}
   border-radius:14px;
   padding:10px 13px;
 }
-
 .course-summary img{width:46px;height:46px;border-radius:11px;object-fit:cover;box-shadow:0 4px 10px rgba(80,40,160,.18)}
-
 .course-summary b{font-size:13px;display:block;line-height:1.25}
-
 .course-summary small{font-size:11px;color:var(--muted)}
-
 .btn{
   display:inline-flex;
   align-items:center;
@@ -387,26 +321,18 @@ input,select,textarea{font-family:inherit}
   border-radius:14px;
   transition:transform .22s ease,box-shadow .22s ease;
 }
-
 .btn:active{transform:scale(.97)}
-
 .btn-primary{
   width:100%;
   background:linear-gradient(135deg,var(--violet) 0%,var(--violet-d) 55%,var(--cyan) 140%);
   color:#fff;
   box-shadow:0 14px 30px rgba(109,40,217,.35);
 }
-
 .btn-primary:hover{transform:translateY(-2px);box-shadow:0 20px 40px rgba(109,40,217,.45)}
-
 .forgot-row{text-align:right;margin-bottom:16px}
-
 .forgot-row a{font-size:12.5px;font-weight:700;color:var(--violet);display:inline-flex;align-items:center;gap:7px}
-
 .forgot-row a:hover{text-decoration:underline}
-
 .terms{text-align:center;font-size:11.5px;color:var(--muted);margin-top:14px;line-height:1.55}
-
 .toast-wrap{
   position:fixed;
   top:20px;
@@ -417,7 +343,6 @@ input,select,textarea{font-family:inherit}
   gap:10px;
   max-width:min(92vw,400px);
 }
-
 .toast{
   display:flex;
   align-items:flex-start;
@@ -434,27 +359,16 @@ input,select,textarea{font-family:inherit}
   color:var(--ink);
   animation:toastIn .35s ease both;
 }
-
 .toast.out{animation:toastOut .3s ease both}
-
 @keyframes toastIn{from{opacity:0;transform:translateX(44px)}to{opacity:1;transform:translateX(0)}}
-
 @keyframes toastOut{to{opacity:0;transform:translateX(44px)}}
-
 .toast > i{font-size:18px;margin-top:1px;flex-shrink:0}
-
 .toast.success > i{color:var(--green)}
-
 .toast.error > i{color:var(--rose)}
-
 .toast.info > i{color:var(--violet)}
-
 .toast-body{flex:1;min-width:0}
-
 .toast-body b{display:block;font-size:13.5px;margin-bottom:2px}
-
 .toast-body p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.5}
-
 .toast-raw{
   display:block;
   margin-top:7px;
@@ -466,7 +380,6 @@ input,select,textarea{font-family:inherit}
   line-height:1.45;
   word-break:break-word;
 }
-
 .toast-x{
   border:none;
   background:rgba(239,68,68,.1);
@@ -482,9 +395,7 @@ input,select,textarea{font-family:inherit}
   justify-content:center;
   transition:all .2s ease;
 }
-
 .toast-x:hover{background:var(--rose);color:#fff}
-
 @media(max-width:640px){
   .topbar{padding:12px 4%}
   .brand h1{font-size:16px}
@@ -496,18 +407,17 @@ input,select,textarea{font-family:inherit}
   .toast-wrap{left:12px;right:12px;max-width:none}
   .dob-group{gap:5px;}
 }
-
 html {
   opacity: 0;
   transition: opacity 0.3s ease-in-out;
 }
-
 html.ready {
   opacity: 1;
 }
 </style>
 </head>
 <body>
+
 <div class="bg-blob b1"></div>
 <div class="bg-blob b2"></div>
 <div class="bg-blob b3"></div>
@@ -558,7 +468,6 @@ html.ready {
             <input type="text" id="regFullName" placeholder="e.g. John musa" autocomplete="name">
           </div>
         </div>
-
         <div class="field">
           <label>Phone Number</label>
           <div class="input-box">
@@ -577,7 +486,6 @@ html.ready {
           </select>
           <i class="fa-solid fa-chevron-down select-arrow"></i>
         </div>
-
         <div class="course-summary hidden" id="courseSummary">
           <img id="courseImg" src="" alt="">
           <div>
@@ -595,7 +503,6 @@ html.ready {
             <input type="text" id="regPrice" readonly placeholder="0.00">
           </div>
         </div>
-
         <div class="field">
           <label>Gender</label>
           <div class="select-box">
@@ -618,8 +525,8 @@ html.ready {
             <div class="select-box">
               <select id="regDobDay">
                 <option value="">Day</option>
-                <option value="01">1</option><option value="02">2</option><option value="03">3</option><option value="04">4</option><option value="05">5</option>
-                <option value="06">6</option><option value="07">7</option><option value="08">8</option><option value="09">9</option><option value="10">10</option>
+                <option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option>
+                <option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option>
                 <option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option>
                 <option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option>
                 <option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option>
@@ -628,7 +535,6 @@ html.ready {
               </select>
               <i class="fa-solid fa-chevron-down select-arrow"></i>
             </div>
-
             <div class="select-box">
               <select id="regDobMonth">
                 <option value="">Month</option>
@@ -638,7 +544,6 @@ html.ready {
               </select>
               <i class="fa-solid fa-chevron-down select-arrow"></i>
             </div>
-
             <div class="select-box">
               <select id="regDobYear">
                 <option value="">Year</option>
@@ -656,7 +561,6 @@ html.ready {
             </div>
           </div>
         </div>
-
         <div class="field">
           <label>Level of Education</label>
           <div class="select-box">
@@ -685,7 +589,6 @@ html.ready {
             <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
           </div>
         </div>
-
         <div class="field">
           <label>Referral Code <span class="opt">(optional)</span></label>
           <div class="input-box">
@@ -704,7 +607,6 @@ html.ready {
             <button type="button" class="eye-btn" data-target="regPassword" aria-label="Show password"><i class="fa-solid fa-eye"></i></button>
           </div>
         </div>
-
         <div class="field">
           <label>Confirm Password</label>
           <div class="input-box">
@@ -718,6 +620,7 @@ html.ready {
       <button type="submit" class="btn btn-primary" id="btnRegister">
         <i class="fa-solid fa-user-plus"></i> <span>Applying</span>
       </button>
+
       <p class="terms">By registering you agree to the IDT Academy terms of service. Your information is safe with us.</p>
     </form>
 
@@ -729,7 +632,6 @@ html.ready {
           <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
         </div>
       </div>
-
       <div class="field">
         <label>Password</label>
         <div class="input-box">
@@ -738,11 +640,9 @@ html.ready {
           <button type="button" class="eye-btn" data-target="loginPassword" aria-label="Show password"><i class="fa-solid fa-eye"></i></button>
         </div>
       </div>
-
       <div class="forgot-row">
         <a href="forget.html"><i class="fa-solid fa-key"></i> Forgot password?</a>
       </div>
-
       <button type="submit" class="btn btn-primary" id="btnLogin">
         <i class="fa-solid fa-right-to-bracket"></i> <span>Login</span>
       </button>
@@ -751,6 +651,35 @@ html.ready {
 </main>
 
 <div id="toastWrap" class="toast-wrap"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const day = document.getElementById('regDobDay');
+  const month = document.getElementById('regDobMonth');
+  const year = document.getElementById('regDobYear');
+  const dobInput = document.getElementById('regDob');
+
+  function updateDob() {
+    if (day && month && year && dobInput) {
+      if (day.value && month.value && year.value) {
+        dobInput.value = `${year.value}-${month.value}-${day.value}`;
+      } else {
+        dobInput.value = '';
+      }
+      [day, month, year].forEach(el => {
+        const box = el.closest('.select-box');
+        if (box) box.classList.remove('field-error');
+      });
+    }
+  }
+
+  if (day && month && year) {
+    day.addEventListener('change', updateDob);
+    month.addEventListener('change', updateDob);
+    year.addEventListener('change', updateDob);
+  }
+});
+</script>
 <script type="module" src="register.js"></script>
 </body>
 </html>
