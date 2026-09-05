@@ -116,6 +116,7 @@ function hideLoading() {
 
 const $ = (id) => document.getElementById(id);
 const PLACEHOLDER_IMG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="420"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c3aed"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs><rect width="600" height="420" fill="url(#g)"/><circle cx="300" cy="180" r="64" fill="rgba(255,255,255,.18)"/><text x="300" y="300" fill="#ffffff" font-family="Arial, sans-serif" font-size="34" font-weight="bold" text-anchor="middle">IDT Academy</text></svg>');
+
 const CATEGORIES = {
   '1': 'Technology & Computing',
   '2': 'Vocational & Agricultural Skills',
@@ -180,42 +181,6 @@ function handleRefCode() {
   }
 }
 
-function extractDob() {
-  const dayEl = $('regDobDay') || $('dobDay') || $('day') || $('dob_day');
-  const monthEl = $('regDobMonth') || $('dobMonth') || $('month') || $('dob_month');
-  const yearEl = $('regDobYear') || $('dobYear') || $('year') || $('dob_year');
-  const singleDobEl = $('regDob') || $('dob') || $('date_of_birth') || $('birthdate');
-
-  if (dayEl && monthEl && yearEl) {
-    const dayVal = dayEl.value ? String(dayEl.value).trim() : '';
-    const monthVal = monthEl.value ? String(monthEl.value).trim() : '';
-    const yearVal = yearEl.value ? String(yearEl.value).trim() : '';
-    if (dayVal && monthVal && yearVal) {
-      const formattedDay = dayVal.padStart(2, '0');
-      const formattedMonth = monthVal.padStart(2, '0');
-      return `${yearVal}-${formattedMonth}-${formattedDay}`;
-    }
-  }
-
-  if (singleDobEl && singleDobEl.value) {
-    const val = String(singleDobEl.value).trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
-      return val;
-    }
-    const parts = val.split(/[-/.]/);
-    if (parts.length === 3) {
-      if (parts[0].length === 4) {
-        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-      } else if (parts[2].length === 4) {
-        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-      }
-    }
-    return val;
-  }
-
-  return '';
-}
-
 function buildRegisterUrl(course) {
   let url = 'register.html?' +
     'course_id=' + encodeURIComponent(course.id || '') +
@@ -224,12 +189,6 @@ function buildRegisterUrl(course) {
     '&price=' + encodeURIComponent(course.price || '') +
     '&info=' + encodeURIComponent(course.info_text || '') +
     '&image=' + encodeURIComponent(course.image_url || '');
-
-  const dobVal = extractDob();
-  if (dobVal) {
-    url += '&dob=' + encodeURIComponent(dobVal);
-  }
-
   const ref = localStorage.getItem('idt_ref');
   if (ref) url += '&ref=' + encodeURIComponent(ref);
   return url;
@@ -241,6 +200,7 @@ function cardHTML(course) {
   const shortDesc = desc.length > 110 ? desc.slice(0, 110) + '...' : desc;
   const isDiploma = String(course.category) === '4';
   const priceTag = isDiploma ? 'Per Year' : 'One-time';
+
   return '<div class="course-card" data-id="' + escapeHtml(course.id) + '">' +
     '<div class="c-img">' +
       '<span class="c-badge"><i class="fa-solid fa-layer-group"></i> ' + escapeHtml(catName) + '</span>' +
@@ -290,13 +250,11 @@ async function loadCourses() {
       }
       return cData || {};
     }).filter((c) => c && c.id);
-
     parsedCourses.sort((a, b) => {
       const dateA = new Date(a.created_at || 0);
       const dateB = new Date(b.created_at || 0);
       return dateB - dateA;
     });
-
     allCourses = parsedCourses;
     const grouped = { '1': [], '2': [], '3': [], '4': [] };
     allCourses.forEach((c) => {
@@ -304,7 +262,6 @@ async function loadCourses() {
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push(c);
     });
-
     let any = false;
     ['1', '2', '3', '4'].forEach((cat) => {
       const sec = document.querySelector('.ps-' + cat);
@@ -325,7 +282,6 @@ async function loadCourses() {
       if (row) row.innerHTML = items.map(cardHTML).join('');
       if (empty) empty.classList.add('hidden');
     });
-
     if (!any) {
       const el = injectAllEmptyBlock();
       el.classList.remove('hidden');
@@ -333,7 +289,6 @@ async function loadCourses() {
       const el = $('allEmpty');
       if (el) el.classList.add('hidden');
     }
-
     if (allCourses.length) {
       setupRowInteractions();
     }
@@ -359,7 +314,6 @@ function setupRowInteractions() {
     let startX = 0;
     let startScroll = 0;
     let moved = false;
-
     row.addEventListener('mousedown', (e) => {
       if (e.target.closest('.btn')) return;
       isDown = true;
@@ -368,7 +322,6 @@ function setupRowInteractions() {
       startScroll = row.scrollLeft;
       row.classList.add('dragging');
     });
-
     row.addEventListener('mousemove', (e) => {
       if (!isDown) return;
       const x = e.pageX - row.offsetLeft;
@@ -376,21 +329,17 @@ function setupRowInteractions() {
       if (Math.abs(walk) > 6) moved = true;
       row.scrollLeft = startScroll - walk;
     });
-
     row.addEventListener('mouseup', () => {
       isDown = false;
       row.classList.remove('dragging');
     });
-
     row.addEventListener('mouseleave', () => {
       isDown = false;
       row.classList.remove('dragging');
     });
-
     row.addEventListener('touchstart', () => {
       row.classList.remove('dragging');
     }, { passive: true });
-
     row.addEventListener('click', (e) => {
       if (moved) {
         e.preventDefault();
@@ -411,7 +360,6 @@ function setupRowInteractions() {
       }
     });
   });
-
   document.querySelectorAll('.scroll-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const dir = Number(btn.dataset.scroll || 1);
@@ -432,7 +380,6 @@ function openModal(course) {
   const mPrice = $('mPrice');
   currentCourse = course;
   originalInfo = course.info_text || '';
-
   if (mCatText) mCatText.textContent = CATEGORIES[String(course.category)] || 'Course';
   if (mImg) {
     mImg.src = course.image_url || PLACEHOLDER_IMG;
@@ -485,12 +432,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const mStart = $('mStart');
   const refBannerClose = $('refBannerClose');
   const topbar = $('topbar');
-
   showLoading();
   handleRefCode();
   loadCourses();
   document.documentElement.classList.add('ready');
-
   if (burgerBtn) {
     burgerBtn.addEventListener('click', () => {
       if (spanMenu && spanMenu.classList.contains('open')) {
@@ -501,14 +446,12 @@ document.addEventListener('DOMContentLoaded', () => {
       burgerBtn.classList.toggle('open');
     });
   }
-
   if (spanClose) {
     spanClose.addEventListener('click', () => {
       closeSpanMenu();
       if (burgerBtn) burgerBtn.classList.remove('open');
     });
   }
-
   if (spanMenu) {
     spanMenu.querySelectorAll('.span-links a').forEach((a) => {
       a.addEventListener('click', () => {
@@ -517,15 +460,12 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   }
-
   if (modalClose) modalClose.addEventListener('click', closeModal);
-
   if (courseModal) {
     courseModal.addEventListener('click', (e) => {
       if (e.target === courseModal) closeModal();
     });
   }
-
   if (mStart) {
     mStart.addEventListener('click', () => {
       if (currentCourse) {
@@ -533,14 +473,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-
   if (refBannerClose) {
     refBannerClose.addEventListener('click', () => {
       const refBanner = $('refBanner');
       if (refBanner) refBanner.classList.remove('show');
     });
   }
-
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (courseModal && courseModal.classList.contains('open')) closeModal();
@@ -550,7 +488,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
-
   window.addEventListener('scroll', () => {
     if (topbar) {
       if (window.scrollY > 30) {
@@ -560,7 +497,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   }, { passive: true });
-
   const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
       if (entry.isIntersecting) {
@@ -569,9 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }, { threshold: 0.12 });
-
   document.querySelectorAll('.reveal').forEach((el) => revealObserver.observe(el));
-
   document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
     anchor.addEventListener('click', function (e) {
       const targetId = this.getAttribute('href');
@@ -590,7 +524,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
-
   window.addEventListener('load', () => {
     windowLoaded = true;
     setTimeout(maybeHideLoader, 500);
