@@ -339,7 +339,7 @@ function updateCourseSummary() {
     return; 
   }
 
-  const c = courseMap[id];
+  const c = courseMap[id] || {};
   if (regPrice) regPrice.value = Number(c.price || 0).toLocaleString('en-NG');
 
   const summaryName = $('courseSummaryName');
@@ -349,21 +349,30 @@ function updateCourseSummary() {
   const summaryMeta = $('courseSummaryMeta');
   if (summaryMeta) summaryMeta.textContent = [cat, c.course_number ? '#' + c.course_number : ''].filter(Boolean).join(' - ');
 
-  const img = $('courseImg');
-  if (img) {
-    if (c.image_url) { 
-      img.src = c.image_url; 
-      img.style.display = 'block'; 
-    } else { 
-      img.style.display = 'none'; 
+  
+  try {
+    const img = $('courseImg');
+    if (img) {
+      if (c && c.image_url && typeof c.image_url === 'string' && c.image_url.trim() !== '') { 
+        img.src = c.image_url; 
+        img.style.display = 'block'; 
+      } else { 
+        img.removeAttribute('src');
+        img.style.display = 'none'; 
+      }
     }
+  } catch (e) {
+    const img = $('courseImg');
+    if (img) img.style.display = 'none';
   }
 
   if (summary) summary.classList.remove('hidden');
 }
 
 async function handleRegister(e) {
-  e.preventDefault();
+  if (e && typeof e.preventDefault === 'function') {
+    e.preventDefault();
+  }
 
   const fullName = getValue('regFullName').trim();
   const phone = getValue('regPhone').trim();
@@ -433,7 +442,9 @@ async function handleRegister(e) {
 }
 
 async function handleLogin(e) {
-  e.preventDefault();
+  if (e && typeof e.preventDefault === 'function') {
+    e.preventDefault();
+  }
 
   const email = getValue('loginEmail').trim().toLowerCase();
   const password = getValue('loginPassword');
@@ -474,10 +485,34 @@ async function handleLogin(e) {
   }
 }
 
+
 if ($('tabRegister')) $('tabRegister').addEventListener('click', () => switchTab('register'));
 if ($('tabLogin')) $('tabLogin').addEventListener('click', () => switchTab('login'));
-if ($('registerForm')) $('registerForm').addEventListener('submit', handleRegister);
-if ($('loginForm')) $('loginForm').addEventListener('submit', handleLogin);
+
+const regForm = $('registerForm');
+if (regForm) {
+  regForm.addEventListener('submit', handleRegister);
+ 
+  const regBtn = regForm.querySelector('button[type="submit"]');
+  if (regBtn) {
+    regBtn.style.pointerEvents = 'auto';
+    regBtn.style.cursor = 'pointer';
+    regBtn.addEventListener('click', (e) => {
+      
+      if (regForm.checkValidity && !regForm.checkValidity()) {
+      
+      } else {
+        handleRegister(e);
+      }
+    });
+  }
+}
+
+const logForm = $('loginForm');
+if (logForm) {
+  logForm.addEventListener('submit', handleLogin);
+}
+
 if ($('regCourse')) $('regCourse').addEventListener('change', updateCourseSummary);
 
 if ($('regRef')) {
