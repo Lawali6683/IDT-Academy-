@@ -76,11 +76,9 @@ function buildApi(env) {
       'Authorization': 'Bearer ' + key,
       'Content-Type': 'application/json'
     };
-
     if (method === 'POST' || method === 'PATCH' || method === 'DELETE') {
       headers['Prefer'] = 'return=representation';
     }
-
     const opts = { method: method, headers: headers };
     if (body !== undefined) opts.body = JSON.stringify(body);
     return fetch(restUrl + path, opts);
@@ -129,11 +127,11 @@ function buildApi(env) {
 }
 
 async function handlePartnerRegister(body, api) {
-  const fullName = String(body.full_name || '').trim();
+  const fullName = String(body.full_name || body.fullName || '').trim();
   const email = normalizeEmail(body.email);
   const phone = String(body.phone || '').trim();
   const password = String(body.password || '');
-  const referredBy = String(body.referred_by || '').trim().toUpperCase();
+  const referredBy = String(body.referred_by || body.referredBy || '').trim().toUpperCase();
 
   if (fullName.length < 3) return jsonResponse({ error: 'Full name is required. Please enter your full name.' }, 400);
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return jsonResponse({ error: 'A valid email address is required.' }, 400);
@@ -144,15 +142,18 @@ async function handlePartnerRegister(body, api) {
   if (existing) return jsonResponse({ error: 'This email is already registered as a partner. Please log in instead.' }, 409);
 
   let createdId = null;
+
   try {
     const salt = randomHex(16);
     const passwordHash = await hashPassword(password, salt);
+
     let referralCode = generateReferralCode();
     for (let i = 0; i < 6; i++) {
       const dup = await api.findPartnerByReferralCode(referralCode);
       if (!dup) break;
       referralCode = generateReferralCode();
     }
+
     const id = uuidv4();
     const referralLink = 'https://www.idtacademy.com.ng/patner/ref/' + referralCode;
     const now = new Date().toISOString();
@@ -165,7 +166,7 @@ async function handlePartnerRegister(body, api) {
       referral_code: referralCode,
       referral_link: referralLink,
       referred_by: referredBy || '',
-      referral_bonus: 0.00,
+      referral_bonus: 0,
       referral_activity: [],
       total_referrals: 0,
       paid_referrals: 0,
@@ -182,6 +183,7 @@ async function handlePartnerRegister(body, api) {
       const text = await insertRes.text().catch(function () { return ''; });
       return jsonResponse({ error: 'Could not save your partner account: ' + text }, 502);
     }
+
     createdId = id;
 
     const safePartner = {
@@ -204,6 +206,7 @@ async function handlePartnerRegister(body, api) {
       message: 'Partner registration successful! Welcome to the IDT Academy Partner Program.',
       user: safePartner
     }, 201);
+
   } catch (err) {
     if (createdId) {
       try { await api.deletePartner(createdId); } catch (e) {}
@@ -236,15 +239,18 @@ async function handleStudentRegister(body, api) {
   if (existing) return jsonResponse({ error: 'This email is already registered. Please login instead.' }, 409);
 
   let createdId = null;
+
   try {
     const salt = randomHex(16);
     const passwordHash = await hashPassword(password, salt);
+
     let referralCode = generateReferralCode();
     for (let i = 0; i < 6; i++) {
       const dup = await api.findUserByReferralCode(referralCode);
       if (!dup) break;
       referralCode = generateReferralCode();
     }
+
     const id = uuidv4();
     const referralLink = 'https://www.idtacademy.com.ng/index/ref/' + referralCode;
     const now = new Date().toISOString();
@@ -262,7 +268,8 @@ async function handleStudentRegister(body, api) {
       referral_code: referralCode,
       referral_link: referralLink,
       referred_by: referredBy || '',
-      referral_bonus: 0.00,
+      referral_bonus: 0,
+      referral_activity: [],
       date_of_birth: dob,
       school_level: level,
       date_registered: now,
@@ -281,42 +288,60 @@ async function handleStudentRegister(body, api) {
       const text = await insertRes.text().catch(function () { return ''; });
       return jsonResponse({ error: 'Could not save your account: ' + text }, 502);
     }
+
     createdId = id;
 
+    // Tsarin gudanar da Referral Bonus
     if (referredBy) {
-      const partner = await api.findPartnerByReferralCode(referredBy);
-      if (partner) {
-        const pd = partner.partner_data || {};
-        const activity = Array.isArray(pd.referral_activity) ? pd.referral_activity : [];
-        activity.push({
-          referred_name: fullName,
-          referred_email: email,
-          course_name: courseName || 'Selected Course',
-          course_price: coursePrice,
-          bonus: 0,
-          status: 'pending',
-          date: now
-        });
-        await api.updatePartner(partner.id, Object.assign({}, pd, {
-          referral_activity: activity,
-          total_referrals: (pd.total_referrals || 0) + 1
-        }));
-      } else {
-        const referrer = await api.findUserByReferralCode(referredBy);
-        if (referrer) {
-          const ud = referrer.user_data || {};
-          const activity = Array.isArray(ud.referral_activity) ? ud.referral_activity : [];
+      try {
+        const partner = await api.findPartnerByReferralCode(referredBy);
+        if (partner) {
+          const pd = partner.partner_data || {};
+          const activity = Array.isArray(pd.referral_activity) ? pd.referral_activity : [];
+          const currentBonus = Number(pd.referral_bonus || 0);
+          const earnedBonus = 500; // Bonus da gudanarwa ga partner (idan an tsara)
+
           activity.push({
             referred_name: fullName,
             referred_email: email,
             course_name: courseName || 'Selected Course',
             course_price: coursePrice,
-            bonus: 1500,
+            bonus: earnedBonus,
             status: 'pending',
             date: now
           });
-          await api.updateUser(referrer.id, Object.assign({}, ud, { referral_activity: activity }));
+
+          await api.updatePartner(partner.id, Object.assign({}, pd, {
+            referral_bonus: currentBonus + earnedBonus,
+            referral_activity: activity,
+            total_referrals: Number(pd.total_referrals || 0) + 1
+          }));
+        } else {
+          const referrer = await api.findUserByReferralCode(referredBy);
+          if (referrer) {
+            const ud = referrer.user_data || {};
+            const activity = Array.isArray(ud.referral_activity) ? ud.referral_activity : [];
+            const currentBonus = Number(ud.referral_bonus || 0);
+            const earnedBonus = 1500;
+
+            activity.push({
+              referred_name: fullName,
+              referred_email: email,
+              course_name: courseName || 'Selected Course',
+              course_price: coursePrice,
+              bonus: earnedBonus,
+              status: 'pending',
+              date: now
+            });
+
+            await api.updateUser(referrer.id, Object.assign({}, ud, {
+              referral_bonus: currentBonus + earnedBonus,
+              referral_activity: activity
+            }));
+          }
         }
+      } catch (refErr) {
+        console.error("Referral update error:", refErr);
       }
     }
 
@@ -345,7 +370,9 @@ async function handleStudentRegister(body, api) {
       message: 'Registration successful! Welcome to IDT Academy.',
       user: safeUser
     }, 201);
+
   } catch (err) {
+    // Idan an samu matsala kowane iri, goge 'user' din da aka kirkira domin tsaro
     if (createdId) {
       try { await api.deleteUser(createdId); } catch (e) {}
     }
@@ -359,6 +386,7 @@ export async function onRequestOptions() {
 
 export async function onRequestPost(context) {
   const { request, env } = context;
+
   if (!env.SUPABASE_SERVICE_ROLE_KEY) {
     return jsonResponse({ error: 'SUPABASE_SERVICE_ROLE_KEY is not configured in Cloudflare Pages environment variables.' }, 500);
   }
@@ -371,8 +399,10 @@ export async function onRequestPost(context) {
   }
 
   const api = buildApi(env);
+
   if (body.account_type === 'partner') {
     return handlePartnerRegister(body, api);
   }
+
   return handleStudentRegister(body, api);
 }
