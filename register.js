@@ -36,7 +36,13 @@ let urlCourseInfo = '';
 let urlCourseImage = '';
 
 function escapeHtml(str) {
-  return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
 }
 
 function removeToast(el) {
@@ -162,10 +168,11 @@ function showLoading() {
     `;
     document.body.insertAdjacentHTML('beforeend', loaderHTML);
   }
-  var n = document.getElementById('i2num');
-  var c = 0;
+
+  let n = document.getElementById('i2num');
+  let c = 0;
   if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
-  window.idtLoaderInterval = setInterval(function() { 
+  window.idtLoaderInterval = setInterval(() => { 
     c += 5; 
     if (n) n.textContent = (c >= 100 ? 100 : c); 
     if (c >= 100) clearInterval(window.idtLoaderInterval); 
@@ -173,7 +180,7 @@ function showLoading() {
 }
 
 function hideLoading() {
-  var l = document.getElementById('idt-loader-2');
+  let l = document.getElementById('idt-loader-2');
   if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
   if (l) l.classList.add('idt-hide');
 }
@@ -238,6 +245,19 @@ function validRefCode(code) {
   return /^[A-Z0-9]{4,8}$/.test(code);
 }
 
+function validDob(dobStr) {
+  if (!dobStr) return false;
+  const dob = new Date(dobStr);
+  if (isNaN(dob.getTime())) return false;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return age >= 10 && age <= 100;
+}
+
 function friendlyRegisterError(json) {
   const raw = String((json && (json.error || json.message)) || '').toLowerCase();
   if (raw.includes('already registered') || raw.includes('already exists') || raw.includes('duplicate')) return 'This email is already registered. Please use the "Login" tab to sign in.';
@@ -262,23 +282,20 @@ function friendlyLoginError(json) {
 async function loadCourses() {
   const sel = $('regCourse');
   if (!sel) return;
-
   try {
     const { data, error } = await supabase.from('courses').select('*');
     if (error) throw error;
-
     let list = (data || [])
       .map((row) => row.course_data || {})
       .filter((c) => c && c.id)
       .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
-
+    
     try {
       const { data: acData, error: acErr } = await supabase.from('all_couse_post').select('*');
       if (!acErr && Array.isArray(acData)) {
         const activeIds = acData
           .filter((row) => row.all_course && row.all_course.active === true)
           .map((row) => row.id);
-
         if (activeIds.length > 0) {
           const filtered = list.filter((c) => activeIds.indexOf(c.id) !== -1);
           if (filtered.length > 0) list = filtered;
@@ -317,7 +334,6 @@ async function loadCourses() {
       sel.innerHTML = '<option value="">No courses available yet</option>'; 
       showToast('info', 'No Courses Yet', 'Courses are being prepared. Please check back soon.', ''); 
     }
-
     updateCourseSummary();
   } catch (err) {
     sel.innerHTML = '<option value="">Could not load courses</option>';
@@ -328,7 +344,6 @@ async function loadCourses() {
 function updateCourseSummary() {
   const sel = $('regCourse');
   if (!sel) return;
-
   const id = sel.value;
   const summary = $('courseSummary');
   const regPrice = $('regPrice');
@@ -341,15 +356,12 @@ function updateCourseSummary() {
 
   const c = courseMap[id] || {};
   if (regPrice) regPrice.value = Number(c.price || 0).toLocaleString('en-NG');
-
   const summaryName = $('courseSummaryName');
   if (summaryName) summaryName.textContent = c.course_name || 'Course';
-
   const cat = CATEGORIES[String(c.category || '')] || '';
   const summaryMeta = $('courseSummaryMeta');
   if (summaryMeta) summaryMeta.textContent = [cat, c.course_number ? '#' + c.course_number : ''].filter(Boolean).join(' - ');
 
-  
   try {
     const img = $('courseImg');
     if (img) {
@@ -389,7 +401,7 @@ async function handleRegister(e) {
   if (!validPhone(phone)) { showToast('error', 'Invalid Phone Number', 'Please enter a valid Nigerian phone number, e.g. 08123456789.', ''); if ($('regPhone')) $('regPhone').focus(); return; }
   if (!courseId) { showToast('error', 'Choose A Course', 'Please select the course you want to study.', ''); if ($('regCourse')) $('regCourse').focus(); return; }
   if (!gender) { showToast('error', 'Select Gender', 'Please choose your gender.', ''); if ($('regGender')) $('regGender').focus(); return; }
-  if (!dob) { showToast('error', 'Date Of Birth Required', 'Please select your date of birth.', ''); if ($('regDob')) $('regDob').focus(); return; }
+  if (!validDob(dob)) { showToast('error', 'Invalid Date Of Birth', 'Please enter a valid date of birth (Must be at least 10 years old).', ''); if ($('regDob')) $('regDob').focus(); return; }
   if (!level) { showToast('error', 'Select Education Level', 'Please select your level of education.', ''); if ($('regLevel')) $('regLevel').focus(); return; }
   if (!validEmail(email)) { showToast('error', 'Invalid Email', 'Please enter a valid email address.', ''); if ($('regEmail')) $('regEmail').focus(); return; }
   if (password.length < 6) { showToast('error', 'Weak Password', 'Password must be at least 6 characters.', ''); if ($('regPassword')) $('regPassword').focus(); return; }
@@ -432,7 +444,6 @@ async function handleRegister(e) {
 
     localStorage.setItem('idt_user', JSON.stringify(json.user));
     localStorage.removeItem('idt_ref');
-
     showToast('success', 'Welcome To IDT Academy!', json.message || 'Account created. Redirecting to your dashboard...');
     setTimeout(() => window.location.replace('dashboard.html'), 1800);
   } catch (err) {
@@ -476,7 +487,6 @@ async function handleLogin(e) {
 
     localStorage.setItem('idt_user', JSON.stringify(userObj));
     hideLoading();
-
     showToast('success', 'Welcome Back!', 'Login successful. Opening your dashboard...');
     setTimeout(() => window.location.replace('dashboard.html'), 1600);
   } catch (err) {
@@ -485,27 +495,12 @@ async function handleLogin(e) {
   }
 }
 
-
 if ($('tabRegister')) $('tabRegister').addEventListener('click', () => switchTab('register'));
 if ($('tabLogin')) $('tabLogin').addEventListener('click', () => switchTab('login'));
 
 const regForm = $('registerForm');
 if (regForm) {
   regForm.addEventListener('submit', handleRegister);
- 
-  const regBtn = regForm.querySelector('button[type="submit"]');
-  if (regBtn) {
-    regBtn.style.pointerEvents = 'auto';
-    regBtn.style.cursor = 'pointer';
-    regBtn.addEventListener('click', (e) => {
-      
-      if (regForm.checkValidity && !regForm.checkValidity()) {
-      
-      } else {
-        handleRegister(e);
-      }
-    });
-  }
 }
 
 const logForm = $('loginForm');
@@ -531,13 +526,11 @@ document.querySelectorAll('.eye-btn').forEach((btn) => {
 
 const menuBtn = $('menuBtn');
 const menuItems = $('menuItems');
-
 if (menuBtn && menuItems) {
   menuBtn.addEventListener('click', (e) => { 
     e.stopPropagation(); 
     menuItems.classList.toggle('open'); 
   });
-
   document.addEventListener('click', (e) => { 
     if (!menuItems.contains(e.target) && !menuBtn.contains(e.target)) {
       menuItems.classList.remove('open'); 
@@ -547,7 +540,6 @@ if (menuBtn && menuItems) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   showLoading();
-
   try {
     const sessionData = localStorage.getItem('idt_user');
     if (sessionData) {
@@ -560,15 +552,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (err) {}
 
   parseUrl();
-  const ref = getUrlRef();
 
+  const ref = getUrlRef();
   if (ref && $('regRef')) { 
     $('regRef').value = ref; 
     localStorage.setItem('idt_ref', ref); 
   }
 
-  const today = new Date().toISOString().split('T')[0];
-  if ($('regDob')) $('regDob').max = today;
+  const today = new Date();
+  const maxDate = new Date(today.getFullYear() - 10, today.getMonth(), today.getDate()).toISOString().split('T')[0];
+  const minDate = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate()).toISOString().split('T')[0];
+  
+  if ($('regDob')) {
+    $('regDob').max = maxDate;
+    $('regDob').min = minDate;
+  }
 
   const visited = localStorage.getItem('idt_visited');
   if (visited) { switchTab('login'); } else { switchTab('register'); }
