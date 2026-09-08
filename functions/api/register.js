@@ -12,46 +12,6 @@ function jsonResponse(data, status) {
   });
 }
 
-function uuidv4() {
-  if (crypto.randomUUID) return crypto.randomUUID();
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const arr = new Uint8Array(1);
-    crypto.getRandomValues(arr);
-    const r = arr[0] & 15;
-    const v = c === 'x' ? r : (r & 3 | 8);
-    return v.toString(16);
-  });
-}
-
-function randomHex(bytes) {
-  const arr = new Uint8Array(bytes);
-  crypto.getRandomValues(arr);
-  return Array.from(arr).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
-}
-
-function bytesToHex(bytes) {
-  return Array.from(bytes).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
-}
-
-function hexToBytes(hex) {
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i++) {
-    out[i] = parseInt(hex.substr(i * 2, 2), 16);
-  }
-  return out;
-}
-
-async function hashPassword(password, saltHex) {
-  const enc = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt: hexToBytes(saltHex), iterations: 100000, hash: 'SHA-256' },
-    keyMaterial,
-    256
-  );
-  return bytesToHex(new Uint8Array(bits));
-}
-
 function generateReferralCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -68,6 +28,7 @@ function normalizeEmail(email) {
 function buildApi(env) {
   const baseUrl = env.SUPABASE_URL || 'https://orhgklhfltsfdumrrhup.supabase.co';
   const restUrl = baseUrl.endsWith('/') ? baseUrl + 'rest/v1/' : baseUrl + '/rest/v1/';
+  const authAdminUrl = baseUrl.endsWith('/') ? baseUrl + 'auth/v1/admin/users' : baseUrl + '/auth/v1/admin/users';
   const key = env.SUPABASE_SERVICE_ROLE_KEY;
 
   const request = async function (method, path, body) {
@@ -85,41 +46,81 @@ function buildApi(env) {
   };
 
   return {
+    createAuthUser: async function (email, password, userMetadata) {
+      const headers = {
+        'apikey': key,
+        'Authorization': 'Bearer ' + key,
+        'Content-Type': 'application/json'
+      };
+      const body = {
+        email: email,
+        password: password,
+        email_confirm: true,
+        user_metadata: userMetadata || {}
+      };
+      return fetch(authAdminUrl, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(body)
+      });
+    },
+
+    deleteAuthUser: async function (id) {
+      const headers = {
+        'apikey': key,
+        'Authorization': 'Bearer ' + key,
+        'Content-Type': 'application/json'
+      };
+      return fetch(authAdminUrl + '/' + encodeURIComponent(id), {
+        method: 'DELETE',
+        headers: headers
+      });
+    },
+
     findUserByEmail: async function (email) {
       const res = await request('GET', 'user_profiles?select=*&user_data->>email=eq.' + encodeURIComponent(email));
       const arr = await res.json().catch(function () { return []; });
       return Array.isArray(arr) && arr.length ? arr[0] : null;
     },
+
     findUserByReferralCode: async function (code) {
       const res = await request('GET', 'user_profiles?select=*&user_data->>referral_code=eq.' + encodeURIComponent(code));
       const arr = await res.json().catch(function () { return []; });
       return Array.isArray(arr) && arr.length ? arr[0] : null;
     },
+
     findPartnerByEmail: async function (email) {
       const res = await request('GET', 'partner_profiles?select=*&partner_data->>email=eq.' + encodeURIComponent(email));
       const arr = await res.json().catch(function () { return []; });
       return Array.isArray(arr) && arr.length ? arr[0] : null;
     },
+
     findPartnerByReferralCode: async function (code) {
       const res = await request('GET', 'partner_profiles?select=*&partner_data->>referral_code=eq.' + encodeURIComponent(code));
       const arr = await res.json().catch(function () { return []; });
       return Array.isArray(arr) && arr.length ? arr[0] : null;
     },
+
     insertPartner: async function (id, partnerData) {
       return request('POST', 'partner_profiles', { id: id, partner_data: partnerData });
     },
+
     deletePartner: async function (id) {
       return request('DELETE', 'partner_profiles?id=eq.' + encodeURIComponent(id));
     },
+
     updatePartner: async function (id, partnerData) {
       return request('PATCH', 'partner_profiles?id=eq.' + encodeURIComponent(id), { partner_data: partnerData });
     },
+
     insertUser: async function (id, userData) {
       return request('POST', 'user_profiles', { id: id, user_data: userData });
     },
+
     deleteUser: async function (id) {
       return request('DELETE', 'user_profiles?id=eq.' + encodeURIComponent(id));
     },
+
     updateUser: async function (id, userData) {
       return request('PATCH', 'user_profiles?id=eq.' + encodeURIComponent(id), { user_data: userData });
     }
@@ -141,11 +142,17 @@ async function handlePartnerRegister(body, api) {
   const existing = await api.findPartnerByEmail(email);
   if (existing) return jsonResponse({ error: 'This email is already registered as a partner. Please log in instead.' }, 409);
 
-  let createdId = null;
+  let createdAuthId = null;
 
   try {
-    const salt = randomHex(16);
-    const passwordHash = await hashPassword(password, salt);
+    const authRes = await api.createAuthUser(email, password, { full_name: fullName, account_type: 'partner' });
+    const authData = await authRes.json().catch(function () { return {}; });
+
+    if (authRes.status >= 400 || !authData.id) {
+      return jsonResponse({ error: 'Could not create authentication account: ' + (authData.msg || authData.error_description || authData.message || 'Unknown error') }, 500);
+    }
+
+    createdAuthId = authData.id;
 
     let referralCode = generateReferralCode();
     for (let i = 0; i < 6; i++) {
@@ -154,8 +161,7 @@ async function handlePartnerRegister(body, api) {
       referralCode = generateReferralCode();
     }
 
-    const id = uuidv4();
-    const referralLink = 'https://www.idtacademy.com.ng/patner/ref/' + referralCode;
+    const referralLink = 'https://www.idtacademy.com.ng/index/ref/' + referralCode;
     const now = new Date().toISOString();
 
     const partnerData = {
@@ -172,22 +178,19 @@ async function handlePartnerRegister(body, api) {
       paid_referrals: 0,
       total_withdrawn: 0,
       date_registered: now,
-      password_hash: passwordHash,
-      password_salt: salt,
       status: 'active',
       created_at: now
     };
 
-    const insertRes = await api.insertPartner(id, partnerData);
+    const insertRes = await api.insertPartner(createdAuthId, partnerData);
     if (insertRes.status >= 400) {
       const text = await insertRes.text().catch(function () { return ''; });
+      await api.deleteAuthUser(createdAuthId);
       return jsonResponse({ error: 'Could not save your partner account: ' + text }, 502);
     }
 
-    createdId = id;
-
     const safePartner = {
-      id: id,
+      id: createdAuthId,
       full_name: fullName,
       email: email,
       phone: phone,
@@ -208,8 +211,9 @@ async function handlePartnerRegister(body, api) {
     }, 201);
 
   } catch (err) {
-    if (createdId) {
-      try { await api.deletePartner(createdId); } catch (e) {}
+    if (createdAuthId) {
+      try { await api.deletePartner(createdAuthId); } catch (e) {}
+      try { await api.deleteAuthUser(createdAuthId); } catch (e) {}
     }
     return jsonResponse({ error: 'Partner registration failed: ' + (err.message || 'unknown error') }, 500);
   }
@@ -238,11 +242,17 @@ async function handleStudentRegister(body, api) {
   const existing = await api.findUserByEmail(email);
   if (existing) return jsonResponse({ error: 'This email is already registered. Please login instead.' }, 409);
 
-  let createdId = null;
+  let createdAuthId = null;
 
   try {
-    const salt = randomHex(16);
-    const passwordHash = await hashPassword(password, salt);
+    const authRes = await api.createAuthUser(email, password, { full_name: fullName, account_type: 'student' });
+    const authData = await authRes.json().catch(function () { return {}; });
+
+    if (authRes.status >= 400 || !authData.id) {
+      return jsonResponse({ error: 'Could not create authentication account: ' + (authData.msg || authData.error_description || authData.message || 'Unknown error') }, 500);
+    }
+
+    createdAuthId = authData.id;
 
     let referralCode = generateReferralCode();
     for (let i = 0; i < 6; i++) {
@@ -251,7 +261,6 @@ async function handleStudentRegister(body, api) {
       referralCode = generateReferralCode();
     }
 
-    const id = uuidv4();
     const referralLink = 'https://www.idtacademy.com.ng/index/ref/' + referralCode;
     const now = new Date().toISOString();
 
@@ -273,8 +282,6 @@ async function handleStudentRegister(body, api) {
       date_of_birth: dob,
       school_level: level,
       date_registered: now,
-      password_hash: passwordHash,
-      password_salt: salt,
       status: 'pending',
       assessment_grade: '',
       exam_grade: '',
@@ -283,15 +290,13 @@ async function handleStudentRegister(body, api) {
       created_at: now
     };
 
-    const insertRes = await api.insertUser(id, userData);
+    const insertRes = await api.insertUser(createdAuthId, userData);
     if (insertRes.status >= 400) {
       const text = await insertRes.text().catch(function () { return ''; });
+      await api.deleteAuthUser(createdAuthId);
       return jsonResponse({ error: 'Could not save your account: ' + text }, 502);
     }
 
-    createdId = id;
-
-    // Tsarin gudanar da Referral Bonus
     if (referredBy) {
       try {
         const partner = await api.findPartnerByReferralCode(referredBy);
@@ -299,8 +304,7 @@ async function handleStudentRegister(body, api) {
           const pd = partner.partner_data || {};
           const activity = Array.isArray(pd.referral_activity) ? pd.referral_activity : [];
           const currentBonus = Number(pd.referral_bonus || 0);
-          const earnedBonus = 500; // Bonus da gudanarwa ga partner (idan an tsara)
-
+          const earnedBonus = 500;
           activity.push({
             referred_name: fullName,
             referred_email: email,
@@ -310,7 +314,6 @@ async function handleStudentRegister(body, api) {
             status: 'pending',
             date: now
           });
-
           await api.updatePartner(partner.id, Object.assign({}, pd, {
             referral_bonus: currentBonus + earnedBonus,
             referral_activity: activity,
@@ -323,7 +326,6 @@ async function handleStudentRegister(body, api) {
             const activity = Array.isArray(ud.referral_activity) ? ud.referral_activity : [];
             const currentBonus = Number(ud.referral_bonus || 0);
             const earnedBonus = 1500;
-
             activity.push({
               referred_name: fullName,
               referred_email: email,
@@ -333,20 +335,17 @@ async function handleStudentRegister(body, api) {
               status: 'pending',
               date: now
             });
-
             await api.updateUser(referrer.id, Object.assign({}, ud, {
               referral_bonus: currentBonus + earnedBonus,
               referral_activity: activity
             }));
           }
         }
-      } catch (refErr) {
-        console.error("Referral update error:", refErr);
-      }
+      } catch (refErr) {}
     }
 
     const safeUser = {
-      id: id,
+      id: createdAuthId,
       full_name: fullName,
       email: email,
       phone: phone,
@@ -372,9 +371,9 @@ async function handleStudentRegister(body, api) {
     }, 201);
 
   } catch (err) {
-    // Idan an samu matsala kowane iri, goge 'user' din da aka kirkira domin tsaro
-    if (createdId) {
-      try { await api.deleteUser(createdId); } catch (e) {}
+    if (createdAuthId) {
+      try { await api.deleteUser(createdAuthId); } catch (e) {}
+      try { await api.deleteAuthUser(createdAuthId); } catch (e) {}
     }
     return jsonResponse({ error: 'Registration failed: ' + (err.message || 'unknown error') }, 500);
   }
@@ -386,23 +385,18 @@ export async function onRequestOptions() {
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-
   if (!env.SUPABASE_SERVICE_ROLE_KEY) {
     return jsonResponse({ error: 'SUPABASE_SERVICE_ROLE_KEY is not configured in Cloudflare Pages environment variables.' }, 500);
   }
-
   let body;
   try {
     body = await request.json();
   } catch (err) {
     return jsonResponse({ error: 'Invalid JSON body.' }, 400);
   }
-
   const api = buildApi(env);
-
   if (body.account_type === 'partner') {
     return handlePartnerRegister(body, api);
   }
-
   return handleStudentRegister(body, api);
 }
