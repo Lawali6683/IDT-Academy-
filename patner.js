@@ -78,20 +78,49 @@ function switchTab(tab) {
   }
 }
 
+async function fetchProfileData(authId) {
+  try {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', authId)
+      .maybeSingle()
+    if (profile) {
+      return profile.user_data || {}
+    }
+    return {}
+  } catch (e) {
+    return {}
+  }
+}
+
+async function saveSessionAndRedirect(session) {
+  if (!session || !session.user) return
+  const userData = await fetchProfileData(session.user.id)
+  localStorage.setItem('idt_user', JSON.stringify(Object.assign({}, userData, { id: session.user.id })))
+  window.location.replace('referral.html')
+}
+
 async function checkExistingSession() {
   try {
     const { data } = await supabase.auth.getSession()
     if (data && data.session && data.session.user) {
-      window.location.replace('referral.html')
+      await saveSessionAndRedirect(data.session)
     }
   } catch (e) {}
 }
 
 checkExistingSession()
 
+let authListenerReady = false
+
 supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_IN' && session && session.user) {
-    window.location.replace('referral.html')
+  if (!authListenerReady) {
+    authListenerReady = true
+    if (event === 'INITIAL_SESSION') return
+  }
+  if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session && session.user) {
+    saveSessionAndRedirect(session)
   }
 })
 
@@ -149,12 +178,12 @@ $('registerBtn').onclick = async function () {
       return
     }
 
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
       email: email,
       password: pass
     })
 
-    if (signUpError) {
+    if (loginError || !loginData.session) {
       showToast('success', 'Account Created', 'Your partner account is ready. Please log in now.')
       setLoading(this, false, '<i class="fa-solid fa-user-plus"></i> Submit', '')
       switchTab('login')
@@ -164,9 +193,7 @@ $('registerBtn').onclick = async function () {
     }
 
     showToast('success', 'Welcome!', 'Your partner account is ready. Opening your dashboard...')
-    setTimeout(() => {
-      window.location.replace('referral.html')
-    }, 1200)
+    await saveSessionAndRedirect(loginData.session)
   } catch (e) {
     showToast('error', 'Network Error', e.message || 'Could not connect. Please check your internet and try again.')
     setLoading(this, false, '<i class="fa-solid fa-user-plus"></i> Submit', '')
@@ -202,9 +229,7 @@ $('loginBtn').onclick = async function () {
 
     if (data && data.session) {
       showToast('success', 'Welcome Back!', 'Login successful. Opening your dashboard...')
-      setTimeout(() => {
-        window.location.replace('referral.html')
-      }, 1000)
+      await saveSessionAndRedirect(data.session)
     } else {
       showToast('error', 'Login Failed', 'Could not sign you in. Please try again.')
       setLoading(this, false, '<i class="fa-solid fa-right-to-bracket"></i> Submit', '')
