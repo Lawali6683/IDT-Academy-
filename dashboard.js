@@ -1,7 +1,6 @@
 import { supabase } from './supabase.js';
 import { askQuestion, explainText, getAssessment, gradeAssessment, createPayment, verifyPayment, sendResultEmail } from './ai.js';
 
-
 window.__idtDashboardLoaded = false;
 
 window.addEventListener('error', function(e) {
@@ -23,7 +22,6 @@ window.addEventListener('unhandledrejection', function(e) {
     setTimeout(function() { el.remove(); }, 10000);
   } catch (_) {}
 });
-
 
 function showLoading() {
   let loader = document.getElementById('idt-loader-2');
@@ -139,7 +137,36 @@ function hideLoading() {
   if (l) l.classList.add('idt-hide');
 }
 
-const $ = (id) => document.getElementById(id);
+function $(id) {
+  return document.getElementById(id);
+}
+
+function on(id, fn) {
+  const el = $(id);
+  if (el) {
+    el.addEventListener('click', fn);
+  } else {
+    console.warn('[IDT Dashboard] Missing element ID in dashboard.html: #' + id);
+  }
+}
+
+function onSubmit(id, fn) {
+  const el = $(id);
+  if (el) {
+    el.addEventListener('submit', fn);
+  } else {
+    console.warn('[IDT Dashboard] Missing element ID in dashboard.html: #' + id);
+  }
+}
+
+function onReady(fn) {
+  if (document.readyState !== 'loading') {
+    fn();
+  } else {
+    document.addEventListener('DOMContentLoaded', fn);
+  }
+}
+
 const toastWrap = $('toastWrap');
 
 const PASS_MARK = 3;
@@ -165,6 +192,7 @@ let readingHistory = {};
 let chatHistories = {};
 let passedBatches = {};
 let lastAssessFail = {};
+let finishedCourses = {};
 let preferredLang = 'English';
 let adList = [];
 let adIdx = 0;
@@ -180,6 +208,10 @@ let videoWatched = false;
 let isProcessingNext = false;
 let isDiplomaReg = false;
 let regDate = null;
+let pendingCourses = [];
+let pendingCourseChoice = null;
+let statusWatcher = null;
+let isCreatingPayment = false;
 
 function escapeHtml(str) {
   return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({
@@ -193,6 +225,8 @@ function removeToast(el) {
 }
 
 function showToast(type, title, message, raw) {
+  const wrapEl = $('toastWrap');
+  if (!wrapEl) return;
   const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
   const el = document.createElement('div');
   el.className = 'toast ' + type;
@@ -201,7 +235,7 @@ function showToast(type, title, message, raw) {
     '<div class="toast-body"><b>' + escapeHtml(title) + '</b><p>' + escapeHtml(message) + '</p>' + rawHtml + '</div>' +
     '<button class="toast-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>';
   el.querySelector('.toast-x').addEventListener('click', () => removeToast(el));
-  toastWrap.appendChild(el);
+  wrapEl.appendChild(el);
   if (type === 'success') {
     setTimeout(() => removeToast(el), 3600);
   }
@@ -209,12 +243,15 @@ function showToast(type, title, message, raw) {
 }
 
 function miniLoad(text) {
-  $('miniLoaderText').textContent = text || 'Please wait...';
-  $('miniLoader').classList.add('open');
+  const t = $('miniLoaderText');
+  if (t) t.textContent = text || 'Please wait...';
+  const m = $('miniLoader');
+  if (m) m.classList.add('open');
 }
 
 function miniHide() {
-  $('miniLoader').classList.remove('open');
+  const m = $('miniLoader');
+  if (m) m.classList.remove('open');
 }
 
 async function copyText(txt) {
@@ -246,6 +283,25 @@ function getYouTubeId(url) {
 
 function isDirectVideo(url) {
   return /\.(mp4|webm|ogg|ogv|mov)(\?.*)?$/i.test(String(url || ''));
+}
+
+function categoryLabel(cat) {
+  const cats = { '1': 'Technology & Computing', '2': 'Vocational & Agricultural Skills', '3': 'Health & Community Wellness', '4': '2-Year Diploma Program', '5': 'JAMB Preparation' };
+  return cats[String(cat || '')] || 'Course';
+}
+
+function memberSinceText(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const ms = Date.now() - d.getTime();
+  if (ms < 0) return 'today';
+  const days = Math.floor(ms / 86400000);
+  if (days < 31) return days + (days === 1 ? ' day' : ' days');
+  const months = Math.floor(days / 30.44);
+  if (months < 12) return months + (months === 1 ? ' month' : ' months');
+  const years = Math.floor(days / 365.25);
+  return years + (years === 1 ? ' year' : ' years');
 }
 
 function buildReferralLink() {
@@ -313,20 +369,16 @@ async function loadUpdateTable() {
     } else {
       updateData = {};
     }
-    watchedMap = updateData.watched || {};
-    readingHistory = updateData.reading_history || {};
-    chatHistories = updateData.chat_history || {};
-    passedBatches = updateData.passed_batches || {};
-    lastAssessFail = updateData.last_assess_fail || {};
-    preferredLang = updateData.preferred_lang || 'English';
   } catch (err) {
     updateData = {};
-    watchedMap = {};
-    readingHistory = {};
-    chatHistories = {};
-    passedBatches = {};
-    lastAssessFail = {};
   }
+  watchedMap = updateData.watched || {};
+  readingHistory = updateData.reading_history || {};
+  chatHistories = updateData.chat_history || {};
+  passedBatches = updateData.passed_batches || {};
+  lastAssessFail = updateData.last_assess_fail || {};
+  finishedCourses = updateData.finished_courses || {};
+  preferredLang = updateData.preferred_lang || 'English';
 }
 
 async function saveUpdate(patch) {
@@ -363,6 +415,21 @@ async function saveUserData() {
   if (error) throw error;
 }
 
+function computeStatus() {
+  const at = String((userData && userData.account_type) || '').toLowerCase();
+  let st = String((userData && userData.status) || 'pending').toLowerCase();
+  if (at === 'partner' && st !== 'active') {
+    st = 'active';
+    if (userData) userData.status = 'active';
+  }
+  return st;
+}
+
+function isCourseFinished(cid) {
+  if (finishedCourses[cid]) return true;
+  return String(userData.level_completed || '') === 'final';
+}
+
 function markWatched(topicIdx) {
   if (!activeCourseId) return;
   const arr = watchedMap[activeCourseId] || [];
@@ -376,19 +443,21 @@ function markWatched(topicIdx) {
   const st = $('videoStatus');
   if (st) {
     st.classList.add('watched');
-    $('videoStatusText').textContent = 'Video watched ✓';
+    const txt = $('videoStatusText');
+    if (txt) txt.textContent = 'Video watched ✓';
   }
 }
 
 function isWatched(topicIdx) {
-  const arr = watchedMap[activeCourseId] || [];
+  const arr = (watchedMap && watchedMap[activeCourseId]) || [];
   return arr.indexOf(topicIdx) !== -1;
 }
 
 function renderSessionClock() {
   const m = Math.floor(sessionSeconds / 60);
   const s = sessionSeconds % 60;
-  $('sessionTime').textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  const el = $('sessionTime');
+  if (el) el.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
 }
 
 function startSessionClock() {
@@ -401,20 +470,48 @@ function startSessionClock() {
 }
 
 function renderMenu() {
+  if (!user || !userData) return;
   const bonus = Number((userData && userData.referral_bonus) || 0);
-  $('smUserName').textContent = (userData && userData.full_name) || 'Student';
-  $('smBonus').textContent = bonus.toFixed(2);
-  $('smReferralExtra').textContent = formatMoney(bonus);
-  const link = buildReferralLink();
-  $('smReferral').href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent(userData.referral_code || '');
-  $('pendingReferLink').textContent = link;
-  $('pendingReferLink').title = link;
+  const nameEl = $('smUserName');
+  if (nameEl) nameEl.textContent = (userData && userData.full_name) || 'Student';
+  const bonusEl = $('smBonus');
+  if (bonusEl) bonusEl.textContent = bonus.toFixed(2);
+  const extraEl = $('smReferralExtra');
+  if (extraEl) extraEl.textContent = formatMoney(bonus);
+  const refEl = $('smReferral');
+  if (refEl) refEl.href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent(userData.referral_code || '');
+  const pRef = $('pendingReferLink');
+  if (pRef) {
+    const link = buildReferralLink();
+    pRef.textContent = link;
+    pRef.title = link;
+  }
 }
 
 function renderUserGreet() {
-  $('userFullName').textContent = (userData && userData.full_name) || 'Student';
-  $('userCourseName').textContent = 'Course: ' + ((userData && userData.course_name) || 'Loading...');
-  $('progressStudent').textContent = (userData && userData.full_name) || 'Student';
+  const n1 = $('userFullName');
+  if (n1) n1.textContent = (userData && userData.full_name) || 'Student';
+  const n2 = $('userCourseName');
+  if (n2) n2.textContent = 'Course: ' + ((userData && userData.course_name) || 'Loading...');
+  const n3 = $('progressStudent');
+  if (n3) n3.textContent = (userData && userData.full_name) || 'Student';
+  const regIso = (userData && (userData.date_registered || userData.date_registed || userData.created_at)) || (profileData && profileData.created_at) || '';
+  const ms = memberSinceText(regIso);
+  document.querySelectorAll('.idt-member-since').forEach((el) => {
+    el.textContent = ms ? 'Member for ' + ms : 'New member';
+  });
+}
+
+function renderUserIdCard() {
+  document.querySelectorAll('.idt-uid-name').forEach((el) => {
+    el.textContent = (userData && userData.full_name) || 'Student';
+  });
+  document.querySelectorAll('.idt-uid-value').forEach((el) => {
+    el.textContent = user.id;
+  });
+  document.querySelectorAll('.copy-user-id').forEach((btn) => {
+    btn.dataset.copy = user.id;
+  });
 }
 
 async function loadAd() {
@@ -425,6 +522,7 @@ async function loadAd() {
     if (error) throw error;
     adList = (data || []).filter((r) => r.ad_image && r.ad_link);
     const box = $('adBox');
+    if (!box) return;
     if (adList.length === 0) {
       box.classList.add('hidden');
       return;
@@ -437,7 +535,8 @@ async function loadAd() {
       showAdSlide(adIdx);
     }, 10000);
   } catch (err) {
-    $('adBox').classList.add('hidden');
+    const box = $('adBox');
+    if (box) box.classList.add('hidden');
   }
 }
 
@@ -445,7 +544,7 @@ function showAdSlide(i) {
   const box = $('adBox');
   const img = $('adImage');
   const row = adList[i];
-  if (!row) return;
+  if (!row || !box || !img) return;
   window._adtLink = row.ad_link;
   img.classList.add('fade');
   setTimeout(() => {
@@ -489,21 +588,150 @@ async function loadTopicsFor(courseId) {
   }
 }
 
-function pickDefaultCourse() {
-  const unfinished = courseList.find((c) => {
-    const lv = String(userData.level_completed || '');
-    const info = courseInfoMap[c.course_id] || {};
-    const topicCount = (topicsMap[c.course_id] || []).length;
-    if (lv === 'final') return false;
-    const batch = readingHistory[c.course_id];
-    if (typeof batch === 'number' && topicCount > 0 && batch >= topicCount - 1) return false;
-    return true;
+async function loadPendingCourses() {
+  try {
+    const { data, error } = await supabase
+      .from('courses')
+      .select('*');
+    if (error) throw error;
+    pendingCourses = (data || []).filter((r) => r.course_data);
+    pendingCourses.forEach((row) => {
+      courseInfoMap[row.id] = row.course_data || {};
+    });
+  } catch (err) {
+    pendingCourses = [];
+    showToast('error', 'Error', 'Could not load the course list.', err.message || String(err));
+  }
+  renderPendingCourses();
+  renderPendingSummary();
+}
+
+function pendingChoiceCourse() {
+  let row = pendingCourses.find((r) => r.id === pendingCourseChoice);
+  if (!row) {
+    row = pendingCourses.find((r) => r.id === ((userData && userData.course_id) || ''));
+  }
+  if (row) {
+    const cd = row.course_data || {};
+    return {
+      course_id: row.id,
+      course_name: cd.course_name || '',
+      course_number: cd.course_number || '',
+      course_price: Number(cd.course_price || row.course_price || 0)
+    };
+  }
+  const ud = {
+    course_id: (userData && userData.course_id) || '',
+    course_name: (userData && userData.course_name) || '',
+    course_number: (userData && userData.course_number) || '',
+    course_price: Number((userData && userData.course_price) || 0)
+  };
+  if (ud.course_id || ud.course_price) return ud;
+  return null;
+}
+
+function renderPendingCourses() {
+  const grid = $('pendingCourseGrid');
+  if (!grid) return;
+  if (!pendingCourses.length) {
+    grid.innerHTML = '<div class="pc-empty"><i class="fa-solid fa-circle-info"></i> No courses available right now. Please contact support.</div>';
+    return;
+  }
+  const preId = pendingCourseChoice || (userData && userData.course_id) || '';
+  grid.innerHTML = pendingCourses.map((row) => {
+    const cd = row.course_data || {};
+    const price = Number(cd.course_price || row.course_price || 0);
+    const sel = row.id === preId;
+    return '<button type="button" class="pc-card' + (sel ? ' selected' : '') + '" data-cid="' + escapeHtml(row.id) + '">' +
+      '<span class="pc-check"><i class="fa-solid fa-check"></i></span>' +
+      '<span class="pc-name">' + escapeHtml(cd.course_name || 'Course') + '</span>' +
+      '<span class="pc-meta">' + escapeHtml(categoryLabel(cd.category)) + '</span>' +
+      '<span class="pc-price">' + formatMoney(price) + '</span>' +
+      '</button>';
+  }).join('');
+  grid.querySelectorAll('.pc-card').forEach((card) => {
+    card.addEventListener('click', async () => {
+      const cid = card.dataset.cid;
+      if (cid === pendingCourseChoice) return;
+      pendingCourseChoice = cid;
+      renderPendingCourses();
+      renderPendingSummary();
+      await persistCourseChoice(cid);
+    });
   });
-  return unfinished ? unfinished.course_id : (courseList.length ? courseList[courseList.length - 1].course_id : '');
+}
+
+async function persistCourseChoice(cid) {
+  const c = pendingChoiceCourse();
+  if (!c || c.course_id !== cid) return;
+  userData.course_id = c.course_id;
+  userData.course_name = c.course_name;
+  userData.course_number = c.course_number;
+  userData.course_price = c.course_price;
+  if (!courseList.length) {
+    courseList = [{
+      course_id: c.course_id,
+      course_name: c.course_name,
+      course_number: c.course_number,
+      course_price: c.course_price,
+      status: computeStatus()
+    }];
+  }
+  try {
+    await saveUserData();
+  } catch (err) {
+    showToast('error', 'Save Failed', 'Could not save your course choice.', err.message || String(err));
+  }
+}
+
+function renderPendingSummary() {
+  const box = $('pendingSummary');
+  const btn = $('btnPayNow');
+  const hint = $('pendingChooseHint');
+  const c = pendingChoiceCourse();
+  if (!box) return;
+  if (!c) {
+    box.classList.add('hidden');
+    if (btn) { btn.disabled = true; }
+    if (hint) hint.classList.remove('hidden');
+    return;
+  }
+  box.classList.remove('hidden');
+  if (hint) hint.classList.add('hidden');
+  $('pendingCourseName').textContent = c.course_name || 'Selected Course';
+  $('pendingCourseNumber').textContent = c.course_number || '000';
+  $('pendingPrice').textContent = formatMoney(c.course_price || 0);
+  const info = courseInfoMap[c.course_id] || {};
+  const img = $('pendingCourseImg');
+  if (img) {
+    if (info.image_url) {
+      img.src = info.image_url;
+      img.classList.remove('hidden');
+    } else {
+      img.classList.add('hidden');
+    }
+  }
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Pay Now';
+  }
+}
+
+function pickDefaultCourse() {
+  const unfinished = courseList.filter((c) => !isCourseFinished(c.course_id));
+  const pool = unfinished.length ? unfinished : courseList;
+  if (!pool.length) return '';
+  const withProgress = pool.filter((c) => typeof readingHistory[c.course_id] === 'number');
+  if (withProgress.length) {
+    withProgress.sort((a, b) => (readingHistory[b.course_id] || 0) - (readingHistory[a.course_id] || 0));
+    return withProgress[0].course_id;
+  }
+  return pool[pool.length - 1].course_id;
 }
 
 function renderCourseSwitch() {
   const wrap = $('courseSwitch');
+  if (!wrap) return;
   if (courseList.length <= 1) {
     wrap.classList.add('hidden');
     wrap.innerHTML = '';
@@ -512,8 +740,7 @@ function renderCourseSwitch() {
   wrap.classList.remove('hidden');
   let html = '';
   courseList.forEach((c) => {
-    const lv = String(userData.level_completed || '');
-    const done = lv === 'final';
+    const done = isCourseFinished(c.course_id);
     const isActive = c.course_id === activeCourseId;
     html += '<button class="cs-chip' + (isActive ? ' active' : '') + '" data-cid="' + escapeHtml(c.course_id) + '">' +
       '<i class="fa-solid fa-graduation-cap"></i> ' + escapeHtml(c.course_name) +
@@ -539,21 +766,22 @@ async function selectCourse(courseId) {
   regDate = userData.date_registered || null;
   const savedIdx = typeof readingHistory[courseId] === 'number' ? readingHistory[courseId] : 0;
   currentTopicIdx = Math.min(Math.max(0, savedIdx), Math.max(0, currentTopics.length - 1));
-  const lv = String(userData.level_completed || '');
-  if (lv === 'final' && currentTopics.length) {
+  const done = isCourseFinished(courseId);
+  if (done && currentTopics.length) {
     currentTopicIdx = currentTopics.length - 1;
   }
   if (currentTopics.length === 0) {
-    $('topicCard').classList.add('hidden');
-    $('emptyState').classList.remove('hidden');
-    $('progressCourseName').textContent = 'No Topics Yet';
-    $('progressCount').textContent = '0/0';
-    $('progressPct').textContent = '0%';
-    $('progressFill').style.width = '0%';
+    const tc = $('topicCard');
+    if (tc) tc.classList.add('hidden');
+    const es = $('emptyState');
+    if (es) es.classList.remove('hidden');
+    renderProgress();
     return;
   }
-  $('emptyState').classList.add('hidden');
-  $('topicCard').classList.remove('hidden');
+  const es = $('emptyState');
+  if (es) es.classList.add('hidden');
+  const tc = $('topicCard');
+  if (tc) tc.classList.remove('hidden');
   renderProgress();
   renderTopic();
   showToast('success', 'Course Loaded', 'Welcome to ' + ((courseInfoMap[courseId] || {}).course_name || 'your course') + '. Happy learning!');
@@ -561,40 +789,49 @@ async function selectCourse(courseId) {
 
 function renderProgress() {
   const total = currentTopics.length;
-  const arr = watchedMap[activeCourseId] || [];
+  const arr = (watchedMap && watchedMap[activeCourseId]) || [];
   let completed = arr.length;
-  const lv = String(userData.level_completed || '');
-  if (lv === 'final') completed = total;
+  const done = isCourseFinished(activeCourseId);
+  if (done) completed = total;
   if (typeof readingHistory[activeCourseId] === 'number') {
     completed = Math.max(completed, Math.min(readingHistory[activeCourseId], total));
   }
   const pct = total ? Math.round((completed / total) * 100) : 0;
   const info = courseInfoMap[activeCourseId] || {};
-  $('progressCourseName').textContent = info.course_name || (userData.course_name || 'Course');
-  const cats = { '1': 'Technology & Computing', '2': 'Vocational & Agricultural Skills', '3': 'Health & Community Wellness', '4': '2-Year Diploma Program' };
-  $('progressCategory').textContent = cats[String(info.category || '')] || 'General';
-  $('progressCount').textContent = completed + '/' + total;
-  $('progressPct').textContent = pct + '%';
-  $('progressFill').style.width = pct + '%';
+  const cn = $('progressCourseName');
+  if (cn) cn.textContent = info.course_name || ((userData && userData.course_name) || 'Course');
+  const cat = $('progressCategory');
+  if (cat) cat.textContent = categoryLabel(info.category);
+  const pc = $('progressCount');
+  if (pc) pc.textContent = completed + '/' + total;
+  const pp = $('progressPct');
+  if (pp) pp.textContent = pct + '%';
+  const pf = $('progressFill');
+  if (pf) pf.style.width = pct + '%';
   const badge = $('levelBadge');
-  if (lv === 'final') {
-    badge.className = 'level-badge final';
-    badge.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Final Level Completed';
-  } else {
-    badge.className = 'level-badge studying';
-    badge.innerHTML = '<i class="fa-solid fa-book-open"></i> Studying • Topic ' + (currentTopicIdx + 1) + '/' + total;
+  if (badge) {
+    if (done) {
+      badge.className = 'level-badge final';
+      badge.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Final Level Completed';
+    } else {
+      badge.className = 'level-badge studying';
+      badge.innerHTML = '<i class="fa-solid fa-book-open"></i> Studying • Topic ' + (currentTopicIdx + 1) + '/' + total;
+    }
   }
   const banner = $('completeBanner');
-  if (lv === 'final') {
-    banner.classList.remove('hidden');
-  } else {
-    banner.classList.add('hidden');
+  if (banner) {
+    if (done) {
+      banner.classList.remove('hidden');
+    } else {
+      banner.classList.add('hidden');
+    }
   }
 }
 
 function renderDiplomaLock() {
   const wrap = $('videoWrap');
   const lock = $('videoLock');
+  if (!lock) return false;
   const idx = currentTopicIdx;
   const weeks = regDate ? weeksSince(regDate) : 0;
   const allowed = weeks;
@@ -605,8 +842,10 @@ function renderDiplomaLock() {
     const h = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
     const m = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
     lock.classList.remove('hidden');
-    $('videoLockTitle').textContent = 'This Topic Unlocks Later';
-    $('videoLockMsg').textContent = 'Diploma lessons open one per week to help you learn step by step. Unlocks in ' + d + 'd ' + h + 'h ' + m + 'm.';
+    const lt = $('videoLockTitle');
+    if (lt) lt.textContent = 'This Topic Unlocks Later';
+    const lm = $('videoLockMsg');
+    if (lm) lm.textContent = 'Diploma lessons open one per week to help you learn step by step. Unlocks in ' + d + 'd ' + h + 'h ' + m + 'm.';
     return true;
   }
   lock.classList.add('hidden');
@@ -618,53 +857,67 @@ function renderTopic() {
   currentTopic = currentTopics[currentTopicIdx];
   const total = currentTopics.length;
   const isFinalTopic = currentTopicIdx === total - 1;
-  $('topicNumber').textContent = currentTopicIdx + 1;
-  $('topicNumLabel').textContent = currentTopicIdx + 1;
-  $('topicTotalLabel').textContent = total;
-  $('topicName').textContent = currentTopic.topic_name || ('Topic ' + (currentTopicIdx + 1));
+  const tn = $('topicNumber');
+  if (tn) tn.textContent = currentTopicIdx + 1;
+  const tnl = $('topicNumLabel');
+  if (tnl) tnl.textContent = currentTopicIdx + 1;
+  const ttl = $('topicTotalLabel');
+  if (ttl) ttl.textContent = total;
+  const tnm = $('topicName');
+  if (tnm) tnm.textContent = currentTopic.topic_name || ('Topic ' + (currentTopicIdx + 1));
   const badge = $('topicBadge');
-  if (currentTopic.is_final === true || isFinalTopic) {
-    badge.className = 'th-badge final';
-    badge.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Final Topic';
-  } else {
-    badge.className = 'th-badge';
-    badge.innerHTML = '';
+  if (badge) {
+    if (currentTopic.is_final === true || isFinalTopic) {
+      badge.className = 'th-badge final';
+      badge.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Final Topic';
+    } else {
+      badge.className = 'th-badge';
+      badge.innerHTML = '';
+    }
   }
-  $('topicText').textContent = currentTopic.topic_text || '';
-  $('topicNumber').classList.toggle('final-num', currentTopic.is_final === true || isFinalTopic);
+  const tt = $('topicText');
+  if (tt) tt.textContent = currentTopic.topic_text || '';
+  if (tn) tn.classList.toggle('final-num', currentTopic.is_final === true || isFinalTopic);
   renderVideo();
   const watched = isWatched(currentTopicIdx);
   videoWatched = watched;
   const st = $('videoStatus');
-  if (watched) {
-    st.classList.add('watched');
-    $('videoStatusText').textContent = 'Video watched ✓';
-  } else {
-    st.classList.remove('watched');
-    $('videoStatusText').textContent = currentTopic.video_url ? 'Video not watched yet' : 'No video for this topic';
+  if (st) {
+    if (watched) {
+      st.classList.add('watched');
+      const txt = $('videoStatusText');
+      if (txt) txt.textContent = 'Video watched ✓';
+    } else {
+      st.classList.remove('watched');
+      const txt = $('videoStatusText');
+      if (txt) txt.textContent = currentTopic.video_url ? 'Video not watched yet' : 'No video for this topic';
+    }
   }
   const btnNext = $('btnNextTopic');
-  if (isFinalTopic && !watched) {
-    btnNext.textContent = 'Finish Course';
-    btnNext.classList.add('finish');
-  } else if (isFinalTopic) {
-    btnNext.textContent = 'Finish Course';
-    btnNext.classList.add('finish');
-  } else {
-    btnNext.textContent = 'Next';
-    btnNext.classList.remove('finish');
+  if (btnNext) {
+    if (isFinalTopic) {
+      btnNext.textContent = 'Finish Course';
+      btnNext.classList.add('finish');
+    } else {
+      btnNext.textContent = 'Next';
+      btnNext.classList.remove('finish');
+    }
   }
-  $('btnPrevTopic').disabled = currentTopicIdx === 0;
-  if (diplomaMode && currentTopicIdx > weeksSince(regDate)) {
-    $('btnNextTopic').disabled = true;
-  } else {
-    $('btnNextTopic').disabled = false;
+  const btnPrev = $('btnPrevTopic');
+  if (btnPrev) btnPrev.disabled = currentTopicIdx === 0;
+  if (btnNext) {
+    if (diplomaMode && currentTopicIdx > weeksSince(regDate)) {
+      btnNext.disabled = true;
+    } else {
+      btnNext.disabled = false;
+    }
   }
   renderProgress();
 }
 
 function renderVideo() {
   const wrap = $('videoWrap');
+  if (!wrap) return;
   wrap.innerHTML = '';
   if (videoWatchTimer) clearInterval(videoWatchTimer);
   videoWatchTimer = null;
@@ -673,7 +926,8 @@ function renderVideo() {
     const locked = renderDiplomaLock();
     if (locked) return;
   }
-  $('videoLock').classList.add('hidden');
+  const lock = $('videoLock');
+  if (lock) lock.classList.add('hidden');
   if (!url) {
     const ph = document.createElement('div');
     ph.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#94a3b8;background:#0b0d1a;text-align:center;padding:20px';
@@ -751,11 +1005,13 @@ function topicNeedsWatch(idx) {
 }
 
 function openUnderstandModal() {
-  $('understandModal').classList.add('open');
+  const m = $('understandModal');
+  if (m) m.classList.add('open');
 }
 
 function closeUnderstandModal() {
-  $('understandModal').classList.remove('open');
+  const m = $('understandModal');
+  if (m) m.classList.remove('open');
 }
 
 async function advanceTopic() {
@@ -783,11 +1039,15 @@ async function advanceTopic() {
 
 async function finishCourse() {
   const total = currentTopics.length;
-  const lv = String(userData.level_completed || '');
-  if (lv !== 'final') {
+  const cid = activeCourseId;
+  if (!isCourseFinished(cid)) {
+    if (!updateData.finished_courses) updateData.finished_courses = {};
+    updateData.finished_courses[cid] = true;
+    finishedCourses = updateData.finished_courses;
     userData.level_completed = 'final';
     userData.date_complet = new Date().toISOString();
     try {
+      await saveUpdate({ finished_courses: finishedCourses });
       await saveUserData();
       const safe = JSON.parse(localStorage.getItem('idt_user') || '{}');
       safe.level_completed = 'final';
@@ -798,8 +1058,10 @@ async function finishCourse() {
   }
   renderProgress();
   const msg = 'You have completed all ' + total + ' topics in ' + ((courseInfoMap[activeCourseId] || {}).course_name || 'this course') + '. You are now ready for the final exam to earn your certificate.';
-  $('completionMsg').textContent = msg;
-  $('completionModal').classList.add('open');
+  const cm = $('completionMsg');
+  if (cm) cm.textContent = msg;
+  const m = $('completionModal');
+  if (m) m.classList.add('open');
 }
 
 async function handleReady() {
@@ -840,30 +1102,41 @@ function formatDuration(ms) {
 async function openAssessment(batch) {
   const startIdx = batch - ASSESS_BATCH_SIZE;
   const batchTopics = currentTopics.slice(Math.max(0, startIdx), batch);
-  $('assessTopicsList').innerHTML = batchTopics.map((t) =>
-    '<div class="ai-topic"><i class="fa-solid fa-circle-check"></i> Topic ' + (t.topic_number || '') + ': ' + escapeHtml(t.topic_name || '') + '</div>'
-  ).join('');
-  $('assessTitle').textContent = 'Assessment • Topics ' + (startIdx + 1) + ' - ' + batch;
+  const list = $('assessTopicsList');
+  if (list) {
+    list.innerHTML = batchTopics.map((t) =>
+      '<div class="ai-topic"><i class="fa-solid fa-circle-check"></i> Topic ' + (t.topic_number || '') + ': ' + escapeHtml(t.topic_name || '') + '</div>'
+    ).join('');
+  }
+  const at = $('assessTitle');
+  if (at) at.textContent = 'Assessment • Topics ' + (startIdx + 1) + ' - ' + batch;
   const key = activeCourseId + '_' + batch;
   const failTs = lastAssessFail[key];
+  const btn = $('btnStartAssessment');
   if (failTs) {
     const waitMs = diplomaMode ? RETRY_DIPLOMA_MS : RETRY_REGULAR_MS;
     const remain = failTs + waitMs - Date.now();
     if (remain > 0) {
-      const btn = $('btnStartAssessment');
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Retry In ' + formatDuration(remain);
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Retry In ' + formatDuration(remain);
+      }
       showToast('info', 'Assessment Locked', 'You can retry in ' + formatDuration(remain) + '. Read the topics again and come back.', '');
     }
   } else {
-    const btn = $('btnStartAssessment');
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-play"></i> Start Assessment';
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-play"></i> Start Assessment';
+    }
   }
-  $('assessIntro').classList.remove('hidden');
-  $('assessQuiz').classList.add('hidden');
-  $('assessResult').classList.add('hidden');
-  $('assessmentOverlay').classList.add('open');
+  const intro = $('assessIntro');
+  if (intro) intro.classList.remove('hidden');
+  const quiz = $('assessQuiz');
+  if (quiz) quiz.classList.add('hidden');
+  const res = $('assessResult');
+  if (res) res.classList.add('hidden');
+  const ov = $('assessmentOverlay');
+  if (ov) ov.classList.add('open');
   window._assessBatch = batch;
 }
 
@@ -884,7 +1157,7 @@ async function startAssessmentFlow() {
     const res = await getAssessment({
       user_id: user.id,
       course_id: activeCourseId,
-      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
+      course_name: (courseInfoMap[activeCourseId] || {}).course_name || ((userData && userData.course_name) || ''),
       topics: batchTopics
     });
     const questions = res.questions || [];
@@ -902,9 +1175,12 @@ async function startAssessmentFlow() {
     };
     const camOk = await startCamera();
     if (!camOk) return;
-    $('assessIntro').classList.add('hidden');
-    $('assessResult').classList.add('hidden');
-    $('assessQuiz').classList.remove('hidden');
+    const intro = $('assessIntro');
+    if (intro) intro.classList.add('hidden');
+    const resEl = $('assessResult');
+    if (resEl) resEl.classList.add('hidden');
+    const quiz = $('assessQuiz');
+    if (quiz) quiz.classList.remove('hidden');
     renderQuestion();
     startQuizTimer();
     attachAntiCheat();
@@ -926,12 +1202,13 @@ async function startCamera() {
     quizState.stream = stream;
     video.srcObject = stream;
     await video.play().catch(() => {});
-    lock.classList.add('hidden');
+    if (lock) lock.classList.add('hidden');
     return true;
   } catch (err) {
     miniHide();
     showToast('error', 'Camera Required', 'Please allow camera access to take this assessment.', err.message || String(err));
-    $('quizCamLockMsg').textContent = 'Camera access is required so we can verify you take the assessment honestly. Please allow camera and try again.';
+    const msg = $('quizCamLockMsg');
+    if (msg) msg.textContent = 'Camera access is required so we can verify you take the assessment honestly. Please allow camera and try again.';
     return false;
   }
 }
@@ -942,22 +1219,28 @@ function stopCamera() {
     quizState.stream = null;
   }
   const video = $('quizCam');
-  if (video.srcObject) {
+  if (video && video.srcObject) {
     video.srcObject = null;
   }
-  $('quizCamLock').classList.remove('hidden');
-  $('quizCamLockMsg').textContent = 'Camera stopped. You can close this assessment.';
+  const lock = $('quizCamLock');
+  if (lock) lock.classList.remove('hidden');
+  const msg = $('quizCamLockMsg');
+  if (msg) msg.textContent = 'Camera stopped. You can close this assessment.';
 }
 
 function renderQuestion() {
   const q = quizState.questions[quizState.currentQ];
   if (!q) return;
   const card = $('questionCard');
+  if (!card) return;
   const totalQ = quizState.questions.length;
   const isLast = quizState.currentQ === totalQ - 1;
-  $('btnPrevQ').disabled = quizState.currentQ === 0;
-  $('btnNextQ').classList.toggle('hidden', isLast);
-  $('btnSubmitQuiz').classList.toggle('hidden', !isLast);
+  const pBtn = $('btnPrevQ');
+  if (pBtn) pBtn.disabled = quizState.currentQ === 0;
+  const nBtn = $('btnNextQ');
+  if (nBtn) nBtn.classList.toggle('hidden', isLast);
+  const sBtn = $('btnSubmitQuiz');
+  if (sBtn) sBtn.classList.toggle('hidden', !isLast);
   let optionsHtml = '';
   if (q.type === 'write' || !Array.isArray(q.options) || q.options.length === 0) {
     const val = escapeHtml(quizState.answers[quizState.currentQ] || '');
@@ -998,9 +1281,13 @@ function startQuizTimer() {
     quizState.secondsLeft--;
     const m = Math.floor(quizState.secondsLeft / 60);
     const s = quizState.secondsLeft % 60;
-    $('quizTimer').querySelector('span').textContent = m + ':' + String(s).padStart(2, '0');
-    if (quizState.secondsLeft <= 60) {
-      $('quizTimer').classList.add('danger');
+    const qt = $('quizTimer');
+    if (qt) {
+      const sp = qt.querySelector('span');
+      if (sp) sp.textContent = m + ':' + String(s).padStart(2, '0');
+      if (quizState.secondsLeft <= 60) {
+        qt.classList.add('danger');
+      }
     }
     if (quizState.secondsLeft <= 0) {
       clearInterval(quizState.timer);
@@ -1057,6 +1344,7 @@ function antiCheatBlur() {
 async function submitQuiz(timedOut) {
   if (!quizState || quizState.submitted) return;
   quizState.submitted = true;
+  isProcessingNext = true;
   if (quizState.timer) clearInterval(quizState.timer);
   detachAntiCheat();
   stopCamera();
@@ -1073,7 +1361,7 @@ async function submitQuiz(timedOut) {
     const res = await gradeAssessment({
       user_id: user.id,
       course_id: activeCourseId,
-      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
+      course_name: (courseInfoMap[activeCourseId] || {}).course_name || ((userData && userData.course_name) || ''),
       assessment_id: quizState.assessmentId,
       questions: qs,
       time_spent: timeSpent,
@@ -1098,7 +1386,7 @@ async function submitQuiz(timedOut) {
       grades.push({
         assessment_id: quizState.assessmentId,
         course_id: activeCourseId,
-        course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
+        course_name: (courseInfoMap[activeCourseId] || {}).course_name || ((userData && userData.course_name) || ''),
         score: score,
         pct: pct,
         passed: true,
@@ -1135,33 +1423,49 @@ async function submitQuiz(timedOut) {
     miniHide();
     showToast('error', 'Grading Failed', 'Could not grade your assessment. Please try again.', err.message || String(err));
     quizState.submitted = false;
+  } finally {
+    isProcessingNext = false;
   }
 }
 
 function showResult(score, pct, passed, results, timedOut, message) {
-  $('assessQuiz').classList.add('hidden');
-  $('assessResult').classList.remove('hidden');
+  const quiz = $('assessQuiz');
+  if (quiz) quiz.classList.add('hidden');
+  const res = $('assessResult');
+  if (res) res.classList.remove('hidden');
   const ring = $('scoreRing');
-  const deg = Math.round((pct / 100) * 360);
-  ring.style.background = 'conic-gradient(' + (passed ? 'var(--green)' : 'var(--rose)') + ' ' + deg + 'deg, rgba(124,58,237,.1) ' + deg + 'deg)';
-  $('scorePct').textContent = pct + '%';
+  if (ring) {
+    const deg = Math.round((pct / 100) * 360);
+    ring.style.background = 'conic-gradient(' + (passed ? 'var(--green)' : 'var(--rose)') + ' ' + deg + 'deg, rgba(124,58,237,.1) ' + deg + 'deg)';
+  }
+  const sp = $('scorePct');
+  if (sp) sp.textContent = pct + '%';
   const head = $('resultHead');
-  if (passed) {
-    head.textContent = 'Congratulations! 🎉';
-    head.className = 'result-head pass';
-    $('resultSub').textContent = message || 'You passed this assessment. Excellent work! You can continue learning.';
-  } else {
-    head.textContent = 'Almost There!';
-    head.className = 'result-head fail';
-    $('resultSub').textContent = message || 'You scored below the pass mark (' + PASS_MARK + '/' + (quizState.questions.length || 5) + '). Read the topics again and retry.';
+  if (head) {
+    if (passed) {
+      head.textContent = 'Congratulations! 🎉';
+      head.className = 'result-head pass';
+    } else {
+      head.textContent = 'Almost There!';
+      head.className = 'result-head fail';
+    }
+  }
+  const sub = $('resultSub');
+  if (sub) {
+    sub.textContent = message || (passed
+      ? 'You passed this assessment. Excellent work! You can continue learning.'
+      : 'You scored below the pass mark (' + PASS_MARK + '/' + (quizState.questions.length || 5) + '). Read the topics again and retry.');
   }
   const totalQ = quizState.questions.length || 5;
-  $('resultSummary').innerHTML =
-    '<div class="rs-row"><span>Total Questions</span><b>' + totalQ + '</b></div>' +
-    '<div class="rs-row"><span>Correct Answers</span><b class="ok">' + (results.filter((r) => r.is_correct === true).length || score) + '</b></div>' +
-    '<div class="rs-row"><span>Wrong Answers</span><b class="bad">' + (results.filter((r) => r.is_correct === false).length || Math.max(0, totalQ - score)) + '</b></div>' +
-    '<div class="rs-row"><span>Pass Mark</span><b>' + PASS_MARK + ' / ' + totalQ + '</b></div>' +
-    '<div class="rs-row"><span>Time Used</span><b>' + Math.max(0, 240 - quizState.secondsLeft) + 's</b></div>';
+  const summary = $('resultSummary');
+  if (summary) {
+    summary.innerHTML =
+      '<div class="rs-row"><span>Total Questions</span><b>' + totalQ + '</b></div>' +
+      '<div class="rs-row"><span>Correct Answers</span><b class="ok">' + (results.filter((r) => r.is_correct === true).length || score) + '</b></div>' +
+      '<div class="rs-row"><span>Wrong Answers</span><b class="bad">' + (results.filter((r) => r.is_correct === false).length || Math.max(0, totalQ - score)) + '</b></div>' +
+      '<div class="rs-row"><span>Pass Mark</span><b>' + PASS_MARK + ' / ' + totalQ + '</b></div>' +
+      '<div class="rs-row"><span>Time Used</span><b>' + Math.max(0, 240 - quizState.secondsLeft) + 's</b></div>';
+  }
   let listHtml = '';
   results.forEach((r, i) => {
     const ok = r.is_correct === true;
@@ -1177,21 +1481,27 @@ function showResult(score, pct, passed, results, timedOut, message) {
       (r.explanation ? '<div class="ri-explain"><b><i class="fa-solid fa-lightbulb"></i> Explanation:</b> ' + escapeHtml(r.explanation) + '</div>' : '') +
       '</div>';
   });
-  $('resultList').innerHTML = listHtml || '<div class="result-item">No detailed breakdown available.</div>';
+  const list = $('resultList');
+  if (list) list.innerHTML = listHtml || '<div class="result-item">No detailed breakdown available.</div>';
   const btnGoExam = $('btnGoExam');
   const btnCont = $('btnContinueStudy');
-  const lv = String(userData.level_completed || '');
   const atFinal = currentTopicIdx >= currentTopics.length - 1;
-  if (passed && atFinal) {
-    btnCont.classList.add('hidden');
-    btnGoExam.classList.remove('hidden');
-  } else {
-    btnCont.classList.remove('hidden');
-    btnGoExam.classList.add('hidden');
+  if (btnCont && btnGoExam) {
+    if (passed && atFinal) {
+      btnCont.classList.add('hidden');
+      btnGoExam.classList.remove('hidden');
+    } else {
+      btnCont.classList.remove('hidden');
+      btnGoExam.classList.add('hidden');
+    }
   }
   if (timedOut) {
     showToast('error', 'Time Up', 'The 4 minutes finished. Your answers were submitted automatically.', '');
   }
+  window._lastResults = results;
+  window._lastScore = score;
+  window._lastPct = pct;
+  window._lastPassed = passed;
 }
 
 function confetti() {
@@ -1328,10 +1638,8 @@ function markdownToHtml(src) {
   for (let i = 0; i < parts.length; i++) {
     if (i % 2 === 1) {
       let code = parts[i];
-      let lang = '';
       const nl = code.indexOf('\n');
       if (nl > -1) {
-        lang = code.slice(0, nl).trim();
         code = code.slice(nl + 1);
       }
       html += '<pre style="display:block;background:#0f172a;color:#e2e8f0;padding:13px;border-radius:12px;overflow-x:auto;font-family:Consolas,monospace;font-size:12px;margin:8px 0;white-space:pre">' + escapeHtml(code) + '</pre>';
@@ -1344,6 +1652,7 @@ function markdownToHtml(src) {
 
 function addChatMessage(role, content) {
   const msgs = $('chatMsgs');
+  if (!msgs) return;
   const div = document.createElement('div');
   div.className = 'chat-bubble ' + role;
   if (role === 'ai') {
@@ -1358,6 +1667,7 @@ function addChatMessage(role, content) {
 
 function addTypingIndicator() {
   const msgs = $('chatMsgs');
+  if (!msgs) return null;
   const div = document.createElement('div');
   div.className = 'chat-typing';
   div.innerHTML = '<span></span><span></span><span></span>';
@@ -1374,10 +1684,12 @@ function saveChatHistory() {
 async function handleChatSubmit(e) {
   e.preventDefault();
   const input = $('chatInput');
+  const sendBtn = $('chatSend');
+  if (!input) return;
   const q = input.value.trim();
   if (!q) return;
   input.value = '';
-  $('chatSend').disabled = true;
+  if (sendBtn) sendBtn.disabled = true;
   addChatMessage('user', q);
   const history = (chatHistories[activeCourseId] || []).slice(-8);
   const typing = addTypingIndicator();
@@ -1385,7 +1697,7 @@ async function handleChatSubmit(e) {
     const res = await askQuestion({
       user_id: user.id,
       course_id: activeCourseId,
-      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
+      course_name: (courseInfoMap[activeCourseId] || {}).course_name || ((userData && userData.course_name) || ''),
       topic_name: (currentTopic && currentTopic.topic_name) || '',
       topic_text: String((currentTopic && currentTopic.topic_text) || '').slice(0, 2500),
       question: q,
@@ -1393,57 +1705,69 @@ async function handleChatSubmit(e) {
       preferred_lang: getPreferredLang()
     });
     const answer = res.answer || res.message || 'Sorry, I could not answer that. Please try again.';
-    typing.remove();
+    if (typing) typing.remove();
     addChatMessage('ai', answer);
     history.push({ role: 'user', content: q.slice(0, 600) });
     history.push({ role: 'assistant', content: answer.slice(0, 2000) });
     chatHistories[activeCourseId] = history;
     saveChatHistory();
   } catch (err) {
-    typing.remove();
+    if (typing) typing.remove();
     addChatMessage('ai', 'I am having trouble connecting right now. Please try again in a moment. (' + (err.message || 'error') + ')');
   }
-  $('chatSend').disabled = false;
-  $('chatInput').focus();
+  if (sendBtn) sendBtn.disabled = false;
+  input.focus();
 }
 
 function openChat() {
   const msgs = $('chatMsgs');
-  msgs.innerHTML = '';
+  if (msgs) msgs.innerHTML = '';
   addChatMessage('ai', 'Hello **' + escapeHtml((userData && userData.full_name) || 'student') + '**! 👋\n\nI am your **IDT Academy Teacher**. Ask me anything about the topic you are reading. You can ask in any language — Hausa, Yoruba, Igbo, French, Spanish, English and more.\n\nExample: *"Explain the difference between RAM and ROM with examples."*');
   const hist = chatHistories[activeCourseId] || [];
   hist.forEach((m) => {
     if (m.role === 'user') addChatMessage('user', m.content);
     if (m.role === 'assistant') addChatMessage('ai', m.content);
   });
-  $('chatOverlay').classList.add('open');
-  setTimeout(() => $('chatInput').focus(), 300);
+  const ov = $('chatOverlay');
+  if (ov) ov.classList.add('open');
+  setTimeout(() => {
+    const ci = $('chatInput');
+    if (ci) ci.focus();
+  }, 300);
 }
 
 async function handleExplain(lang) {
   if (!currentTopic) return;
-  $('langGrid').classList.add('hidden');
-  $('otherLangRow').classList.add('hidden');
-  $('explainResult').classList.add('hidden');
-  $('explainResult').innerHTML = '';
-  $('explainNote').textContent = '';
+  const grid = $('langGrid');
+  if (grid) grid.classList.add('hidden');
+  const row = $('otherLangRow');
+  if (row) row.classList.add('hidden');
+  const resEl = $('explainResult');
+  if (resEl) {
+    resEl.classList.add('hidden');
+    resEl.innerHTML = '';
+  }
+  const note = $('explainNote');
+  if (note) note.textContent = '';
   miniLoad('Explaining in ' + lang + '...');
   try {
     const res = await explainText({
       user_id: user.id,
       course_id: activeCourseId,
-      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
+      course_name: (courseInfoMap[activeCourseId] || {}).course_name || ((userData && userData.course_name) || ''),
       topic_name: currentTopic.topic_name || '',
       topic_text: String(currentTopic.topic_text || '').slice(0, 3000),
       target_lang: lang
     });
     const explanation = res.explanation || res.message || 'No explanation returned.';
     const result = $('explainResult');
-    result.innerHTML = '<b style="display:block;color:#a78bfa;margin-bottom:8px"><i class="fa-solid fa-language"></i> Explanation in ' + escapeHtml(lang) + '</b>' + markdownToHtml(explanation);
-    result.classList.remove('hidden');
-    $('explainNote').textContent = 'You can also ask questions about this explanation using "Ask Question".';
+    if (result) {
+      result.innerHTML = '<b style="display:block;color:#a78bfa;margin-bottom:8px"><i class="fa-solid fa-language"></i> Explanation in ' + escapeHtml(lang) + '</b>' + markdownToHtml(explanation);
+      result.classList.remove('hidden');
+    }
+    if (note) note.textContent = 'You can also ask questions about this explanation using "Ask Question".';
     if (res.lang_detected || res.language) {
-      $('explainNote').textContent = 'Explained in ' + res.language + '. You can ask more questions with "Ask Question".';
+      if (note) note.textContent = 'Explained in ' + res.language + '. You can ask more questions with "Ask Question".';
     }
     setPreferredLang(lang);
     miniHide();
@@ -1497,7 +1821,7 @@ async function downloadResultPdf() {
     const score = window._lastScore || 0;
     const pct = window._lastPct || 0;
     const passed = window._lastPassed || false;
-    const courseName = (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '';
+    const courseName = (courseInfoMap[activeCourseId] || {}).course_name || ((userData && userData.course_name) || '');
     const studentName = (userData && userData.full_name) || '';
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
     const logo = await imageToDataUrl('https://i.imgur.com/oyqM5oF.png');
@@ -1618,7 +1942,7 @@ async function emailResult() {
     const score = window._lastScore || 0;
     const pct = window._lastPct || 0;
     const passed = window._lastPassed || false;
-    const courseName = (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '';
+    const courseName = (courseInfoMap[activeCourseId] || {}).course_name || ((userData && userData.course_name) || '');
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
     const logo = await imageToDataUrl('https://i.imgur.com/oyqM5oF.png');
     if (logo) doc.addImage(logo, 'PNG', (w - 20) / 2, 12, 20, 20);
@@ -1672,57 +1996,54 @@ async function emailResult() {
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-function startCountdown() {
-  if (paymentState.timer) clearInterval(paymentState.timer);
-  paymentState.timer = setInterval(() => {
-    const remain = paymentState.endTime - Date.now();
-    if (remain <= 0) {
-      clearInterval(paymentState.timer);
-      $('paymentOverlay').classList.remove('open');
-      $('pendingGate').classList.add('open');
-      showToast('error', 'Payment Expired', 'The payment window expired. Please tap Pay Now to create a new one.', '');
-      return;
-    }
-    const m = Math.floor(remain / 60000);
-    const s = Math.floor((remain % 60000) / 1000);
-    $('payCountdown').textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-  }, 1000);
+function openPendingGate() {
+  const app = $('app');
+  if (app) app.classList.add('hidden');
+  const gate = $('pendingGate');
+  if (gate) gate.classList.add('open');
+  const nameEl = $('pendingStudentName');
+  if (nameEl) nameEl.textContent = (userData && userData.full_name) || 'Student';
+  renderPendingSummary();
+  renderUserIdCard();
 }
 
-function startVerifyPolling() {
-  let tries = 0;
-  const poll = setInterval(async () => {
-    tries++;
-    if (!paymentState || paymentState.verified || tries > 90) {
-      clearInterval(poll);
+function startStatusWatcher() {
+  if (statusWatcher) clearInterval(statusWatcher);
+  statusWatcher = setInterval(async () => {
+    const gateEl = $('pendingGate');
+    if (!gateEl) return;
+    const gateOpen = gateEl.classList.contains('open');
+    if (!gateOpen) {
+      clearInterval(statusWatcher);
+      statusWatcher = null;
       return;
     }
+    if (isCreatingPayment) return;
+    const payOv = $('paymentOverlay');
+    if (payOv && payOv.classList.contains('open')) return;
     try {
-      const res = await verifyPayment({ reference: paymentState.reference, user_id: user.id });
-      if (res.status === 'active' || (res.paid === true)) {
-        clearInterval(poll);
-        paymentState.verified = true;
-        if (paymentState.timer) clearInterval(paymentState.timer);
-        $('paymentOverlay').classList.remove('open');
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('user_data')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (error) return;
+      const fresh = (data && data.user_data) || {};
+      const freshStatus = String(fresh.status || 'pending').toLowerCase();
+      const accountType = String(fresh.account_type || '').toLowerCase();
+      const effective = (accountType === 'partner') ? 'active' : freshStatus;
+      if (effective === 'active' && fresh.course_id) {
+        clearInterval(statusWatcher);
+        statusWatcher = null;
+        if (paymentState && paymentState.timer) clearInterval(paymentState.timer);
+        userData = fresh;
+        gateEl.classList.remove('open');
         showToast('success', 'Payment Confirmed! 🎉', 'Congratulations! Your payment was successful. Your dashboard is now unlocked.');
-        await refreshProfile();
         await loadDashboard();
       }
     } catch (err) {}
-  }, 20000);
+  }, 30000);
 }
-
-
 
 function getPrimaryCourse() {
   const fromData = {
@@ -1732,6 +2053,8 @@ function getPrimaryCourse() {
     course_price: Number((userData && userData.course_price) || 0)
   };
   if (fromData.course_id || fromData.course_price) return fromData;
+  const c = pendingChoiceCourse();
+  if (c) return c;
   const list = courseList[0] || {};
   return {
     course_id: list.course_id || '',
@@ -1742,12 +2065,14 @@ function getPrimaryCourse() {
 }
 
 async function startPayment() {
+  if (isCreatingPayment) return;
   const course = getPrimaryCourse();
   const price = Number(course.course_price || 0);
-  if (!price) {
-    showToast('error', 'Payment Error', 'Course price not found for your account. Please contact support.', '');
+  if (!course.course_id || !price) {
+    showToast('error', 'Payment Error', 'Please select a course first before paying.', '');
     return;
   }
+  isCreatingPayment = true;
   miniLoad('Creating payment details...');
   try {
     const res = await createPayment({
@@ -1769,25 +2094,80 @@ async function startPayment() {
       timer: null,
       verified: false
     };
-    $('payAmount').textContent = formatMoney(amount);
-    $('payAccountNumber').textContent = accountNumber;
-    $('payAccountName').textContent = accountName;
-    if ($('payReference')) {
-      $('payReference').childNodes[0].nodeValue = reference;
-      $('payReference').querySelector('small').textContent = 'Use this reference when making your transfer';
+    const pa = $('payAmount');
+    if (pa) pa.textContent = formatMoney(amount);
+    const pan = $('payAccountNumber');
+    if (pan) pan.textContent = accountNumber;
+    const paname = $('payAccountName');
+    if (paname) paname.textContent = accountName;
+    const payRef = $('payReference');
+    if (payRef && payRef.childNodes[0]) {
+      payRef.childNodes[0].nodeValue = reference;
+      const sm = payRef.querySelector('small');
+      if (sm) sm.textContent = 'Use this reference when making your transfer';
     }
-    if ($('btnCopyAccount')) $('btnCopyAccount').dataset.copy = accountNumber;
-    if ($('btnCopyRef')) $('btnCopyRef').dataset.copy = reference;
-    $('pendingGate').classList.remove('open');
-    $('paymentOverlay').classList.add('open');
+    const bca = $('btnCopyAccount');
+    if (bca) bca.dataset.copy = accountNumber;
+    const bcr = $('btnCopyRef');
+    if (bcr) bcr.dataset.copy = reference;
+    const ov = $('paymentOverlay');
+    if (ov) ov.classList.add('open');
     startCountdown();
     startVerifyPolling();
+    startStatusWatcher();
     miniHide();
     showToast('info', 'Payment Details Ready', 'Transfer the exact amount to the account below before the timer ends. Your dashboard unlocks automatically after payment.');
   } catch (err) {
     miniHide();
-    showToast('error', 'Payment Failed', 'Could not create payment details. Please try again.', err.message || String(err));
+    const rawMsg = (err && err.message) || String(err) || 'Unknown API error';
+    showToast('error', 'API Error', 'The payment service returned an error (it may be a 404 or network issue). We logged the details below so we can fix it fast. Please try again.', rawMsg);
+  } finally {
+    isCreatingPayment = false;
   }
+}
+
+function startCountdown() {
+  if (!paymentState) return;
+  if (paymentState.timer) clearInterval(paymentState.timer);
+  paymentState.timer = setInterval(() => {
+    const remain = paymentState.endTime - Date.now();
+    const cd = $('payCountdown');
+    if (remain <= 0) {
+      clearInterval(paymentState.timer);
+      const ov = $('paymentOverlay');
+      if (ov) ov.classList.remove('open');
+      showToast('error', 'Payment Expired', 'The payment window expired. Please tap Pay Now to create a new one.', '');
+      return;
+    }
+    const m = Math.floor(remain / 60000);
+    const s = Math.floor((remain % 60000) / 1000);
+    if (cd) cd.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }, 1000);
+}
+
+function startVerifyPolling() {
+  let tries = 0;
+  const poll = setInterval(async () => {
+    tries++;
+    if (!paymentState || paymentState.verified || tries > 90) {
+      clearInterval(poll);
+      return;
+    }
+    try {
+      const res = await verifyPayment({ reference: paymentState.reference, user_id: user.id });
+      if (res.status === 'active' || (res.paid === true)) {
+        clearInterval(poll);
+        paymentState.verified = true;
+        if (paymentState.timer) clearInterval(paymentState.timer);
+        if (statusWatcher) { clearInterval(statusWatcher); statusWatcher = null; }
+        const ov = $('paymentOverlay');
+        if (ov) ov.classList.remove('open');
+        showToast('success', 'Payment Confirmed! 🎉', 'Congratulations! Your payment was successful. Your dashboard is now unlocked.');
+        await refreshProfile();
+        await loadDashboard();
+      }
+    } catch (err) {}
+  }, 20000);
 }
 
 async function loadDashboard() {
@@ -1795,29 +2175,40 @@ async function loadDashboard() {
   try {
     await refreshProfile();
     await loadUpdateTable();
+    const status = computeStatus();
     courseList = collectCourses(userData);
     await loadCourseInfos();
-    for (const c of courseList) {
-      await loadTopicsFor(c.course_id);
-    }
     renderMenu();
     renderUserGreet();
-    const status = String((userData && userData.status) || 'pending');
-    if (status === 'pending') {
-      const course = getPrimaryCourse();
-      $('pendingGate').classList.add('open');
-      $('pendingStudentName').textContent = (userData && userData.full_name) || 'Student';
-      $('pendingCourseName').textContent = course.course_name || 'Selected Course';
-      $('pendingCourseNumber').textContent = course.course_number || '000';
-      $('pendingPrice').textContent = formatMoney(course.course_price || 0);
-      const info = courseInfoMap[course.course_id] || {};
-      if (info.image_url && $('pendingCourseImg')) {
-        $('pendingCourseImg').src = info.image_url;
+    if (status !== 'active' || courseList.length === 0) {
+      const app = $('app');
+      if (app) app.classList.add('hidden');
+      const gate = $('pendingGate');
+      if (gate) gate.classList.add('open');
+      const nameEl = $('pendingStudentName');
+      if (nameEl) nameEl.textContent = (userData && userData.full_name) || 'Student';
+      await loadPendingCourses();
+      const c = pendingChoiceCourse();
+      if (c) {
+        const pcn = $('pendingCourseName');
+        if (pcn) pcn.textContent = c.course_name || 'Selected Course';
+        const pcnum = $('pendingCourseNumber');
+        if (pcnum) pcnum.textContent = c.course_number || '000';
+        const pp = $('pendingPrice');
+        if (pp) pp.textContent = formatMoney(c.course_price || 0);
+        const info = courseInfoMap[c.course_id] || {};
+        const img = $('pendingCourseImg');
+        if (img && info.image_url) {
+          img.src = info.image_url;
+        }
       }
+      renderUserIdCard();
+      startStatusWatcher();
       hideLoading();
       return;
     }
-    $('pendingGate').classList.remove('open');
+    const gate = $('pendingGate');
+    if (gate) gate.classList.remove('open');
     const cid = pickDefaultCourse();
     if (!cid) {
       hideLoading();
@@ -1825,7 +2216,9 @@ async function loadDashboard() {
       return;
     }
     await selectCourse(cid);
-    $('app').classList.remove('hidden');
+    renderUserIdCard();
+    const app = $('app');
+    if (app) app.classList.remove('hidden');
     startSessionClock();
     loadAd();
     hideLoading();
@@ -1836,7 +2229,276 @@ async function loadDashboard() {
   }
 }
 
+onReady(() => {
+  on('menuBtn', () => {
+    const sm = $('sideMenu');
+    if (sm) sm.classList.add('open');
+  });
 
+  on('menuClose', () => {
+    const sm = $('sideMenu');
+    if (sm) sm.classList.remove('open');
+  });
+
+  on('menuLogout', () => {
+    localStorage.removeItem('idt_user');
+    showToast('info', 'Logged Out', 'You have been logged out. Redirecting to login...');
+    setTimeout(() => window.location.replace('register.html'), 1200);
+  });
+
+  on('btnPayNow', startPayment);
+
+  on('paymentClose', () => {
+    const ov = $('paymentOverlay');
+    if (ov) ov.classList.remove('open');
+  });
+
+  on('btnCopyAccount', async (e) => {
+    const btn = e.target.closest('.mini-copy');
+    if (!btn) return;
+    const val = btn.dataset.copy;
+    if (!val) return;
+    try {
+      await copyText(val);
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', 'Copied!', 'Account number copied to clipboard.');
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    } catch (err) {
+      showToast('error', 'Copy Failed', 'Could not copy.', err.message);
+    }
+  });
+
+  on('btnCopyRef', async (e) => {
+    const btn = e.target.closest('.mini-copy');
+    if (!btn) return;
+    const val = btn.dataset.copy;
+    if (!val) return;
+    try {
+      await copyText(val);
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', 'Copied!', 'Payment reference copied to clipboard.');
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    } catch (err) {
+      showToast('error', 'Copy Failed', 'Could not copy.', err.message);
+    }
+  });
+
+  document.querySelectorAll('.copy-user-id').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!user || !user.id) return;
+      try {
+        await copyText(user.id);
+        btn.classList.add('done');
+        btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        showToast('success', 'User ID Copied!', 'Your User ID has been copied to clipboard.');
+        setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+      } catch (err) {
+        showToast('error', 'Copy Failed', 'Could not copy your User ID.', err.message);
+      }
+    });
+  });
+
+  on('btnCopyRefLink', async (e) => {
+    const btn = e.currentTarget;
+    try {
+      await copyText(buildReferralLink());
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', 'Referral Link Copied!', 'Share this link with your friends and earn ₦1,500 when they pay for any course.');
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    } catch (err) {
+      showToast('error', 'Copy Failed', 'Could not copy the link.', err.message);
+    }
+  });
+
+  on('btnOpenReferralPage', () => {
+    window.location.href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent((userData && userData.referral_code) || '');
+  });
+
+  document.querySelectorAll('.social-chip').forEach((chip) => {
+    chip.addEventListener('click', async () => {
+      const link = buildReferralLink();
+      const text = 'Join me at IDT Academy! Learn modern skills online. Use my referral link: ' + link;
+      if (chip.classList.contains('wa')) {
+        window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+        return;
+      }
+      if (chip.classList.contains('x')) {
+        window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
+        return;
+      }
+      if (chip.classList.contains('fb')) {
+        window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(link), '_blank');
+        return;
+      }
+      try {
+        await copyText(link);
+        showToast('success', 'Link Copied!', 'Share it on ' + chip.textContent.trim() + ' and earn ₦1,500 per referral.');
+      } catch (err) {
+        showToast('error', 'Copy Failed', 'Could not copy.', err.message);
+      }
+    });
+  });
+
+  on('btnPrevTopic', () => {
+    if (currentTopicIdx > 0) goToTopic(currentTopicIdx - 1);
+  });
+
+  on('btnNextTopic', () => {
+    if (isProcessingNext) return;
+    advanceTopic();
+  });
+
+  on('btnNotReady', () => {
+    closeUnderstandModal();
+    pendingNextIdx = -1;
+    showToast('info', 'Good Choice', 'Take your time. Read the topic again and make sure you understand before moving on.');
+  });
+
+  on('btnReady', () => {
+    handleReady();
+  });
+
+  on('btnCopyText', async (e) => {
+    const btn = e.currentTarget;
+    try {
+      await copyText(currentTopic.topic_text || '');
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', 'Text Copied!', 'The full topic text was copied to your clipboard.');
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    } catch (err) {
+      showToast('error', 'Copy Failed', 'Could not copy the text.', err.message);
+    }
+  });
+
+  on('btnAskQuestion', openChat);
+
+  on('chatClose', () => {
+    const ov = $('chatOverlay');
+    if (ov) ov.classList.remove('open');
+  });
+
+  onSubmit('chatForm', handleChatSubmit);
+
+  on('btnExplainLang', () => {
+    const row = $('otherLangRow');
+    if (row) row.classList.add('hidden');
+    const grid = $('langGrid');
+    if (grid) grid.classList.remove('hidden');
+    const resEl = $('explainResult');
+    if (resEl) resEl.classList.add('hidden');
+    const note = $('explainNote');
+    if (note) note.textContent = '';
+    const ov = $('explainOverlay');
+    if (ov) ov.classList.add('open');
+  });
+
+  on('explainClose', () => {
+    const ov = $('explainOverlay');
+    if (ov) ov.classList.remove('open');
+  });
+
+  document.querySelectorAll('.lang-btn[data-lang]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      handleExplain(btn.dataset.lang);
+    });
+  });
+
+  on('langOtherBtn', () => {
+    const row = $('otherLangRow');
+    if (!row) return;
+    row.classList.toggle('hidden');
+    if (!row.classList.contains('hidden')) {
+      const inp = $('otherLangInput');
+      if (inp) inp.focus();
+    }
+  });
+
+  on('btnSendOtherLang', () => {
+    const inp = $('otherLangInput');
+    if (!inp) return;
+    const lang = inp.value.trim();
+    if (!lang) {
+      showToast('error', 'Language Required', 'Please type the language you want.', '');
+      return;
+    }
+    handleExplain(lang);
+  });
+
+  on('assessClose', () => {
+    const ov = $('assessmentOverlay');
+    if (ov) ov.classList.remove('open');
+    if (quizState && quizState.stream) {
+      stopCamera();
+    }
+    if (quizState && quizState.timer) clearInterval(quizState.timer);
+    detachAntiCheat();
+  });
+
+  on('btnStartAssessment', startAssessmentFlow);
+
+  on('btnPrevQ', () => {
+    if (quizState && quizState.currentQ > 0) {
+      quizState.currentQ--;
+      renderQuestion();
+    }
+  });
+
+  on('btnNextQ', () => {
+    if (!quizState) return;
+    const q = quizState.questions[quizState.currentQ];
+    if (q && q.type !== 'write' && Array.isArray(q.options) && q.options.length && quizState.answers[quizState.currentQ] === '') {
+      showToast('info', 'Choose An Answer', 'Please select an answer before continuing.', '');
+      return;
+    }
+    if (quizState.currentQ < quizState.questions.length - 1) {
+      quizState.currentQ++;
+      renderQuestion();
+    }
+  });
+
+  on('btnSubmitQuiz', () => {
+    submitQuiz(false);
+  });
+
+  on('btnDownloadPdf', downloadResultPdf);
+
+  on('btnEmailResult', emailResult);
+
+  on('btnContinueStudy', () => {
+    const ov = $('assessmentOverlay');
+    if (ov) ov.classList.remove('open');
+    if (window._assessBatch > 0) {
+      const batch = window._assessBatch;
+      window._assessBatch = 0;
+      goToTopic(batch);
+    }
+  });
+
+  on('btnGoExam', () => {
+    const ov = $('assessmentOverlay');
+    if (ov) ov.classList.remove('open');
+    window.location.href = 'exam.html?course_id=' + encodeURIComponent(activeCourseId) + '&user_id=' + encodeURIComponent(user.id);
+  });
+
+  on('btnGoExamModal', () => {
+    const m = $('completionModal');
+    if (m) m.classList.remove('open');
+    window.location.href = 'exam.html?course_id=' + encodeURIComponent(activeCourseId) + '&user_id=' + encodeURIComponent(user.id);
+  });
+
+  on('sideMenu', (e) => {
+    const sm = $('sideMenu');
+    if (e.target === sm && sm) sm.classList.remove('open');
+  });
+
+  window.__idtDashboardLoaded = true;
+
+  document.documentElement.classList.add('ready');
+});
 
 document.addEventListener('DOMContentLoaded', async () => {
   showLoading();
@@ -1861,237 +2523,4 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('load', () => {
     setTimeout(hideLoading, 600);
   });
-});
-
-$('menuBtn').addEventListener('click', () => {
-  $('sideMenu').classList.add('open');
-});
-
-$('menuClose').addEventListener('click', () => {
-  $('sideMenu').classList.remove('open');
-});
-
-$('menuLogout').addEventListener('click', () => {
-  localStorage.removeItem('idt_user');
-  showToast('info', 'Logged Out', 'You have been logged out. Redirecting to login...');
-  setTimeout(() => window.location.replace('register.html'), 1200);
-});
-
-$('btnPayNow').addEventListener('click', startPayment);
-
-$('paymentClose').addEventListener('click', () => {
-  $('paymentOverlay').classList.remove('open');
-});
-
-$('btnCopyAccount').addEventListener('click', async (e) => {
-  const val = e.target.closest('.mini-copy').dataset.copy;
-  if (!val) return;
-  try {
-    await copyText(val);
-    const btn = e.target.closest('.mini-copy');
-    btn.classList.add('done');
-    btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-    showToast('success', 'Copied!', 'Account number copied to clipboard.');
-    setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
-  } catch (err) {
-    showToast('error', 'Copy Failed', 'Could not copy.', err.message);
-  }
-});
-
-$('btnCopyRef').addEventListener('click', async (e) => {
-  const val = e.target.closest('.mini-copy').dataset.copy;
-  if (!val) return;
-  try {
-    await copyText(val);
-    const btn = e.target.closest('.mini-copy');
-    btn.classList.add('done');
-    btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-    showToast('success', 'Copied!', 'Payment reference copied to clipboard.');
-    setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
-  } catch (err) {
-    showToast('error', 'Copy Failed', 'Could not copy.', err.message);
-  }
-});
-
-$('btnCopyRefLink').addEventListener('click', async (e) => {
-  const btn = e.currentTarget;
-  try {
-    await copyText(buildReferralLink());
-    btn.classList.add('done');
-    btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-    showToast('success', 'Referral Link Copied!', 'Share this link with your friends and earn ₦1,500 when they pay for any course.');
-    setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
-  } catch (err) {
-    showToast('error', 'Copy Failed', 'Could not copy the link.', err.message);
-  }
-});
-
-$('btnOpenReferralPage').addEventListener('click', () => {
-  window.location.href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent((userData && userData.referral_code) || '');
-});
-
-document.querySelectorAll('.social-chip').forEach((chip) => {
-  chip.addEventListener('click', async () => {
-    const link = buildReferralLink();
-    const text = 'Join me at IDT Academy! Learn modern skills online. Use my referral link: ' + link;
-    if (chip.classList.contains('wa')) {
-      window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
-      return;
-    }
-    if (chip.classList.contains('x')) {
-      window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
-      return;
-    }
-    if (chip.classList.contains('fb')) {
-      window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(link), '_blank');
-      return;
-    }
-    try {
-      await copyText(link);
-      showToast('success', 'Link Copied!', 'Share it on ' + chip.textContent.trim() + ' and earn ₦1,500 per referral.');
-    } catch (err) {
-      showToast('error', 'Copy Failed', 'Could not copy.', err.message);
-    }
-  });
-});
-
-$('btnPrevTopic').addEventListener('click', () => {
-  if (currentTopicIdx > 0) goToTopic(currentTopicIdx - 1);
-});
-
-$('btnNextTopic').addEventListener('click', () => {
-  if (isProcessingNext) return;
-  advanceTopic();
-});
-
-$('btnNotReady').addEventListener('click', () => {
-  closeUnderstandModal();
-  pendingNextIdx = -1;
-  showToast('info', 'Good Choice', 'Take your time. Read the topic again and make sure you understand before moving on.');
-});
-
-$('btnReady').addEventListener('click', () => {
-  handleReady();
-});
-
-$('btnCopyText').addEventListener('click', async (e) => {
-  const btn = e.currentTarget;
-  try {
-    await copyText(currentTopic.topic_text || '');
-    btn.classList.add('done');
-    btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-    showToast('success', 'Text Copied!', 'The full topic text was copied to your clipboard.');
-    setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
-  } catch (err) {
-    showToast('error', 'Copy Failed', 'Could not copy the text.', err.message);
-  }
-});
-
-$('btnAskQuestion').addEventListener('click', openChat);
-
-$('chatClose').addEventListener('click', () => {
-  $('chatOverlay').classList.remove('open');
-});
-
-$('chatForm').addEventListener('submit', handleChatSubmit);
-
-$('btnExplainLang').addEventListener('click', () => {
-  $('otherLangRow').classList.add('hidden');
-  $('langGrid').classList.remove('hidden');
-  $('explainResult').classList.add('hidden');
-  $('explainNote').textContent = '';
-  $('explainOverlay').classList.add('open');
-});
-
-$('explainClose').addEventListener('click', () => {
-  $('explainOverlay').classList.remove('open');
-});
-
-document.querySelectorAll('.lang-btn[data-lang]').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    handleExplain(btn.dataset.lang);
-  });
-});
-
-$('langOtherBtn').addEventListener('click', () => {
-  $('otherLangRow').classList.toggle('hidden');
-  if (!$('otherLangRow').classList.contains('hidden')) {
-    $('otherLangInput').focus();
-  }
-});
-
-$('btnSendOtherLang').addEventListener('click', () => {
-  const lang = $('otherLangInput').value.trim();
-  if (!lang) {
-    showToast('error', 'Language Required', 'Please type the language you want.', '');
-    return;
-  }
-  handleExplain(lang);
-});
-
-$('assessClose').addEventListener('click', () => {
-  $('assessmentOverlay').classList.remove('open');
-  if (quizState && quizState.stream) {
-    stopCamera();
-  }
-  if (quizState && quizState.timer) clearInterval(quizState.timer);
-  detachAntiCheat();
-});
-
-$('btnStartAssessment').addEventListener('click', startAssessmentFlow);
-
-$('btnPrevQ').addEventListener('click', () => {
-  if (quizState.currentQ > 0) {
-    quizState.currentQ--;
-    renderQuestion();
-  }
-});
-
-$('btnNextQ').addEventListener('click', () => {
-  const q = quizState.questions[quizState.currentQ];
-  if (q && q.type !== 'write' && Array.isArray(q.options) && q.options.length && quizState.answers[quizState.currentQ] === '') {
-    showToast('info', 'Choose An Answer', 'Please select an answer before continuing.', '');
-    return;
-  }
-  if (quizState.currentQ < quizState.questions.length - 1) {
-    quizState.currentQ++;
-    renderQuestion();
-  }
-});
-
-$('btnSubmitQuiz').addEventListener('click', () => {
-  submitQuiz(false);
-});
-
-$('btnDownloadPdf').addEventListener('click', downloadResultPdf);
-
-$('btnEmailResult').addEventListener('click', emailResult);
-
-$('btnContinueStudy').addEventListener('click', () => {
-  $('assessmentOverlay').classList.remove('open');
-  if (window._assessBatch > 0) {
-    const batch = window._assessBatch;
-    window._assessBatch = 0;
-    goToTopic(batch);
-  }
-});
-
-$('btnGoExam').addEventListener('click', () => {
-  $('assessmentOverlay').classList.remove('open');
-  window.location.href = 'exam.html?course_id=' + encodeURIComponent(activeCourseId) + '&user_id=' + encodeURIComponent(user.id);
-});
-
-$('btnGoExamModal').addEventListener('click', () => {
-  $('completionModal').classList.remove('open');
-  window.location.href = 'exam.html?course_id=' + encodeURIComponent(activeCourseId) + '&user_id=' + encodeURIComponent(user.id);
-});
-
-$('sideMenu').addEventListener('click', (e) => {
-  if (e.target === $('sideMenu')) $('sideMenu').classList.remove('open');
-});
-
-window.__idtDashboardLoaded = true;
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.documentElement.classList.add('ready');
 });
