@@ -68,7 +68,7 @@ function showLoading() {
         @keyframes i2float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
         .i2-cover{position:absolute;top:0;width:50%;height:100%;background:linear-gradient(180deg,#8b5cf6,#6d28d9);box-shadow:0 14px 30px rgba(0,0,0,.35)}
         .i2-cl{left:0;border-radius:6px 2px 2px 6px;transform-origin:right center;animation:i2sway 3.6s ease-in-out infinite;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#a78bfa 0%,#8b5cf6 45%,#6d28d9 100%)}
-        .i2-cr{right:0;border-radius:2px 6px 6px 2px;transform-origin:left center;background:linear-gradient(145deg,#7c3aed 0%,#6d28d9 50%,#4c1d95 100%);animation:i2sway 3.6s ease-in-out infinite reverse;display:flex;align-items:center;justify-content:center}
+        .i2-cr{right:0;border-radius:2px 6px 6px 2px;transform-origin:left center;background:linear-gradient(145deg,#7c3aed 0%,#6d28d9 50%,#4c1d95 100%);animation:i2sway 3.6s ease-in-out reverse;display:flex;align-items:center;justify-content:center}
         @keyframes i2sway{0%,100%{transform:rotateY(0)}50%{transform:rotateY(16deg)}}
         .i2-coverlogo{width:48px;height:48px;object-fit:contain;background:#fff;border-radius:50%;padding:7px;box-shadow:0 6px 18px rgba(0,0,0,.4),0 0 0 2px rgba(255,255,255,.25)}
         .i2-crlogo{width:42px;height:42px;opacity:.85}
@@ -112,6 +112,16 @@ function hideLoading() {
   const l = document.getElementById('idt-loader-2');
   if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
   if (l) l.classList.add('idt-hide');
+  if (window.idtLoaderSafety) {
+    clearTimeout(window.idtLoaderSafety);
+    window.idtLoaderSafety = null;
+  }
+}
+
+function forceHideLoader() {
+  if (window.idtLoaderHidden) return;
+  window.idtLoaderHidden = true;
+  hideLoading();
 }
 
 const $ = (id) => document.getElementById(id);
@@ -158,25 +168,38 @@ function showToast(title, message, type) {
 
 function maybeHideLoader() {
   if (windowLoaded && coursesDone) {
-    setTimeout(hideLoading, 400);
+    setTimeout(forceHideLoader, 400);
   }
 }
 
-function getRefFromPath() {
-  const m = window.location.pathname.match(/\/ref\/([A-Za-z0-9_-]+)/);
-  return m ? m[1] : '';
+function getRefFromUrl() {
+  const full = window.location.href;
+  let m = full.match(/\/ref\/([A-Za-z0-9_-]+)/);
+  if (m && m[1]) return m[1];
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const q = (params.get('ref') || '').trim();
+    if (q) return q;
+    const hash = window.location.hash || '';
+    const hm = hash.match(/ref[=\/]([A-Za-z0-9_-]+)/);
+    if (hm && hm[1]) return hm[1];
+  } catch (e) {}
+  return '';
 }
 
 function handleRefCode() {
   const refBanner = $('refBanner');
   const refBannerTitle = $('refBannerTitle');
   const refBannerMsg = $('refBannerMsg');
-  const params = new URLSearchParams(window.location.search);
-  let ref = (params.get('ref') || '').trim();
-  if (!ref) ref = getRefFromPath();
+  let ref = getRefFromUrl();
   if (ref) {
     try { localStorage.setItem('idt_ref', ref); } catch (e) {}
     try { sessionStorage.setItem('idt_ref_session', ref); } catch (e) {}
+    try {
+      const u = new URL(window.location.href);
+      const clean = u.origin + u.pathname.split('/ref/')[0].replace(/\/+$/, '') + '/';
+      window.history.replaceState({}, document.title, clean);
+    } catch (e) {}
   }
   let savedRef = '';
   try { savedRef = localStorage.getItem('idt_ref') || ''; } catch (e) {}
@@ -590,6 +613,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const refBannerClose = $('refBannerClose');
   const topbar = $('topbar');
   showLoading();
+  window.idtLoaderHidden = false;
+  window.idtLoaderSafety = setTimeout(forceHideLoader, 4000);
   handleRefCode();
   loadCourses();
   setupSearch();
@@ -685,5 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('load', () => {
     windowLoaded = true;
     setTimeout(maybeHideLoader, 500);
+    setTimeout(forceHideLoader, 600);
   });
+  setTimeout(forceHideLoader, 5000);
 });
