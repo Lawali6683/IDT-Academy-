@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script>
+(function () {
+  var l = window.location;
+  var m = l.href.match(/\/ref\/([A-Za-z0-9_-]+)/);
+  var base = l.origin + l.pathname.split('/ref/')[0].replace(/\/+$/, '') + '/';
+  var target = base + (m ? '?ref=' + encodeURIComponent(m[1]) : '');
+  window.location.replace(target);
+})();
+</script>
+</head>
+<body></body>
+</html>
