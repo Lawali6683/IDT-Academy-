@@ -598,15 +598,49 @@ function closeCoursePush() {
   $('coursePush').classList.remove('open');
 }
 
+
+
+
 async function chooseCourse(courseId) {
   if (!courseId) return;
-  const info = courseInfoMap[courseId] || {};
-  if (!userData) userData = {};
-  userData.course_id = courseId;
-  userData.course_name = info.course_name || 'Selected Course';
-  userData.course_number = info.course_number || info.course_number || '000';
-  userData.course_price = Number(info.course_price || 0);
+  const clickedCard = document.querySelector('.pn-course[data-cid="' + courseId.replace(/"/g, '\\"') + '"]');
+  if (clickedCard) {
+    if (clickedCard.dataset.busy === '1') return;
+    clickedCard.dataset.busy = '1';
+    const oldHtml = clickedCard.innerHTML;
+    clickedCard.style.opacity = '0.6';
+    clickedCard.style.pointerEvents = 'none';
+    clickedCard.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:40px 10px"><span style="width:26px;height:26px;border-radius:50%;border:3px solid rgba(124,58,237,.2);border-top-color:#7c3aed;display:inline-block;animation:pnSpin .8s linear infinite"></span><small style="font-size:10.5px;font-weight:800;color:#6d28d9">Loading...</small></div><style>@keyframes pnSpin{to{transform:rotate(360deg)}}</style>';
+    clickedCard._oldHtml = oldHtml;
+  }
   try {
+    const info = courseInfoMap[courseId] || {};
+    const courseName = info.course_name || 'Selected Course';
+    const courseNumber = info.course_number || '000';
+    const price = Number(info.price || info.course_price || 0);
+    if (!courseName || courseName === 'Selected Course' || !price) {
+      try {
+        const { data, error } = await supabase
+          .from('courses')
+          .select('*')
+          .eq('id', courseId)
+          .limit(1);
+        if (!error && data && data[0]) {
+          const cd = data[0].course_data || {};
+          courseInfoMap[courseId] = cd;
+          allCourses = allCourses.map((r) => r.id === courseId ? { id: courseId, cd: cd } : r);
+        }
+      } catch (err) {}
+    }
+    const info2 = courseInfoMap[courseId] || info;
+    if (!userData) userData = {};
+    userData.course_id = courseId;
+    userData.course_name = info2.course_name || courseName;
+    userData.course_number = info2.course_number || courseNumber;
+    userData.course_price = Number(info2.price || info2.course_price || price);
+    if (!userData.course_name || !userData.course_price) {
+      throw new Error('Course details not found for this course');
+    }
     await saveUserData();
     const safe = JSON.parse(localStorage.getItem('idt_user') || '{}');
     safe.course_id = userData.course_id;
@@ -614,16 +648,39 @@ async function chooseCourse(courseId) {
     safe.course_number = userData.course_number;
     safe.course_price = userData.course_price;
     localStorage.setItem('idt_user', JSON.stringify(safe));
+    courseList = collectCourses(userData);
+    renderPendingGate();
+    closeCoursePush();
+    $('pendingGate').classList.add('open');
+    showToast('success', 'Course Selected ✓', 'You selected ' + userData.course_name + ' for ' + formatMoney(userData.course_price) + '. Tap Pay Now to complete your payment.');
   } catch (err) {
-    showToast('error', 'Save Failed', 'Could not save the selected course. Please try again.', err.message || String(err));
-    return;
+    showToast('error', 'Selection Failed', 'Could not select this course. Please try again.', err.message || String(err));
+  } finally {
+    if (clickedCard) {
+      delete clickedCard.dataset.busy;
+      clickedCard.style.opacity = '';
+      clickedCard.style.pointerEvents = '';
+      if (clickedCard._oldHtml) {
+        clickedCard.innerHTML = clickedCard._oldHtml;
+        delete clickedCard._oldHtml;
+      }
+    }
   }
+}
+  
+  
+  
   closeCoursePush();
   courseList = collectCourses(userData);
   renderPendingGate();
   $('pendingGate').classList.add('open');
   showToast('success', 'Course Selected ✓', 'You selected ' + userData.course_name + '. Tap Pay Now to complete your payment.');
 }
+
+
+
+
+
 
 function renderPendingGate() {
   const course = getPrimaryCourse();
