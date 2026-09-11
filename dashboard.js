@@ -182,6 +182,9 @@ let regDate = null;
 let allCourses = [];
 let statusPollTimer = null;
 
+
+
+
 function escapeHtml(str) {
   return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -282,7 +285,7 @@ function collectCourses(ud) {
     course_id: ud.course_id || '',
     course_name: ud.course_name || '',
     course_number: ud.course_number || '',
-    course_price: ud.course_price || 0,
+    course_price: Number(ud.course_price || ud.price || 0),
     status: ud.status || 'pending'
   };
   if (main.course_id) arr.push(main);
@@ -293,7 +296,7 @@ function collectCourses(ud) {
         course_id: c.course_id,
         course_name: c.course_name || '',
         course_number: c.course_number || '',
-        course_price: c.course_price || 0,
+        course_price: Number(c.course_price || c.price || 0),
         status: c.status || ud.status || 'active'
       });
     }
@@ -304,7 +307,7 @@ function collectCourses(ud) {
 function isCourseMissing(ud) {
   const cid = String((ud && ud.course_id) || '').trim();
   const cname = String((ud && ud.course_name) || '').trim().toUpperCase();
-  const cprice = Number((ud && ud.course_price) || 0);
+  const cprice = Number((ud && (ud.course_price || ud.price)) || 0);
   if (!cid || cid.toUpperCase() === 'N/A' || cid === 'null' || cid === 'undefined') return true;
   if (!cname || cname === 'N/A' || cname === 'NULL' || cname === 'UNDEFINED') return true;
   if (!cprice) return true;
@@ -424,10 +427,15 @@ function startSessionClock() {
   }, 1000);
 }
 
+
+
+
+
 function renderUserIdBadge() {
   $('userIdName').textContent = (userData && userData.full_name) || 'Student';
-  $('userIdCode').textContent = (user && academy_id) || '------';
+  $('userIdCode').textContent = (userData && (userData.academy_id || userData.academyId)) || '------';
 }
+
 
 function renderMenu() {
   const bonus = Number((userData && userData.referral_bonus) || 0);
@@ -443,7 +451,6 @@ function renderMenu() {
 function renderUserGreet() {
   $('userFullName').textContent = (userData && userData.full_name) || 'Student';
   $('userCourseName').textContent = 'Course: ' + ((userData && userData.course_name) || 'Loading...');
-  $('progressStudent').textContent = (userData && userData.full_name) || 'Student';
 }
 
 async function loadAd() {
@@ -572,7 +579,7 @@ function renderCoursePush() {
     html += '<div class="pn-row">';
     groups[cat].forEach((item) => {
       const img = item.cd.image_url || 'https://i.imgur.com/oyqM5oF.png';
-      const price = Number(item.cd.course_price || 0);
+      const price = Number(item.cd.price || item.cd.course_price || 0);
       html += '<div class="pn-course" data-cid="' + escapeHtml(item.id) + '">' +
         '<img src="' + escapeHtml(img) + '" alt="' + escapeHtml(item.cd.course_name || 'Course') + '" loading="lazy">' +
         '<div class="pnc-in">' +
@@ -721,7 +728,6 @@ async function selectCourse(courseId) {
   if (currentTopics.length === 0) {
     $('topicCard').classList.add('hidden');
     $('emptyState').classList.remove('hidden');
-    $('progressCourseName').textContent = 'No Topics Yet';
     $('progressCount').textContent = '0/0';
     $('progressPct').textContent = '0%';
     $('progressFill').style.width = '0%';
@@ -744,9 +750,6 @@ function renderProgress() {
     completed = Math.max(completed, Math.min(readingHistory[activeCourseId], total));
   }
   const pct = total ? Math.round((completed / total) * 100) : 0;
-  const info = courseInfoMap[activeCourseId] || {};
-  $('progressCourseName').textContent = info.course_name || (userData.course_name || 'Course');
-  $('progressCategory').textContent = categoryLabel(info.category);
   $('progressCount').textContent = completed + '/' + total;
   $('progressPct').textContent = pct + '%';
   $('progressFill').style.width = pct + '%';
@@ -1400,7 +1403,7 @@ function confetti() {
       x.translate(p.x, p.y);
       x.rotate(p.rot);
       x.fillStyle = p.color;
-      x.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      x.fillRect(-p.w / 2, p.h / 2 * -1, p.w, p.h);
       x.restore();
     });
     frames++;
@@ -1753,7 +1756,7 @@ function getPrimaryCourse() {
     course_id: (userData && userData.course_id) || '',
     course_name: (userData && userData.course_name) || '',
     course_number: (userData && userData.course_number) || '',
-    course_price: Number((userData && userData.course_price) || 0)
+    course_price: Number((userData && (userData.course_price || userData.price)) || 0)
   };
   if (fromData.course_id && fromData.course_price) return fromData;
   const list = courseList[0] || {};
@@ -1761,7 +1764,7 @@ function getPrimaryCourse() {
     course_id: list.course_id || '',
     course_name: list.course_name || 'Selected Course',
     course_number: list.course_number || '000',
-    course_price: Number(list.course_price || 0)
+    course_price: Number(list.course_price || list.price || 0)
   };
 }
 
@@ -1969,11 +1972,12 @@ $('menuLogout').addEventListener('click', () => {
 
 $('btnCopyUserId').addEventListener('click', async (e) => {
   const btn = e.currentTarget;
+  const academyId = (userData && (userData.academy_id || userData.academyId)) || user.id;
   try {
-    await copyText(user.id);
+    await copyText(academyId);
     btn.classList.add('done');
     btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-    showToast('success', 'User ID Copied!', 'Your ID: ' + user.id);
+    showToast('success', 'Academy ID Copied!', 'Your ID: ' + academyId);
     setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
   } catch (err) {
     showToast('error', 'Copy Failed', 'Could not copy your ID.', err.message);
@@ -2065,13 +2069,11 @@ document.querySelectorAll('.social-chip').forEach((chip) => {
 
 $('userAvatar').addEventListener('click', () => {
   renderCoursePush();
-  $('pnSub').textContent = 'You already have a course. If you want to switch, pick a new one below — it will replace your current selection and you will complete a new payment.';
   $('coursePush').classList.add('open');
 });
 
 $('pendingCourseBox').addEventListener('click', () => {
   renderCoursePush();
-  $('pnSub').textContent = 'Tap any course below to switch. The selected course will be saved to your account for payment.';
   $('coursePush').classList.add('open');
 });
 
