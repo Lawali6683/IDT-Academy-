@@ -51,6 +51,7 @@ export default {
       return new Response(JSON.stringify({ success: true }), {
         status: 200, headers: { 'Content-Type': 'application/json', ...cors }
       });
+
     } catch (err) {
       return new Response(JSON.stringify({ success: false, message: err.message }), {
         status: 500, headers: { 'Content-Type': 'application/json', ...cors }
@@ -128,6 +129,7 @@ async function handlePaymentSuccess(env, data) {
     restUrl + 'completepay?select=*&complete_pay->>reference=eq.' + encodeURIComponent(reference),
     { headers }
   );
+
   if (Array.isArray(checkComplete) && checkComplete.length > 0) {
     return;
   }
@@ -147,6 +149,7 @@ async function handlePaymentSuccess(env, data) {
       restUrl + 'partner_profiles?select=*&partner_data->>email=eq.' + encodeURIComponent(email),
       { headers }
     );
+
     if (Array.isArray(partners) && partners.length > 0) {
       userRecord = partners[0];
       isPartner = true;
@@ -162,11 +165,32 @@ async function handlePaymentSuccess(env, data) {
     let userData = Object.assign({}, userRecord.user_data || {});
     const coursePrice = Number(userData.course_price || 0);
 
-    userData.status = 'active';
-    userData.payment_no = reference;
+    let isJambOrSmallPayment = false;
+    let isCoursePaymentValid = false;
+
+    if (amountPaid <= 3500) {
+      isJambOrSmallPayment = true;
+      userData.payment_no = 'yes';
+    } else {
+      if (coursePrice > 0 && amountPaid >= coursePrice) {
+        isCoursePaymentValid = true;
+        userData.status = 'active';
+        userData.payment_no = reference;
+      } else if (amountPaid < coursePrice) {
+        const currentReferralBonus = Number(userData.referral_bonus || 0);
+        userData.referral_bonus = currentReferralBonus + amountPaid;
+        userData.payment_no = reference;
+      } else {
+        isCoursePaymentValid = true;
+        userData.status = 'active';
+        userData.payment_no = reference;
+      }
+    }
 
     const referredBy = String(userData.referred_by || '').trim().toUpperCase();
-    if (referredBy) {
+
+    if (referredBy && (isJambOrSmallPayment || isCoursePaymentValid)) {
+      const bonusAmount = isJambOrSmallPayment ? 300 : 1500;
       let referrerPartner = null;
       let referrerUser = null;
 
@@ -174,6 +198,7 @@ async function handlePaymentSuccess(env, data) {
         restUrl + 'partner_profiles?select=*&partner_data->>referral_code=eq.' + encodeURIComponent(referredBy),
         { headers }
       );
+
       if (Array.isArray(partnerSearch) && partnerSearch.length > 0) {
         referrerPartner = partnerSearch[0];
       }
@@ -181,35 +206,40 @@ async function handlePaymentSuccess(env, data) {
       if (referrerPartner) {
         const pd = Object.assign({}, referrerPartner.partner_data || {});
         const currentBonus = Number(pd.referral_bonus || 0);
-        const newBonus = currentBonus + 1500;
-        let activity = Array.isArray(pd.referral_activity) ? JSON.parse(JSON.stringify(pd.referral_activity)) : [];
 
+        let activity = Array.isArray(pd.referral_activity) ? JSON.parse(JSON.stringify(pd.referral_activity)) : [];
         let actFound = false;
+
         for (let i = 0; i < activity.length; i++) {
           if (activity[i].referred_email === email) {
-            activity[i].status = 'completed';
-            activity[i].bonus = 1500;
-            activity[i].date_paid = now;
+            if (activity[i].status !== 'completed') {
+              activity[i].status = 'completed';
+              activity[i].bonus = bonusAmount;
+              activity[i].date_paid = now;
+              pd.referral_bonus = currentBonus + bonusAmount;
+              pd.paid_referrals = Number(pd.paid_referrals || 0) + 1;
+            }
             actFound = true;
             break;
           }
         }
+
         if (!actFound) {
           activity.push({
             referred_name: userData.full_name || 'Student',
             referred_email: email,
             course_name: userData.course_name || 'Selected Course',
-            course_price: coursePrice,
-            bonus: 1500,
+            course_price: coursePrice || amountPaid,
+            bonus: bonusAmount,
             status: 'completed',
             date: now,
             date_paid: now
           });
+          pd.referral_bonus = currentBonus + bonusAmount;
+          pd.paid_referrals = Number(pd.paid_referrals || 0) + 1;
         }
 
-        pd.referral_bonus = newBonus;
         pd.referral_activity = activity;
-        pd.paid_referrals = Number(pd.paid_referrals || 0) + 1;
 
         await fetchSupabase(
           restUrl + 'partner_profiles?id=eq.' + encodeURIComponent(referrerPartner.id),
@@ -228,18 +258,20 @@ async function handlePaymentSuccess(env, data) {
               type: 'referral_bonus',
               full_name: pd.full_name || 'Partner',
               email: pd.email || '',
-              referral_bonus: 1500,
+              referral_bonus: bonusAmount,
               referred_name: userData.full_name || 'Student',
               referred_course: userData.course_name || 'Selected Course',
               referral_link: pd.referral_link || ''
             })
           });
         } catch (e) {}
+
       } else {
         const userSearch = await fetchSupabase(
           restUrl + 'user_profiles?select=*&user_data->>referral_code=eq.' + encodeURIComponent(referredBy),
           { headers }
         );
+
         if (Array.isArray(userSearch) && userSearch.length > 0) {
           referrerUser = userSearch[0];
         }
@@ -247,33 +279,39 @@ async function handlePaymentSuccess(env, data) {
         if (referrerUser) {
           const rud = Object.assign({}, referrerUser.user_data || {});
           const currentBonus = Number(rud.referral_bonus || 0);
-          const newBonus = currentBonus + 1500;
-          let activity = Array.isArray(rud.referral_activity) ? JSON.parse(JSON.stringify(rud.referral_activity)) : [];
 
+          let activity = Array.isArray(rud.referral_activity) ? JSON.parse(JSON.stringify(rud.referral_activity)) : [];
           let actFound = false;
+
           for (let i = 0; i < activity.length; i++) {
             if (activity[i].referred_email === email) {
-              activity[i].status = 'completed';
-              activity[i].bonus = 1500;
-              activity[i].date_paid = now;
+              if (activity[i].status !== 'completed') {
+                activity[i].status = 'completed';
+                activity[i].bonus = bonusAmount;
+                activity[i].date_paid = now;
+                rud.referral_bonus = currentBonus + bonusAmount;
+                rud.paid_referrals = Number(rud.paid_referrals || 0) + 1;
+              }
               actFound = true;
               break;
             }
           }
+
           if (!actFound) {
             activity.push({
               referred_name: userData.full_name || 'Student',
               referred_email: email,
               course_name: userData.course_name || 'Selected Course',
-              course_price: coursePrice,
-              bonus: 1500,
+              course_price: coursePrice || amountPaid,
+              bonus: bonusAmount,
               status: 'completed',
               date: now,
               date_paid: now
             });
+            rud.referral_bonus = currentBonus + bonusAmount;
+            rud.paid_referrals = Number(rud.paid_referrals || 0) + 1;
           }
 
-          rud.referral_bonus = newBonus;
           rud.referral_activity = activity;
 
           await fetchSupabase(
@@ -293,7 +331,7 @@ async function handlePaymentSuccess(env, data) {
                 type: 'referral_bonus',
                 full_name: rud.full_name || 'Referrer',
                 email: rud.email || '',
-                referral_bonus: 1500,
+                referral_bonus: bonusAmount,
                 referred_name: userData.full_name || 'Student',
                 referred_course: userData.course_name || 'Selected Course',
                 referral_link: rud.referral_link || ''
@@ -319,7 +357,7 @@ async function handlePaymentSuccess(env, data) {
       email: email,
       course_id: userData.course_id || '',
       course_name: userData.course_name || '',
-      course_price: coursePrice,
+      course_price: coursePrice || amountPaid,
       amount_paid: amountPaid,
       reference: reference,
       status: 'success',
@@ -348,12 +386,13 @@ async function handlePaymentSuccess(env, data) {
           full_name: userData.full_name || 'Student',
           email: email,
           course_name: userData.course_name || 'Course',
-          course_price: coursePrice,
+          course_price: coursePrice || amountPaid,
           amount_paid: amountPaid,
           reference: reference
         })
       });
     } catch (e) {}
+
   } else {
     let partnerData = Object.assign({}, userRecord.partner_data || {});
     partnerData.status = 'active';
