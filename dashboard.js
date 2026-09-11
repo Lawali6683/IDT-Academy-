@@ -426,7 +426,7 @@ function startSessionClock() {
 
 function renderUserIdBadge() {
   $('userIdName').textContent = (userData && userData.full_name) || 'Student';
-  $('userIdCode').textContent = (user && user.id) || '------';
+  $('userIdCode').textContent = (user && academy_id) || '------';
 }
 
 function renderMenu() {
@@ -598,9 +598,6 @@ function closeCoursePush() {
   $('coursePush').classList.remove('open');
 }
 
-
-
-
 async function chooseCourse(courseId) {
   if (!courseId) return;
   const clickedCard = document.querySelector('.pn-course[data-cid="' + courseId.replace(/"/g, '\\"') + '"]');
@@ -667,20 +664,6 @@ async function chooseCourse(courseId) {
     }
   }
 }
-  
-  
-  
-  closeCoursePush();
-  courseList = collectCourses(userData);
-  renderPendingGate();
-  $('pendingGate').classList.add('open');
-  showToast('success', 'Course Selected ✓', 'You selected ' + userData.course_name + '. Tap Pay Now to complete your payment.');
-}
-
-
-
-
-
 
 function renderPendingGate() {
   const course = getPrimaryCourse();
@@ -1426,7 +1409,6 @@ function confetti() {
   })();
 }
 
-
 async function loadPdfLib() {
   if (window.jspdf) return window.jspdf;
   await new Promise((resolve, reject) => {
@@ -1559,7 +1541,7 @@ async function downloadResultPdf() {
     if (sign) {
       doc.addImage(sign, 'PNG', w - 55, y, 30, 14);
     } else {
-      doc.setFont('cursive', 'normal');
+      doc.setFont('helvetica', 'normal');
       doc.setFontSize(14);
       doc.setTextColor(30, 27, 75);
       doc.text('IDT Academy', w - 55, y + 10);
@@ -1643,6 +1625,15 @@ async function emailResult() {
     miniHide();
     showToast('error', 'Email Failed', 'Could not send the email. Please try again.', err.message || String(err));
   }
+}
+
+function markdownToHtml(md) {
+  let html = escapeHtml(String(md || ''));
+  html = html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  html = html.replace(/\*(.+?)\*/g, '<i>$1</i>');
+  html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+  html = html.replace(/\n/g, '<br>');
+  return html;
 }
 
 function addChatMessage(role, content) {
