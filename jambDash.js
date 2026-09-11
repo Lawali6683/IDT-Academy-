@@ -194,6 +194,9 @@ async function activateUser(profile) {
   initDashboard();
 }
 
+
+
+
 async function checkPaymentStatus(userId) {
   try {
     const { data: profile, error } = await supabase
@@ -201,29 +204,49 @@ async function checkPaymentStatus(userId) {
       .select('*')
       .eq('id', userId)
       .single();
+
     if (error || !profile) return false;
+
     const ud = profile.user_data || {};
-    if (ud.status === 'active') {
-      const stored = getLocalUser();
-      if (stored) { stored.status = 'active'; setLocalUser(stored); }
-      currentUser = getLocalUser();
-      el.paymentOverlay.classList.remove('active');
-      el.dashboardContent.classList.remove('hidden');
+
+    if (ud.payment_no === 'yes') {
+      const stored = getLocalUser() || {};
+      stored.payment_no = 'yes';
+      stored.status = 'active';
+      setLocalUser(stored);
+      currentUser = stored;
+
+      if (el.paymentOverlay) el.paymentOverlay.classList.remove('active');
+      if (el.dashboardContent) el.dashboardContent.classList.remove('hidden');
+
       stopPaymentPolling();
-      showToast('Payment confirmed! Welcome to your dashboard.', 'success');
+
+      showToast('Congratulations! Payment confirmed. Welcome to your dashboard.', 'success', 6000);
+
       initDashboard();
       return true;
     }
+
     return false;
   } catch (err) {
+    console.error('Error checking payment status:', err);
     return false;
   }
 }
 
+
 function stopPaymentPolling() {
-  if (statusCheckInterval) { clearInterval(statusCheckInterval); statusCheckInterval = null; }
-  if (payTimerInterval) { clearInterval(payTimerInterval); payTimerInterval = null; }
+  if (statusCheckInterval) {
+    clearInterval(statusCheckInterval);
+    statusCheckInterval = null;
+  }
+  if (payTimerInterval) {
+    clearInterval(payTimerInterval);
+    payTimerInterval = null;
+  }
 }
+
+
 
 function showPayError(message) {
   let banner = document.getElementById('payErrorBanner');
@@ -287,23 +310,49 @@ function setupCopyButton() {
   host.insertAdjacentElement('afterend', btn);
 }
 
+
+
+
+
 function startPaymentFlow() {
-  el.paymentOverlay.classList.add('active');
+  if (el.paymentOverlay) el.paymentOverlay.classList.add('active');
+  
   requestPaymentDetails();
+
+  if (statusCheckInterval) clearInterval(statusCheckInterval);
+
+  const startTime = Date.now();
+  const thirtyMinutesMs = 30 * 60 * 1000;
+
   statusCheckInterval = setInterval(function() {
+    const elapsedTime = Date.now() - startTime;
+
+    if (elapsedTime >= thirtyMinutesMs) {
+      stopPaymentPolling();
+      showToast('Payment window session timed out. Please refresh or try again.', 'warning');
+      return;
+    }
+
     const u = getLocalUser();
     if (u && u.id) {
       checkPaymentStatus(u.id).then(function(done) {
-        if (done) { stopPaymentPolling(); }
+        if (done) {
+          stopPaymentPolling();
+        }
       });
     }
-  }, 10000);
+  }, 5000);
 }
+
+
+
 
 async function requestPaymentDetails() {
   const u = getLocalUser();
   if (!u) return;
+
   hidePayError();
+
   try {
     const res = await fetch('/api/paystack', {
       method: 'POST',
@@ -311,37 +360,82 @@ async function requestPaymentDetails() {
       body: JSON.stringify({
         user_id: u.id,
         email: u.email,
-        full_name: u.full_name,
-        course_id: u.course_id || '',
-        course_name: u.course_name || 'JAMB Preparation',
-        price: 3500,
-        phone: u.phone || ''
+        price: 3500
       })
     });
+
     let data = null;
-    try { data = await res.json(); } catch (e) { data = null; }
+    try { 
+      data = await res.json(); 
+    } catch (e) { 
+      data = null; 
+    }
+
     if (!res.ok || !data || !data.success) {
-      const errMsg = (data && data.error) ? data.error : ('Payment service returned an error (HTTP ' + res.status + ').');
-      showPayError('Could not generate payment details: ' + errMsg + ' Please tap "Try Again" — your reserved account number will appear here once the connection succeeds.');
-      showToast('Could not generate payment details. Please try again.', 'error');
+      const errMsg = (data && (data.error || data.message)) 
+        ? (data.error || data.message) 
+        : ('Payment service returned an error (HTTP ' + res.status + ').');
+      
+      showPayError('Failed to initialize payment: ' + errMsg);
+      showToast('Error: ' + errMsg, 'error', 6000);
       return;
     }
-    el.payAccountNumber.textContent = data.account_number || '---';
-    el.payAccountName.textContent = data.account_name || 'IDT Academy';
-    el.payBankName.textContent = data.bank_name || 'Wema Bank';
-    el.payAmount.textContent = '₦' + Number(data.amount || 3500).toLocaleString();
-    setupCopyButton();
-    hidePayError();
+
+    if (data.account_number && data.account_number.trim() !== '') {
+      if (el.payAccountNumber) el.payAccountNumber.textContent = data.account_number;
+      if (el.payAccountName) el.payAccountName.textContent = data.account_name || '';
+      if (el.payBankName) el.payBankName.textContent = data.bank_name || '';
+      if (el.payAmount) el.payAmount.textContent = '₦' + Number(data.amount || 3500).toLocaleString();
+      
+      setupCopyButton();
+      hidePayError();
+    } else if (data.authorization_url) {
+      window.location.href = data.authorization_url;
+      return;
+    } else {
+      showPayError('Unable to generate bank transfer details. Please try again later.');
+      return;
+    }
+
     if (data.expires_at) {
       payExpiresAt = new Date(data.expires_at).getTime();
       startPayTimer();
+    } else {
+      payExpiresAt = Date.now() + (30 * 60 * 1000);
+      startPayTimer();
     }
-    showToast('Payment details generated. Transfer the exact amount to the account below.', 'success');
+
+    showToast('Payment details generated successfully. Please proceed with your transfer.', 'info');
+
   } catch (err) {
-    showPayError('Network error while contacting the payment service. Please check your internet connection and tap "Try Again".');
-    showToast('Network error while fetching payment details.', 'error');
+    console.error('Network Error:', err);
+    showPayError('Network connection error. Please verify your internet connection and click "Try Again".');
+    showToast('Network error while connecting to payment service.', 'error');
   }
 }
+
+
+
+async function checkAndInitUser() {
+  const u = getLocalUser();
+  if (!u) {
+    window.location.href = 'jamb.html';
+    return;
+  }
+
+  const profile = await fetchUserProfile(u.id);
+  const ud = (profile && profile.user_data) ? profile.user_data : u;
+
+  if (ud.payment_no === 'yes') {
+    if (el.paymentOverlay) el.paymentOverlay.classList.remove('active');
+    if (el.dashboardContent) el.dashboardContent.classList.remove('hidden');
+    initDashboard();
+  } else {
+    if (el.dashboardContent) el.dashboardContent.classList.add('hidden');
+    startPaymentFlow();
+  }
+}
+
 
 function startPayTimer() {
   if (payTimerInterval) clearInterval(payTimerInterval);
