@@ -21,13 +21,13 @@ function generateReferralCode() {
   return code;
 }
 
-function generateUserId() {
+function generateAcademyId() {
   const digits = '0123456789';
   let num = '';
   for (let i = 0; i < 6; i++) {
     num += digits[Math.floor(Math.random() * digits.length)];
   }
-  return 'IDT/V3/' + num;
+  return 'IDTA/V3/' + num;
 }
 
 function normalizeEmail(email) {
@@ -51,9 +51,11 @@ function buildApi(env) {
       'Authorization': 'Bearer ' + key,
       'Content-Type': 'application/json'
     };
+
     if (method === 'POST' || method === 'PATCH' || method === 'DELETE') {
       headers['Prefer'] = 'return=representation';
     }
+
     const opts = { method: method, headers: headers };
     if (body !== undefined) opts.body = JSON.stringify(body);
     return fetch(restUrl + path, opts);
@@ -66,12 +68,14 @@ function buildApi(env) {
         'Authorization': 'Bearer ' + key,
         'Content-Type': 'application/json'
       };
+
       const body = {
         email: email,
         password: password,
         email_confirm: true,
         user_metadata: userMetadata || {}
       };
+
       return fetch(authAdminUrl, {
         method: 'POST',
         headers: headers,
@@ -85,6 +89,7 @@ function buildApi(env) {
         'Authorization': 'Bearer ' + key,
         'Content-Type': 'application/json'
       };
+
       return fetch(authAdminUrl + '/' + encodeURIComponent(id), {
         method: 'DELETE',
         headers: headers
@@ -103,8 +108,8 @@ function buildApi(env) {
       return Array.isArray(arr) && arr.length ? arr[0] : null;
     },
 
-    findProfileByUserId: async function (userId) {
-      const res = await request('GET', 'user_profiles?select=*&user_data->>user_id=eq.' + encodeURIComponent(userId));
+    findProfileByAcademyId: async function (academyId) {
+      const res = await request('GET', 'user_profiles?select=*&user_data->>academy_id=eq.' + encodeURIComponent(academyId));
       const arr = await res.json().catch(function () { return []; });
       return Array.isArray(arr) && arr.length ? arr[0] : null;
     },
@@ -119,14 +124,14 @@ function buildApi(env) {
   };
 }
 
-async function createUniqueUserId(api) {
-  let userId = generateUserId();
+async function createUniqueAcademyId(api) {
+  let academyId = generateAcademyId();
   for (let i = 0; i < 10; i++) {
-    const dup = await api.findProfileByUserId(userId);
-    if (!dup) return userId;
-    userId = generateUserId();
+    const dup = await api.findProfileByAcademyId(academyId);
+    if (!dup) return academyId;
+    academyId = generateAcademyId();
   }
-  return userId + '-' + Date.now();
+  return academyId + '-' + Date.now();
 }
 
 async function createUniqueReferralCode(api) {
@@ -152,7 +157,6 @@ async function handleRegister(body, api) {
   const courseName = accountType === 'student' ? na(body.course_name) : 'N/A';
   const courseNumber = accountType === 'student' ? na(body.course_number) : 'N/A';
   const coursePrice = accountType === 'student' ? (Number(body.course_price) || 0) : 0;
-  const paymentNo = accountType === 'student' ? na(body.payment_no) : 'N/A';
   const dob = accountType === 'student' ? na(body.date_of_birth || body.dob) : 'N/A';
   const level = accountType === 'student' ? na(body.school_level) : 'N/A';
 
@@ -177,14 +181,13 @@ async function handleRegister(body, api) {
     }
 
     createdAuthId = authData.id;
-
-    const userId = await createUniqueUserId(api);
+    const academyId = await createUniqueAcademyId(api);
     const referralCode = await createUniqueReferralCode(api);
     const referralLink = 'https://www.idtacademy.com.ng/index/ref/' + referralCode;
     const now = new Date().toISOString();
 
     const userData = {
-      user_id: userId,
+      academy_id: academyId,
       full_name: fullName,
       email: email,
       phone: phone,
@@ -194,7 +197,7 @@ async function handleRegister(body, api) {
       course_name: courseName,
       course_number: courseNumber,
       course_price: coursePrice,
-      payment_no: paymentNo,
+      payment_no: 'no',
       date_of_birth: dob,
       school_level: level,
       referral_code: referralCode,
@@ -210,11 +213,12 @@ async function handleRegister(body, api) {
       level_completed: 'N/A',
       certificate_issued: false,
       date_registered: now,
-      status: accountType === 'partner' ? 'active' : 'pending',
+      status: 'pending',
       created_at: now
     };
 
     const insertRes = await api.insertProfile(createdAuthId, userData);
+
     if (insertRes.status >= 400) {
       const text = await insertRes.text().catch(function () { return ''; });
       await api.deleteAuthUser(createdAuthId);
@@ -234,6 +238,7 @@ async function handleRegister(body, api) {
       try { await api.deleteProfile(createdAuthId); } catch (e) {}
       try { await api.deleteAuthUser(createdAuthId); } catch (e) {}
     }
+
     return jsonResponse({ error: 'Registration failed: ' + (err.message || 'unknown error') }, 500);
   }
 }
@@ -244,15 +249,18 @@ export async function onRequestOptions() {
 
 export async function onRequestPost(context) {
   const { request, env } = context;
+
   if (!env.SUPABASE_SERVICE_ROLE_KEY) {
     return jsonResponse({ error: 'SUPABASE_SERVICE_ROLE_KEY is not configured in Cloudflare Pages environment variables.' }, 500);
   }
+
   let body;
   try {
     body = await request.json();
   } catch (err) {
     return jsonResponse({ error: 'Invalid JSON body.' }, 400);
   }
+
   const api = buildApi(env);
   return handleRegister(body, api);
 }
