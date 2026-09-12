@@ -280,24 +280,22 @@ async function verifyAccountNumber(accountNumber, bankCode) {
     const response = await fetch(`/api/verify?accountNumber=${accountNumber}&bankCode=${bankCode}`);
     const validateData = await response.json();
 
-    if (validateData.requestSuccessful) {
+    if (validateData.requestSuccessful && validateData.responseBody && validateData.responseBody.accountName) {
       const accountName = validateData.responseBody.accountName;
       verifyResult.className = 'verify-badge success';
       verifyResult.innerHTML = `<i class="fa-solid fa-check-circle"></i> Account verified: <b>${escapeHtml(accountName)}</b>`;
       return accountName;
     } else {
-      const apiError = validateData.responseMessage || 'Invalid account details';
       verifyResult.className = 'verify-badge error';
-      verifyResult.innerHTML = `<i class="fa-solid fa-times-circle"></i> ${escapeHtml(apiError)}`;
+      verifyResult.innerHTML = `<i class="fa-solid fa-times-circle"></i> Account number could not be verified. Please check the account number and bank, then try again.`;
       return null;
     }
   } catch (err) {
     verifyResult.className = 'verify-badge error';
-    verifyResult.innerHTML = `<i class="fa-solid fa-exclamation-triangle"></i> Error: ${escapeHtml(err.message)}`;
+    verifyResult.innerHTML = `<i class="fa-solid fa-times-circle"></i> Account number could not be verified. Please check your connection and try again.`;
     return null;
   }
 }
-
 
 
 
@@ -631,6 +629,9 @@ function generateQRCode(link) {
   qrImg.alt = `QR Code for ${link}`;
 }
 
+
+
+
 async function handleWithdrawSubmit(e) {
   e.preventDefault();
   const amount = parseFloat($('wdAmount').value);
@@ -639,7 +640,7 @@ async function handleWithdrawSubmit(e) {
   const bankName = $('wdBankName').selectedOptions[0]?.text || '';
   const password = $('wdPassword').value;
 
-  if (!amount || amount < 100) {
+  if (!amount || amount < 1000) {
     showToast('error', 'Invalid Amount', 'Minimum withdrawal amount is ₦1000.');
     return;
   }
@@ -668,17 +669,21 @@ async function handleWithdrawSubmit(e) {
 
   showLoading();
   try {
-    const storedHash = String(currentUd.password_hash || '').toLowerCase();
-    const storedSalt = String(currentUd.password_salt || '');
-    if (!storedHashOk(storedHash, storedSalt)) {
+    const userEmail = String(currentUd.email || '').trim();
+    if (!userEmail) {
       hideLoading();
-      showToast('error', 'Account Error', 'This account has no password saved. Please contact support.');
+      showToast('error', 'Account Error', 'Could not confirm your identity. Please log out and log in again.');
       return;
     }
-    const computedHash = await hashPassword(password, storedSalt);
-    if (computedHash !== storedHash) {
+
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email: userEmail,
+      password: password
+    });
+
+    if (signInError || !signInData || !signInData.user) {
       hideLoading();
-      showToast('error', 'Wrong Password', 'The password you entered is incorrect. Please try again.');
+      showToast('error', 'Wrong Password', 'The password you entered does not match your account. Please try again.');
       return;
     }
 
@@ -711,7 +716,7 @@ async function handleWithdrawSubmit(e) {
       account_name: accountName,
       date: now,
       user_id: userId,
-      user_email: currentUd.email || '',
+      user_email: userEmail,
       user_name: currentUd.full_name || 'Student',
       status: 'pending'
     };
@@ -740,6 +745,8 @@ async function handleWithdrawSubmit(e) {
     showToast('error', 'Error', 'An unexpected error occurred. Please try again.');
   }
 }
+
+
 
 function storedHashOk(hash, salt) {
   return Boolean(hash) && Boolean(salt);
