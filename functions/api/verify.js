@@ -47,7 +47,7 @@ export async function onRequest(context) {
     const accessToken = tokenData.responseBody.accessToken;
 
     const validateRes = await fetch(
-      `${BASE_URL}/api/v1/disbursements/account/validate?accountNumber=${accountNumber}&bankCode=${bankCode}`,
+      `${BASE_URL}/api/v2/disbursements/account/validate?accountNumber=${accountNumber}&bankCode=${bankCode}`,
       {
         method: 'GET',
         headers: {
