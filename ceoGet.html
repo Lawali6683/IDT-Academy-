@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>IDT Academy | CEO Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+:root {
+    --violet: #7c3aed;
+    --violet-d: #6d28d9;
+    --violet-l: #a78bfa;
+    --cyan: #06b6d4;
+    --amber: #f59e0b;
+    --rose: #f43f5e;
+    --green: #10b981;
+    --ink: #1e1b4b;
+    --muted: #6d6a8a;
+    --line: rgba(124,58,237,.15);
+    --shadow: 0 24px 60px rgba(80,40,160,.16);
+}
+html { scroll-behavior: smooth; }
+body {
+    font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+    color: var(--ink);
+    min-height: 100vh;
+    background: radial-gradient(820px 480px at 6% -6%, rgba(167,139,250,.30), transparent 60%), radial-gradient(740px 480px at 98% 4%, rgba(34,211,238,.22), transparent 58%), radial-gradient(820px 540px at 50% 112%, rgba(251,191,36,.16), transparent 60%), linear-gradient(160deg, #f8f6ff 0%, #ffffff 50%, #eefbff 100%);
+    background-attachment: fixed;
+    overflow-x: hidden;
+}
+body::before { content: ""; position: fixed; inset: 0; z-index: -2; background: url('https://i.imgur.com/CQgjfNJ.png') center/cover no-repeat fixed; opacity: .08; pointer-events: none; }
+body::after { content: ""; position: fixed; inset: 0; z-index: -1; background: url('https://i.imgur.com/oyqM5oF.png') center/contain no-repeat fixed; opacity: .05; pointer-events: none; }
+::selection { background: rgba(124,58,237,.22); }
+a { text-decoration: none; color: inherit; }
+button { font-family: 'Poppins', sans-serif; cursor: pointer; }
+input { font-family: 'Poppins', sans-serif; outline: none; }
+img { max-width: 100%; display: block; }
+.hidden { display: none !important; }
+.page-gate {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(248,246,255,0.95);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+.page-gate.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.gate-card {
+    background: rgba(255,255,255,.92);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,.7);
+    border-radius: 26px;
+    padding: 34px 28px;
+    width: 100%; max-width: 420px; margin: 20px;
+    text-align: center;
+    box-shadow: 0 34px 80px rgba(80,40,160,.2);
+}
+.gate-card .log { width: 80px; height: 80px; object-fit: contain; background: #fff; border-radius: 50%; padding: 8px; margin: 0 auto 12px; box-shadow: 0 12px 28px rgba(124,58,237,.28); }
+.gate-card h2 { font-size: 20px; font-weight: 900; margin-bottom: 4px; color: var(--ink); }
+.gate-card p { font-size: 12.5px; color: var(--muted); margin-bottom: 22px; }
+.gate-input {
+    width: 100%;
+    background: #fff;
+    border: 1.5px solid var(--line);
+    border-radius: 13px;
+    padding: 14px 16px;
+    color: var(--ink);
+    font-size: 13px;
+    outline: none;
+    transition: all .2s ease;
+    margin-bottom: 12px;
+}
+.gate-input:focus { border-color: var(--violet); box-shadow: 0 0 0 4px rgba(124,58,237,.12); }
+.gate-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--violet), var(--cyan));
+    color: #fff; border: none; border-radius: 13px;
+    padding: 14px; font-size: 14px; font-weight: 700;
+    box-shadow: 0 12px 28px rgba(124,58,237,.3);
+    transition: transform .15s ease, opacity .15s ease;
+}
+.gate-btn:active { transform: scale(.97); }
+.gate-btn:disabled { opacity: .6; cursor: not-allowed; }
+.gate-error {
+    display: none; margin-top: 14px; padding: 10px 14px;
+    background: rgba(244,63,94,.08); border: 1px solid rgba(244,63,94,.25);
+    color: var(--rose); border-radius: 12px; font-size: 12px; font-weight: 600;
+}
+.gate-error.show { display: block; animation: shake .4s ease; }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.admin-wrap { max-width: 1180px; margin: 0 auto; padding: 28px 18px 70px; }
+.admin-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
+.admin-brand { display: flex; align-items: center; gap: 14px; }
+.admin-brand img { width: 52px; height: 52px; object-fit: contain; background: #fff; border-radius: 50%; padding: 5px; box-shadow: 0 10px 24px rgba(124,58,237,.25); }
+.admin-brand h1 { font-size: 19px; font-weight: 900; letter-spacing: -.3px; }
+.admin-brand span { display: block; font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.top-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-soft {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,.85); border: 1.5px solid var(--line);
+    color: var(--ink); padding: 10px 18px; border-radius: 12px;
+    font-size: 12.5px; font-weight: 700; transition: all .2s ease;
+    box-shadow: 0 6px 18px rgba(80,40,160,.08);
+}
+.btn-soft:hover { border-color: var(--violet); color: var(--violet); transform: translateY(-1px); }
+.btn-soft.danger { color: var(--rose); border-color: rgba(244,63,94,.3); }
+.btn-soft.danger:hover { border-color: var(--rose); }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 22px; }
+.stat-card {
+    background: rgba(255,255,255,.85); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,.7); border-radius: 20px;
+    padding: 18px 20px; box-shadow: var(--shadow);
+    display: flex; align-items: center; gap: 14px;
+}
+.stat-icon { width: 46px; height: 46px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff; flex-shrink: 0; }
+.stat-card h3 { font-size: 22px; font-weight: 900; line-height: 1.1; }
+.stat-card p { font-size: 11.5px; color: var(--muted); font-weight: 500; }
+.panel {
+    background: rgba(255,255,255,.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,.7); border-radius: 24px;
+    box-shadow: var(--shadow); overflow: hidden;
+}
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 20px 22px; border-bottom: 1px solid var(--line); }
+.panel-head h2 { font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 9px; }
+.panel-head h2 i { color: var(--violet); }
+.search-box { position: relative; flex: 1; min-width: 220px; max-width: 340px; }
+.search-box i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; }
+.search-box input {
+    width: 100%; padding: 11px 15px 11px 40px; border-radius: 12px;
+    border: 1.5px solid var(--line); background: #fff; font-size: 12.5px; transition: all .2s ease;
+}
+.search-box input:focus { border-color: var(--violet); box-shadow: 0 0 0 4px rgba(124,58,237,.12); }
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table.users-table { width: 100%; border-collapse: collapse; min-width: 640px; }
+.users-table thead th {
+    text-align: left; padding: 13px 22px; font-size: 10.5px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .8px; color: var(--muted);
+    background: rgba(124,58,237,.04); border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+}
+.users-table tbody td { padding: 14px 22px; font-size: 13px; border-bottom: 1px solid rgba(124,58,237,.07); }
+.users-table tbody tr { cursor: pointer; transition: background .15s ease; }
+.users-table tbody tr:hover { background: rgba(124,58,237,.05); }
+.users-table tbody tr:last-child td { border-bottom: none; }
+.u-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--violet), var(--cyan));
+    color: #fff; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; flex-shrink: 0;
+}
+.u-cell { display: flex; align-items: center; gap: 12px; }
+.u-cell .u-name { font-weight: 700; font-size: 13px; }
+.u-cell .u-mail { font-size: 11.5px; color: var(--muted); }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 99px; font-size: 10.5px; font-weight: 800; letter-spacing: .3px; }
+.badge.pending { background: rgba(245,158,11,.12); color: #b45309; }
+.badge.active { background: rgba(16,185,129,.12); color: #047857; }
+.badge.other { background: rgba(124,58,237,.1); color: var(--violet-d); }
+.badge i { font-size: 8px; }
+.view-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: linear-gradient(135deg, var(--violet), var(--violet-d));
+    color: #fff; border: none; border-radius: 10px;
+    padding: 8px 16px; font-size: 11.5px; font-weight: 800;
+    box-shadow: 0 8px 18px rgba(124,58,237,.28);
+    transition: transform .15s ease;
+}
+.view-btn:active { transform: scale(.95); }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty-state i { font-size: 42px; color: rgba(124,58,237,.25); margin-bottom: 14px; }
+.empty-state h3 { font-size: 15px; font-weight: 800; color: var(--ink); margin-bottom: 6px; }
+.empty-state p { font-size: 12.5px; }
+.overlay {
+    position: fixed; inset: 0; z-index: 10000;
+    background: rgba(30,27,75,.45); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center; padding: 18px;
+    opacity: 0; visibility: hidden; transition: all .3s ease;
+}
+.overlay.show { opacity: 1; visibility: visible; }
+.detail-card {
+    background: rgba(255,255,255,.97); border-radius: 26px;
+    width: 100%; max-width: 560px; max-height: 90vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 40px 100px rgba(30,27,75,.4);
+    transform: translateY(30px) scale(.97); transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.overlay.show .detail-card { transform: translateY(0) scale(1); }
+.detail-head {
+    display: flex; align-items: center; gap: 14px;
+    padding: 22px 24px; border-bottom: 1px solid var(--line);
+    background: linear-gradient(135deg, rgba(124,58,237,.06), rgba(6,182,212,.06));
+    border-radius: 26px 26px 0 0; flex-shrink: 0;
+}
+.detail-head .u-avatar { width: 50px; height: 50px; font-size: 17px; }
+.detail-head h3 { font-size: 16px; font-weight: 900; }
+.detail-head p { font-size: 12px; color: var(--muted); word-break: break-all; }
+.close-btn {
+    margin-left: auto; width: 40px; height: 40px; border-radius: 12px;
+    border: 1.5px solid var(--line); background: #fff; color: var(--muted);
+    font-size: 15px; transition: all .2s ease; flex-shrink: 0;
+}
+.close-btn:hover { color: var(--rose); border-color: rgba(244,63,94,.4); background: rgba(244,63,94,.06); }
+.detail-body { padding: 20px 24px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { background: rgba(124,58,237,.03); border: 1.5px solid var(--line); border-radius: 14px; padding: 10px 14px; transition: all .2s ease; }
+.field.full { grid-column: 1 / -1; }
+.field label { display: block; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 4px; }
+.field .val { font-size: 12.5px; font-weight: 600; word-break: break-word; }
+.field input { width: 100%; border: none; background: transparent; font-size: 12.5px; font-weight: 600; color: var(--ink); padding: 0; }
+.field.editing { background: #fff; border-color: var(--violet); box-shadow: 0 0 0 3px rgba(124,58,237,.1); }
+.detail-actions { display: flex; gap: 10px; padding: 18px 24px; border-top: 1px solid var(--line); flex-shrink: 0; flex-wrap: wrap; }
+.btn-act {
+    flex: 1; min-width: 120px; padding: 13px; border-radius: 13px; border: none;
+    font-size: 13px; font-weight: 800; display: inline-flex; align-items: center;
+    justify-content: center; gap: 8px; transition: all .2s ease;
+}
+.btn-act.edit { background: linear-gradient(135deg, var(--violet), var(--violet-d)); color: #fff; box-shadow: 0 10px 24px rgba(124,58,237,.3); }
+.btn-act.save { background: linear-gradient(135deg, var(--green), #059669); color: #fff; box-shadow: 0 10px 24px rgba(16,185,129,.3); }
+.btn-act.cancel { background: rgba(109,106,138,.1); color: var(--muted); }
+.btn-act.delete { background: linear-gradient(135deg, var(--rose), #e11d48); color: #fff; box-shadow: 0 10px 24px rgba(244,63,94,.3); }
+.btn-act:active { transform: scale(.97); }
+.btn-act:disabled { opacity: .6; cursor: not-allowed; }
+.confirm-box {
+    background: rgba(255,255,255,.97); border-radius: 24px;
+    width: 100%; max-width: 400px; padding: 30px 26px; text-align: center;
+    box-shadow: 0 40px 100px rgba(30,27,75,.4);
+    transform: scale(.94); transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.overlay.show .confirm-box { transform: scale(1); }
+.confirm-box .warn-icon {
+    width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 16px;
+    background: rgba(244,63,94,.1); color: var(--rose);
+    display: flex; align-items: center; justify-content: center; font-size: 26px;
+}
+.confirm-box h3 { font-size: 17px; font-weight: 900; margin-bottom: 8px; }
+.confirm-box p { font-size: 12.5px; color: var(--muted); margin-bottom: 22px; line-height: 1.6; }
+.confirm-actions { display: flex; gap: 10px; }
+.toast-wrap { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 11000; display: flex; flex-direction: column; gap: 10px; width: calc(100% - 36px); max-width: 400px; }
+.toast {
+    display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+    border-radius: 15px; background: rgba(255,255,255,.97);
+    box-shadow: 0 20px 50px rgba(30,27,75,.25); font-size: 12.5px; font-weight: 700;
+    animation: toastIn .35s cubic-bezier(.34,1.56,.64,1);
+    border: 1px solid rgba(255,255,255,.8);
+}
+.toast.out { animation: toastOut .3s ease forwards; }
+.toast i { font-size: 16px; }
+.toast.success i { color: var(--green); }
+.toast.error i { color: var(--rose); }
+.toast.info i { color: var(--cyan); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(24px) scale(.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(20px) scale(.95); } }
+.loader { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 60px 20px; }
+.spinner { width: 42px; height: 42px; border-radius: 50%; border: 4px solid rgba(124,58,237,.15); border-top-color: var(--violet); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader p { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+@media (max-width: 640px) {
+    .admin-wrap { padding: 20px 12px 60px; }
+    .admin-top { flex-direction: column; align-items: stretch; }
+    .top-actions { justify-content: space-between; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .detail-actions { flex-direction: column; }
+    .panel-head { flex-direction: column; align-items: stretch; }
+    .search-box { max-width: none; }
+    .users-table thead th, .users-table tbody td { padding: 12px 14px; }
+}
+@media (min-width: 641px) and (max-width: 1024px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="page-gate" id="pageGate">
+    <div class="gate-card">
+        <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="lo">
+        <h2>CEO Access</h2>
+        <p>Enter CEO password to unlock administration panel</p>
+        <input type="password" class="gate-input" id="ceoPassInput" placeholder="Enter CEO password" autocomplete="off">
+        <button class="gate-btn" id="ceoPassBtn"><i class="fa-solid fa-lock"></i> Verify</button>
+        <p class="gate-error" id="ceoPassError">Invalid CEO password. Access denied.</p>
+    </div>
+</div>
+
+<div class="admin-wrap hidden" id="adminPanel">
+    <div class="admin-top">
+        <div class="admin-brand">
+            <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy">
+            <div>
+                <h1>Admin Dashboard</h1>
+                <span>IDT Academy &middot; User Management</span>
+            </div>
+        </div>
+        <div class="top-actions">
+            <button class="btn-soft" id="refreshBtn"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            <button class="btn-soft danger" id="lockBtn"><i class="fa-solid fa-lock"></i> Lock Panel</button>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);"><i class="fa-solid fa-users"></i></div>
+            <div><h3 id="statTotal">0</h3><p>Total Users</p></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:linear-gradient(135deg,#f59e0b,#fbbf24);"><i class="fa-solid fa-hourglass-half"></i></div>
+            <div><h3 id="statPending">0</h3><p>Pending</p></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:linear-gradient(135deg,#10b981,#34d399);"><i class="fa-solid fa-circle-check"></i></div>
+            <div><h3 id="statActive">0</h3><p>Active</p></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:linear-gradient(135deg,#06b6d4,#22d3ee);"><i class="fa-solid fa-user-graduate"></i></div>
+            <div><h3 id="statStudents">0</h3><p>Students</p></div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-head">
+            <h2><i class="fa-solid fa-table-list"></i> Registered Users</h2>
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="searchInput" placeholder="Search name or email...">
+            </div>
+        </div>
+        <div id="tableArea">
+            <div class="loader" id="loaderArea">
+                <div class="spinner"></div>
+                <p>Loading users...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="overlay" id="detailOverlay">
+    <div class="detail-card" id="detailCard">
+        <div class="detail-head">
+            <div class="u-avatar" id="dAvatar">?</div>
+            <div>
+                <h3 id="dName">User</h3>
+                <p id="dEmail">email</p>
+            </div>
+            <button class="close-btn" id="closeDetail"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="detail-body">
+            <div class="detail-grid" id="detailGrid"></div>
+        </div>
+        <div class="detail-actions" id="detailActions">
+            <button class="btn-act edit" id="editBtn"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
+            <button class="btn-act delete" id="deleteBtn"><i class="fa-solid fa-trash-can"></i> Delete</button>
+        </div>
+    </div>
+</div>
+
+<div class="overlay" id="confirmOverlay">
+    <div class="confirm-box">
+        <div class="warn-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h3>Delete User Permanently?</h3>
+        <p>This will remove <strong id="confirmName"></strong> and all related data from Supabase. This action cannot be undone.</p>
+        <div class="confirm-actions">
+            <button class="btn-act cancel" id="cancelDelete"><i class="fa-solid fa-xmark"></i> Cancel</button>
+            <button class="btn-act delete" id="confirmDeleteBtn"><i class="fa-solid fa-trash-can"></i> Delete</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script type="module" src="./ceoGet.js"></script>
+</body>
+</html>
