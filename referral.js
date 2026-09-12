@@ -175,8 +175,7 @@ const NIGERIAN_BANKS = [
   { code: '057', name: 'Zenith Bank' }
 ];
 
-const MONNIFY_API_KEY = 'MK_TEST_7FBWHU9H7U';
-const MONNIFY_SECRET_KEY = 'YJV0GE4LT2B1WE4FD4H5XY4ZU6WC2VVJ';
+
 
 let currentUser = null;
 let currentProfile = null;
@@ -267,6 +266,10 @@ function hideAuthGate() {
   if (dash) dash.style.display = 'block';
 }
 
+
+
+
+
 async function verifyAccountNumber(accountNumber, bankCode) {
   const verifyResult = $('accountVerifyResult');
   verifyResult.style.display = 'block';
@@ -274,42 +277,29 @@ async function verifyAccountNumber(accountNumber, bankCode) {
   verifyResult.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying account number...';
 
   try {
-    const authToken = btoa(`${MONNIFY_API_KEY}:${MONNIFY_SECRET_KEY}`);
-    const tokenRes = await fetch('https://api.monnify.com/api/v1/auth/login', {
-      method: 'POST',
-      headers: { Authorization: `Basic ${authToken}`, 'Content-Type': 'application/json' }
-    });
-    const tokenData = await tokenRes.json();
-    if (!tokenData.requestSuccessful) {
-      verifyResult.className = 'verify-badge error';
-      verifyResult.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> Could not verify account at this time. Please try again.';
-      return null;
-    }
-    const accessToken = tokenData.responseBody.accessToken;
-    const validateRes = await fetch(
-      `https://api.monnify.com/api/v1/disbursements/account/validate?accountNumber=${accountNumber}&bankCode=${bankCode}`,
-      {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
-      }
-    );
-    const validateData = await validateRes.json();
+    const response = await fetch(`/api/verify?accountNumber=${accountNumber}&bankCode=${bankCode}`);
+    const validateData = await response.json();
+
     if (validateData.requestSuccessful) {
       const accountName = validateData.responseBody.accountName;
       verifyResult.className = 'verify-badge success';
       verifyResult.innerHTML = `<i class="fa-solid fa-check-circle"></i> Account verified: <b>${escapeHtml(accountName)}</b>`;
       return accountName;
     } else {
+      const apiError = validateData.responseMessage || 'Invalid account details';
       verifyResult.className = 'verify-badge error';
-      verifyResult.innerHTML = '<i class="fa-solid fa-times-circle"></i> Invalid account number. Please check and try again.';
+      verifyResult.innerHTML = `<i class="fa-solid fa-times-circle"></i> ${escapeHtml(apiError)}`;
       return null;
     }
   } catch (err) {
     verifyResult.className = 'verify-badge error';
-    verifyResult.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> Verification service unavailable. Please try again later.';
+    verifyResult.innerHTML = `<i class="fa-solid fa-exclamation-triangle"></i> Error: ${escapeHtml(err.message)}`;
     return null;
   }
 }
+
+
+
 
 function populateBankSelect() {
   const sel = $('wdBankName');
