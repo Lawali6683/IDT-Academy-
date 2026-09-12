@@ -592,18 +592,27 @@ textarea{resize:vertical}
             <input type="number" id="wdAmount" placeholder="Enter amount" min="100" step="100" required style="flex:1">
             <button type="button" id="btnAllBalance" class="btn btn-outline" style="padding:12px 16px;font-size:12px;width:auto;flex-shrink:0"><i class="fa-solid fa-maximize"></i> All</button>
           </div>
-        </div>
-        <div class="form-group">
-          <label for="wdAccountNumber"><i class="fa-solid fa-hashtag"></i> Account Number</label>
-          <input type="text" id="wdAccountNumber" placeholder="Enter 10-digit account number" maxlength="10" inputmode="numeric" pattern="[0-9]{10}" required>
-          <div id="accountVerifyResult" style="display:none"></div>
-        </div>
+                    
+        
+        
         <div class="form-group">
           <label for="wdBankName"><i class="fa-solid fa-building-columns"></i> Select Bank</label>
           <select id="wdBankName" required>
             <option value="" disabled selected>Select a bank</option>
           </select>
         </div>
+        
+                
+        
+        </div>
+        <div class="form-group">
+          <label for="wdAccountNumber"><i class="fa-solid fa-hashtag"></i> Account Number</label>
+          <input type="text" id="wdAccountNumber" placeholder="Enter 10-digit account number" maxlength="10" inputmode="numeric" pattern="[0-9]{10}" required>
+          <div id="accountVerifyResult" style="display:none"></div>
+        </div>
+                       
+        
+        
         <div class="password-group">
           <div class="pg-title"><i class="fa-solid fa-lock"></i> Confirm Your Password</div>
           <div class="form-group">
@@ -1036,6 +1045,6 @@ html {
 
 <div id="toastWrap" class="toast-wrap"></div>
 
-<script type="module" src="referral1.js"></script>
+<script type="module" src="referral.js"></script>
 </body>
 </html>
