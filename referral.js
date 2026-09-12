@@ -157,10 +157,10 @@ const NIGERIAN_BANKS = [
   { code: '50211', name: 'Kuda Bank' },
   { code: '082', name: 'Keystone Bank' },
   { code: '303', name: 'Lotus Bank' },
-  { code: '100004', name: 'OPay' },
+  { code: '999992', name: 'OPay' },
   { code: '50515', name: 'Moniepoint MFB' },
   { code: '526', name: 'Parallex Bank' },
-  { code: '999991', name: 'PalmPay' },
+  { code: '100033', name: 'PalmPay' },
   { code: '101', name: 'Providus Bank' },
   { code: '125', name: 'Rubies MFB' },
   { code: '068', name: 'Standard Chartered Bank' },
@@ -874,7 +874,7 @@ function initOverlays() {
   $('btnWithdrawOpen').addEventListener('click', () => {
     const balance = parseFloat((currentProfile.user_data || {}).referral_bonus) || 0;
     if (balance < 100) {
-      showToast('error', 'Minimum Balance Required', 'You need at least ₦100 to withdraw. Keep sharing your referral link to earn more!');
+      showToast('error', 'Minimum Balance Required', 'You need at least ₦1000 to withdraw. Keep sharing your referral link to earn more!');
       return;
     }
     toggleOverlay('withdrawOverlay', true);
