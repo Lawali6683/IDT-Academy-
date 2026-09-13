@@ -138,7 +138,7 @@ function hideLoading() {
 }
 
 const $ = (id) => document.getElementById(id);
-const toastWrap = $('toastWrap');
+let toastWrap = null;
 
 const PASS_MARK = 3;
 const RETRY_REGULAR_MS = 42 * 60 * 60 * 1000;
@@ -182,13 +182,20 @@ let regDate = null;
 let allCourses = [];
 let statusPollTimer = null;
 
-
-
-
 function escapeHtml(str) {
   return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[ch]));
+}
+
+function ensureToastWrap() {
+  if (!$('toastWrap')) {
+    const w = document.createElement('div');
+    w.id = 'toastWrap';
+    w.className = 'toast-wrap';
+    document.body.appendChild(w);
+  }
+  toastWrap = $('toastWrap');
 }
 
 function removeToast(el) {
@@ -197,6 +204,7 @@ function removeToast(el) {
 }
 
 function showToast(type, title, message, raw) {
+  if (!toastWrap) ensureToastWrap();
   const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
   const el = document.createElement('div');
   el.className = 'toast ' + type;
@@ -213,12 +221,15 @@ function showToast(type, title, message, raw) {
 }
 
 function miniLoad(text) {
-  $('miniLoaderText').textContent = text || 'Please wait...';
-  $('miniLoader').classList.add('open');
+  const t = $('miniLoaderText');
+  const l = $('miniLoader');
+  if (t) t.textContent = text || 'Please wait...';
+  if (l) l.classList.add('open');
 }
 
 function miniHide() {
-  $('miniLoader').classList.remove('open');
+  const l = $('miniLoader');
+  if (l) l.classList.remove('open');
 }
 
 async function copyText(txt) {
@@ -403,7 +414,8 @@ function markWatched(topicIdx) {
   const st = $('videoStatus');
   if (st) {
     st.classList.add('watched');
-    $('videoStatusText').textContent = 'Video watched ✓';
+    const txt = $('videoStatusText');
+    if (txt) txt.textContent = 'Video watched ✓';
   }
 }
 
@@ -415,7 +427,8 @@ function isWatched(topicIdx) {
 function renderSessionClock() {
   const m = Math.floor(sessionSeconds / 60);
   const s = sessionSeconds % 60;
-  $('sessionTime').textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  const el = $('sessionTime');
+  if (el) el.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
 }
 
 function startSessionClock() {
@@ -427,30 +440,36 @@ function startSessionClock() {
   }, 1000);
 }
 
-
-
-
-
 function renderUserIdBadge() {
-  $('userIdName').textContent = (userData && userData.full_name) || 'Student';
-  $('userIdCode').textContent = (userData && (userData.academy_id || userData.academyId)) || '------';
+  const n = $('userIdName');
+  const c = $('userIdCode');
+  if (n) n.textContent = (userData && userData.full_name) || 'Student';
+  if (c) c.textContent = (userData && (userData.academy_id || userData.academyId)) || '------';
 }
-
 
 function renderMenu() {
   const bonus = Number((userData && userData.referral_bonus) || 0);
-  $('smUserName').textContent = (userData && userData.full_name) || 'Student';
-  $('smBonus').textContent = bonus.toFixed(2);
-  $('smReferralExtra').textContent = formatMoney(bonus);
+  const name = $('smUserName');
+  const b = $('smBonus');
+  const extra = $('smReferralExtra');
+  const ref = $('smReferral');
   const link = buildReferralLink();
-  $('smReferral').href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent(userData.referral_code || '');
-  $('pendingReferLink').textContent = link;
-  $('pendingReferLink').title = link;
+  if (name) name.textContent = (userData && userData.full_name) || 'Student';
+  if (b) b.textContent = bonus.toFixed(2);
+  if (extra) extra.textContent = formatMoney(bonus);
+  if (ref && user) ref.href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent((userData && userData.referral_code) || '');
+  const prl = $('pendingReferLink');
+  if (prl) {
+    prl.textContent = link;
+    prl.title = link;
+  }
 }
 
 function renderUserGreet() {
-  $('userFullName').textContent = (userData && userData.full_name) || 'Student';
-  $('userCourseName').textContent = 'Course: ' + ((userData && userData.course_name) || 'Loading...');
+  const n = $('userFullName');
+  const c = $('userCourseName');
+  if (n) n.textContent = (userData && userData.full_name) || 'Student';
+  if (c) c.textContent = 'Course: ' + ((userData && userData.course_name) || 'Loading...');
 }
 
 async function loadAd() {
@@ -461,6 +480,7 @@ async function loadAd() {
     if (error) throw error;
     adList = (data || []).filter((r) => r.ad_image && r.ad_link);
     const box = $('adBox');
+    if (!box) return;
     if (adList.length === 0) {
       box.classList.add('hidden');
       return;
@@ -473,15 +493,15 @@ async function loadAd() {
       showAdSlide(adIdx);
     }, 10000);
   } catch (err) {
-    $('adBox').classList.add('hidden');
+    const box = $('adBox');
+    if (box) box.classList.add('hidden');
   }
 }
 
 function showAdSlide(i) {
-  const box = $('adBox');
   const img = $('adImage');
   const row = adList[i];
-  if (!row) return;
+  if (!row || !img) return;
   window._adtLink = row.ad_link;
   img.classList.add('fade');
   setTimeout(() => {
@@ -562,6 +582,7 @@ function categoryLabel(cat) {
 
 function renderCoursePush() {
   const body = $('pnBody');
+  if (!body) return;
   if (!allCourses.length) {
     body.innerHTML = '<div class="pn-empty"><i class="fa-solid fa-circle-info"></i> No courses are available right now. Please check back later.</div>';
     return;
@@ -598,11 +619,13 @@ function renderCoursePush() {
 
 function openCoursePush() {
   renderCoursePush();
-  $('coursePush').classList.add('open');
+  const p = $('coursePush');
+  if (p) p.classList.add('open');
 }
 
 function closeCoursePush() {
-  $('coursePush').classList.remove('open');
+  const p = $('coursePush');
+  if (p) p.classList.remove('open');
 }
 
 async function chooseCourse(courseId) {
@@ -655,7 +678,8 @@ async function chooseCourse(courseId) {
     courseList = collectCourses(userData);
     renderPendingGate();
     closeCoursePush();
-    $('pendingGate').classList.add('open');
+    const gate = $('pendingGate');
+    if (gate) gate.classList.add('open');
     showToast('success', 'Course Selected ✓', 'You selected ' + userData.course_name + ' for ' + formatMoney(userData.course_price) + '. Tap Pay Now to complete your payment.');
   } catch (err) {
     showToast('error', 'Selection Failed', 'Could not select this course. Please try again.', err.message || String(err));
@@ -674,18 +698,24 @@ async function chooseCourse(courseId) {
 
 function renderPendingGate() {
   const course = getPrimaryCourse();
-  $('pendingStudentName').textContent = (userData && userData.full_name) || 'Student';
-  $('pendingCourseName').textContent = course.course_name || 'Selected Course';
-  $('pendingCourseNumber').textContent = course.course_number || '000';
-  $('pendingPrice').textContent = formatMoney(course.course_price || 0);
+  const sn = $('pendingStudentName');
+  const cn = $('pendingCourseName');
+  const cnum = $('pendingCourseNumber');
+  const pr = $('pendingPrice');
+  if (sn) sn.textContent = (userData && userData.full_name) || 'Student';
+  if (cn) cn.textContent = course.course_name || 'Selected Course';
+  if (cnum) cnum.textContent = course.course_number || '000';
+  if (pr) pr.textContent = formatMoney(course.course_price || 0);
   const info = courseInfoMap[course.course_id] || {};
-  if (info.image_url && $('pendingCourseImg')) {
-    $('pendingCourseImg').src = info.image_url;
+  const img = $('pendingCourseImg');
+  if (info.image_url && img) {
+    img.src = info.image_url;
   }
 }
 
 function renderCourseSwitch() {
   const wrap = $('courseSwitch');
+  if (!wrap) return;
   if (courseList.length <= 1) {
     wrap.classList.add('hidden');
     wrap.innerHTML = '';
@@ -725,16 +755,16 @@ async function selectCourse(courseId) {
   if (lv === 'final' && currentTopics.length) {
     currentTopicIdx = currentTopics.length - 1;
   }
+  const topicCard = $('topicCard');
+  const emptyState = $('emptyState');
   if (currentTopics.length === 0) {
-    $('topicCard').classList.add('hidden');
-    $('emptyState').classList.remove('hidden');
-    $('progressCount').textContent = '0/0';
-    $('progressPct').textContent = '0%';
-    $('progressFill').style.width = '0%';
+    if (topicCard) topicCard.classList.add('hidden');
+    if (emptyState) emptyState.classList.remove('hidden');
+    renderProgress();
     return;
   }
-  $('emptyState').classList.add('hidden');
-  $('topicCard').classList.remove('hidden');
+  if (emptyState) emptyState.classList.add('hidden');
+  if (topicCard) topicCard.classList.remove('hidden');
   renderProgress();
   renderTopic();
   showToast('success', 'Course Loaded', 'Welcome to ' + ((courseInfoMap[courseId] || {}).course_name || 'your course') + '. Happy learning!');
@@ -744,33 +774,41 @@ function renderProgress() {
   const total = currentTopics.length;
   const arr = watchedMap[activeCourseId] || [];
   let completed = arr.length;
-  const lv = String(userData.level_completed || '');
+  const lv = String((userData && userData.level_completed) || '');
   if (lv === 'final') completed = total;
   if (typeof readingHistory[activeCourseId] === 'number') {
     completed = Math.max(completed, Math.min(readingHistory[activeCourseId], total));
   }
   const pct = total ? Math.round((completed / total) * 100) : 0;
-  $('progressCount').textContent = completed + '/' + total;
-  $('progressPct').textContent = pct + '%';
-  $('progressFill').style.width = pct + '%';
+  const pc = $('progressCount');
+  const pp = $('progressPct');
+  const pf = $('progressFill');
+  if (pc) pc.textContent = completed + '/' + total;
+  if (pp) pp.textContent = pct + '%';
+  if (pf) pf.style.width = pct + '%';
   const badge = $('levelBadge');
-  if (lv === 'final') {
-    badge.className = 'level-badge final';
-    badge.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Final Level Completed';
-  } else {
-    badge.className = 'level-badge studying';
-    badge.innerHTML = '<i class="fa-solid fa-book-open"></i> Studying • Topic ' + (currentTopicIdx + 1) + '/' + total;
+  if (badge) {
+    if (lv === 'final') {
+      badge.className = 'level-badge final';
+      badge.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Final Level Completed';
+    } else {
+      badge.className = 'level-badge studying';
+      badge.innerHTML = '<i class="fa-solid fa-book-open"></i> Studying • Topic ' + (currentTopicIdx + 1) + '/' + total;
+    }
   }
   const banner = $('completeBanner');
-  if (lv === 'final') {
-    banner.classList.remove('hidden');
-  } else {
-    banner.classList.add('hidden');
+  if (banner) {
+    if (lv === 'final') {
+      banner.classList.remove('hidden');
+    } else {
+      banner.classList.add('hidden');
+    }
   }
 }
 
 function renderDiplomaLock() {
   const lock = $('videoLock');
+  if (!lock) return false;
   const idx = currentTopicIdx;
   const weeks = regDate ? weeksSince(regDate) : 0;
   if (idx > weeks) {
@@ -780,8 +818,10 @@ function renderDiplomaLock() {
     const h = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
     const m = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
     lock.classList.remove('hidden');
-    $('videoLockTitle').textContent = 'This Topic Unlocks Later';
-    $('videoLockMsg').textContent = 'Diploma lessons open one per week to help you learn step by step. Unlocks in ' + d + 'd ' + h + 'h ' + m + 'm.';
+    const t = $('videoLockTitle');
+    const msg = $('videoLockMsg');
+    if (t) t.textContent = 'This Topic Unlocks Later';
+    if (msg) msg.textContent = 'Diploma lessons open one per week to help you learn step by step. Unlocks in ' + d + 'd ' + h + 'h ' + m + 'm.';
     return true;
   }
   lock.classList.add('hidden');
@@ -793,50 +833,64 @@ function renderTopic() {
   currentTopic = currentTopics[currentTopicIdx];
   const total = currentTopics.length;
   const isFinalTopic = currentTopicIdx === total - 1;
-  $('topicNumber').textContent = currentTopicIdx + 1;
-  $('topicNumLabel').textContent = currentTopicIdx + 1;
-  $('topicTotalLabel').textContent = total;
-  $('topicName').textContent = currentTopic.topic_name || ('Topic ' + (currentTopicIdx + 1));
+  const num = $('topicNumber');
+  const numL = $('topicNumLabel');
+  const totalL = $('topicTotalLabel');
+  const name = $('topicName');
+  if (num) num.textContent = currentTopicIdx + 1;
+  if (numL) numL.textContent = currentTopicIdx + 1;
+  if (totalL) totalL.textContent = total;
+  if (name) name.textContent = currentTopic.topic_name || ('Topic ' + (currentTopicIdx + 1));
   const badge = $('topicBadge');
-  if (currentTopic.is_final === true || isFinalTopic) {
-    badge.className = 'th-badge final';
-    badge.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Final Topic';
-  } else {
-    badge.className = 'th-badge';
-    badge.innerHTML = '';
+  if (badge) {
+    if (currentTopic.is_final === true || isFinalTopic) {
+      badge.className = 'th-badge final';
+      badge.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Final Topic';
+    } else {
+      badge.className = 'th-badge';
+      badge.innerHTML = '';
+    }
   }
-  $('topicText').textContent = currentTopic.topic_text || '';
-  $('topicNumber').classList.toggle('final-num', currentTopic.is_final === true || isFinalTopic);
+  const txt = $('topicText');
+  if (txt) txt.textContent = currentTopic.topic_text || '';
+  if (num) num.classList.toggle('final-num', currentTopic.is_final === true || isFinalTopic);
   renderVideo();
   const watched = isWatched(currentTopicIdx);
   videoWatched = watched;
   const st = $('videoStatus');
-  if (watched) {
-    st.classList.add('watched');
-    $('videoStatusText').textContent = 'Video watched ✓';
-  } else {
-    st.classList.remove('watched');
-    $('videoStatusText').textContent = currentTopic.video_url ? 'Video not watched yet' : 'No video for this topic';
+  const stTxt = $('videoStatusText');
+  if (st && stTxt) {
+    if (watched) {
+      st.classList.add('watched');
+      stTxt.textContent = 'Video watched ✓';
+    } else {
+      st.classList.remove('watched');
+      stTxt.textContent = currentTopic.video_url ? 'Video not watched yet' : 'No video for this topic';
+    }
   }
   const btnNext = $('btnNextTopic');
-  if (isFinalTopic) {
-    btnNext.textContent = 'Finish Course';
-    btnNext.classList.add('finish');
-  } else {
-    btnNext.textContent = 'Next';
-    btnNext.classList.remove('finish');
+  if (btnNext) {
+    if (isFinalTopic) {
+      btnNext.textContent = 'Finish Course';
+      btnNext.classList.add('finish');
+    } else {
+      btnNext.textContent = 'Next';
+      btnNext.classList.remove('finish');
+    }
+    if (diplomaMode && currentTopicIdx > weeksSince(regDate)) {
+      btnNext.disabled = true;
+    } else {
+      btnNext.disabled = false;
+    }
   }
-  $('btnPrevTopic').disabled = currentTopicIdx === 0;
-  if (diplomaMode && currentTopicIdx > weeksSince(regDate)) {
-    $('btnNextTopic').disabled = true;
-  } else {
-    $('btnNextTopic').disabled = false;
-  }
+  const btnPrev = $('btnPrevTopic');
+  if (btnPrev) btnPrev.disabled = currentTopicIdx === 0;
   renderProgress();
 }
 
 function renderVideo() {
   const wrap = $('videoWrap');
+  if (!wrap) return;
   wrap.innerHTML = '';
   if (videoWatchTimer) clearInterval(videoWatchTimer);
   videoWatchTimer = null;
@@ -845,7 +899,8 @@ function renderVideo() {
     if (locked) return;
   }
   const url = (currentTopic && currentTopic.video_url) || '';
-  $('videoLock').classList.add('hidden');
+  const lock = $('videoLock');
+  if (lock) lock.classList.add('hidden');
   if (!url) {
     const ph = document.createElement('div');
     ph.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#94a3b8;background:#0b0d1a;text-align:center;padding:20px';
@@ -923,11 +978,13 @@ function topicNeedsWatch(idx) {
 }
 
 function openUnderstandModal() {
-  $('understandModal').classList.add('open');
+  const m = $('understandModal');
+  if (m) m.classList.add('open');
 }
 
 function closeUnderstandModal() {
-  $('understandModal').classList.remove('open');
+  const m = $('understandModal');
+  if (m) m.classList.remove('open');
 }
 
 async function advanceTopic() {
@@ -970,8 +1027,10 @@ async function finishCourse() {
   }
   renderProgress();
   const msg = 'You have completed all ' + total + ' topics in ' + ((courseInfoMap[activeCourseId] || {}).course_name || 'this course') + '. You are now ready for the final exam to earn your certificate.';
-  $('completionMsg').textContent = msg;
-  $('completionModal').classList.add('open');
+  const m = $('completionMsg');
+  if (m) m.textContent = msg;
+  const modal = $('completionModal');
+  if (modal) modal.classList.add('open');
 }
 
 async function handleReady() {
@@ -1012,30 +1071,37 @@ function formatDuration(ms) {
 async function openAssessment(batch) {
   const startIdx = batch - ASSESS_BATCH_SIZE;
   const batchTopics = currentTopics.slice(Math.max(0, startIdx), batch);
-  $('assessTopicsList').innerHTML = batchTopics.map((t) =>
-    '<div class="ai-topic"><i class="fa-solid fa-circle-check"></i> Topic ' + (t.topic_number || '') + ': ' + escapeHtml(t.topic_name || '') + '</div>'
-  ).join('');
-  $('assessTitle').textContent = 'Assessment • Topics ' + (startIdx + 1) + ' - ' + batch;
+  const list = $('assessTopicsList');
+  if (list) {
+    list.innerHTML = batchTopics.map((t) =>
+      '<div class="ai-topic"><i class="fa-solid fa-circle-check"></i> Topic ' + (t.topic_number || '') + ': ' + escapeHtml(t.topic_name || '') + '</div>'
+    ).join('');
+  }
+  const title = $('assessTitle');
+  if (title) title.textContent = 'Assessment • Topics ' + (startIdx + 1) + ' - ' + batch;
   const key = activeCourseId + '_' + batch;
   const failTs = lastAssessFail[key];
+  const btn = $('btnStartAssessment');
   if (failTs) {
     const waitMs = diplomaMode ? RETRY_DIPLOMA_MS : RETRY_REGULAR_MS;
     const remain = failTs + waitMs - Date.now();
-    if (remain > 0) {
-      const btn = $('btnStartAssessment');
+    if (remain > 0 && btn) {
       btn.disabled = true;
       btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Retry In ' + formatDuration(remain);
       showToast('info', 'Assessment Locked', 'You can retry in ' + formatDuration(remain) + '. Read the topics again and come back.', '');
     }
-  } else {
-    const btn = $('btnStartAssessment');
+  } else if (btn) {
     btn.disabled = false;
     btn.innerHTML = '<i class="fa-solid fa-play"></i> Start Assessment';
   }
-  $('assessIntro').classList.remove('hidden');
-  $('assessQuiz').classList.add('hidden');
-  $('assessResult').classList.add('hidden');
-  $('assessmentOverlay').classList.add('open');
+  const intro = $('assessIntro');
+  const quiz = $('assessQuiz');
+  const result = $('assessResult');
+  const overlay = $('assessmentOverlay');
+  if (intro) intro.classList.remove('hidden');
+  if (quiz) quiz.classList.add('hidden');
+  if (result) result.classList.add('hidden');
+  if (overlay) overlay.classList.add('open');
   window._assessBatch = batch;
 }
 
@@ -1070,13 +1136,17 @@ async function startAssessmentFlow() {
       flags: 0,
       stream: null,
       assessmentId: res.assessment_id || ('as_' + Date.now()),
-      batch: batch
+      batch: batch,
+      submitted: false
     };
     const camOk = await startCamera();
     if (!camOk) return;
-    $('assessIntro').classList.add('hidden');
-    $('assessResult').classList.add('hidden');
-    $('assessQuiz').classList.remove('hidden');
+    const intro = $('assessIntro');
+    const result = $('assessResult');
+    const quiz = $('assessQuiz');
+    if (intro) intro.classList.add('hidden');
+    if (result) result.classList.add('hidden');
+    if (quiz) quiz.classList.remove('hidden');
     renderQuestion();
     startQuizTimer();
     attachAntiCheat();
@@ -1095,15 +1165,16 @@ async function startCamera() {
       throw new Error('Camera not supported on this device');
     }
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } }, audio: false });
-    quizState.stream = stream;
-    video.srcObject = stream;
-    await video.play().catch(() => {});
-    lock.classList.add('hidden');
+    if (quizState) quizState.stream = stream;
+    if (video) video.srcObject = stream;
+    if (video) await video.play().catch(() => {});
+    if (lock) lock.classList.add('hidden');
     return true;
   } catch (err) {
     miniHide();
     showToast('error', 'Camera Required', 'Please allow camera access to take this assessment.', err.message || String(err));
-    $('quizCamLockMsg').textContent = 'Camera access is required so we can verify you take the assessment honestly. Please allow camera and try again.';
+    const msg = $('quizCamLockMsg');
+    if (msg) msg.textContent = 'Camera access is required so we can verify you take the assessment honestly. Please allow camera and try again.';
     return false;
   }
 }
@@ -1114,22 +1185,29 @@ function stopCamera() {
     quizState.stream = null;
   }
   const video = $('quizCam');
-  if (video.srcObject) {
+  if (video && video.srcObject) {
     video.srcObject = null;
   }
-  $('quizCamLock').classList.remove('hidden');
-  $('quizCamLockMsg').textContent = 'Camera stopped. You can close this assessment.';
+  const lock = $('quizCamLock');
+  const msg = $('quizCamLockMsg');
+  if (lock) lock.classList.remove('hidden');
+  if (msg) msg.textContent = 'Camera stopped. You can close this assessment.';
 }
 
 function renderQuestion() {
+  if (!quizState) return;
   const q = quizState.questions[quizState.currentQ];
   if (!q) return;
   const card = $('questionCard');
+  if (!card) return;
   const totalQ = quizState.questions.length;
   const isLast = quizState.currentQ === totalQ - 1;
-  $('btnPrevQ').disabled = quizState.currentQ === 0;
-  $('btnNextQ').classList.toggle('hidden', isLast);
-  $('btnSubmitQuiz').classList.toggle('hidden', !isLast);
+  const btnPrev = $('btnPrevQ');
+  const btnNext = $('btnNextQ');
+  const btnSubmit = $('btnSubmitQuiz');
+  if (btnPrev) btnPrev.disabled = quizState.currentQ === 0;
+  if (btnNext) btnNext.classList.toggle('hidden', isLast);
+  if (btnSubmit) btnSubmit.classList.toggle('hidden', !isLast);
   let optionsHtml = '';
   if (q.type === 'write' || !Array.isArray(q.options) || q.options.length === 0) {
     const val = escapeHtml(quizState.answers[quizState.currentQ] || '');
@@ -1165,20 +1243,25 @@ function renderQuestion() {
 }
 
 function startQuizTimer() {
+  if (!quizState) return;
   if (quizState.timer) clearInterval(quizState.timer);
   quizState.timer = setInterval(() => {
+    if (!quizState) { clearInterval(window.__quizTimerRef); return; }
     quizState.secondsLeft--;
     const m = Math.floor(quizState.secondsLeft / 60);
     const s = quizState.secondsLeft % 60;
-    $('quizTimer').querySelector('span').textContent = m + ':' + String(s).padStart(2, '0');
-    if (quizState.secondsLeft <= 60) {
-      $('quizTimer').classList.add('danger');
+    const timerEl = $('quizTimer');
+    if (timerEl) {
+      const span = timerEl.querySelector('span');
+      if (span) span.textContent = m + ':' + String(s).padStart(2, '0');
+      if (quizState.secondsLeft <= 60) timerEl.classList.add('danger');
     }
     if (quizState.secondsLeft <= 0) {
       clearInterval(quizState.timer);
       submitQuiz(true);
     }
   }, 1000);
+  window.__quizTimerRef = quizState.timer;
 }
 
 function attachAntiCheat() {
@@ -1315,29 +1398,39 @@ async function submitQuiz(timedOut) {
 }
 
 function showResult(score, pct, passed, results, timedOut, message) {
-  $('assessQuiz').classList.add('hidden');
-  $('assessResult').classList.remove('hidden');
+  const quiz = $('assessQuiz');
+  const result = $('assessResult');
+  if (quiz) quiz.classList.add('hidden');
+  if (result) result.classList.remove('hidden');
   const ring = $('scoreRing');
   const deg = Math.round((pct / 100) * 360);
-  ring.style.background = 'conic-gradient(' + (passed ? 'var(--green)' : 'var(--rose)') + ' ' + deg + 'deg, rgba(124,58,237,.1) ' + deg + 'deg)';
-  $('scorePct').textContent = pct + '%';
+  if (ring) ring.style.background = 'conic-gradient(' + (passed ? 'var(--green)' : 'var(--rose)') + ' ' + deg + 'deg, rgba(124,58,237,.1) ' + deg + 'deg)';
+  const pctEl = $('scorePct');
+  if (pctEl) pctEl.textContent = pct + '%';
   const head = $('resultHead');
-  if (passed) {
-    head.textContent = 'Congratulations! 🎉';
-    head.className = 'result-head pass';
-    $('resultSub').textContent = message || 'You passed this assessment. Excellent work! You can continue learning.';
-  } else {
-    head.textContent = 'Almost There!';
-    head.className = 'result-head fail';
-    $('resultSub').textContent = message || 'You scored below the pass mark (' + PASS_MARK + '/' + (quizState.questions.length || 5) + '). Read the topics again and retry.';
+  if (head) {
+    if (passed) {
+      head.textContent = 'Congratulations! 🎉';
+      head.className = 'result-head pass';
+    } else {
+      head.textContent = 'Almost There!';
+      head.className = 'result-head fail';
+    }
   }
-  const totalQ = quizState.questions.length || 5;
-  $('resultSummary').innerHTML =
-    '<div class="rs-row"><span>Total Questions</span><b>' + totalQ + '</b></div>' +
-    '<div class="rs-row"><span>Correct Answers</span><b class="ok">' + (results.filter((r) => r.is_correct === true).length || score) + '</b></div>' +
-    '<div class="rs-row"><span>Wrong Answers</span><b class="bad">' + (results.filter((r) => r.is_correct === false).length || Math.max(0, totalQ - score)) + '</b></div>' +
-    '<div class="rs-row"><span>Pass Mark</span><b>' + PASS_MARK + ' / ' + totalQ + '</b></div>' +
-    '<div class="rs-row"><span>Time Used</span><b>' + Math.max(0, 240 - quizState.secondsLeft) + 's</b></div>';
+  const sub = $('resultSub');
+  if (sub) {
+    sub.textContent = message || (passed ? 'You passed this assessment. Excellent work! You can continue learning.' : 'You scored below the pass mark (' + PASS_MARK + '/' + (quizState ? quizState.questions.length : 5) + '). Read the topics again and retry.');
+  }
+  const totalQ = (quizState && quizState.questions.length) || 5;
+  const summary = $('resultSummary');
+  if (summary) {
+    summary.innerHTML =
+      '<div class="rs-row"><span>Total Questions</span><b>' + totalQ + '</b></div>' +
+      '<div class="rs-row"><span>Correct Answers</span><b class="ok">' + (results.filter((r) => r.is_correct === true).length || score) + '</b></div>' +
+      '<div class="rs-row"><span>Wrong Answers</span><b class="bad">' + (results.filter((r) => r.is_correct === false).length || Math.max(0, totalQ - score)) + '</b></div>' +
+      '<div class="rs-row"><span>Pass Mark</span><b>' + PASS_MARK + ' / ' + totalQ + '</b></div>' +
+      '<div class="rs-row"><span>Time Used</span><b>' + Math.max(0, 240 - (quizState ? quizState.secondsLeft : 0)) + 's</b></div>';
+  }
   let listHtml = '';
   results.forEach((r, i) => {
     const ok = r.is_correct === true;
@@ -1353,15 +1446,16 @@ function showResult(score, pct, passed, results, timedOut, message) {
       (r.explanation ? '<div class="ri-explain"><b><i class="fa-solid fa-lightbulb"></i> Explanation:</b> ' + escapeHtml(r.explanation) + '</div>' : '') +
       '</div>';
   });
-  $('resultList').innerHTML = listHtml || '<div class="result-item">No detailed breakdown available.</div>';
+  const list = $('resultList');
+  if (list) list.innerHTML = listHtml || '<div class="result-item">No detailed breakdown available.</div>';
   const btnGoExam = $('btnGoExam');
   const btnCont = $('btnContinueStudy');
-  const lv = String(userData.level_completed || '');
+  const lv = String((userData && userData.level_completed) || '');
   const atFinal = currentTopicIdx >= currentTopics.length - 1;
-  if (passed && atFinal) {
+  if (passed && atFinal && btnGoExam && btnCont) {
     btnCont.classList.add('hidden');
     btnGoExam.classList.remove('hidden');
-  } else {
+  } else if (btnGoExam && btnCont) {
     btnCont.classList.remove('hidden');
     btnGoExam.classList.add('hidden');
   }
@@ -1641,6 +1735,7 @@ function markdownToHtml(md) {
 
 function addChatMessage(role, content) {
   const msgs = $('chatMsgs');
+  if (!msgs) return null;
   const div = document.createElement('div');
   div.className = 'chat-bubble ' + role;
   if (role === 'ai') {
@@ -1655,6 +1750,7 @@ function addChatMessage(role, content) {
 
 function addTypingIndicator() {
   const msgs = $('chatMsgs');
+  if (!msgs) return null;
   const div = document.createElement('div');
   div.className = 'chat-typing';
   div.innerHTML = '<span></span><span></span><span></span>';
@@ -1671,10 +1767,12 @@ function saveChatHistory() {
 async function handleChatSubmit(e) {
   e.preventDefault();
   const input = $('chatInput');
+  const send = $('chatSend');
+  if (!input || !send) return;
   const q = input.value.trim();
   if (!q) return;
   input.value = '';
-  $('chatSend').disabled = true;
+  send.disabled = true;
   addChatMessage('user', q);
   const history = (chatHistories[activeCourseId] || []).slice(-8);
   const typing = addTypingIndicator();
@@ -1690,22 +1788,23 @@ async function handleChatSubmit(e) {
       preferred_lang: getPreferredLang()
     });
     const answer = res.answer || res.message || 'Sorry, I could not answer that. Please try again.';
-    typing.remove();
+    if (typing) typing.remove();
     addChatMessage('ai', answer);
     history.push({ role: 'user', content: q.slice(0, 600) });
     history.push({ role: 'assistant', content: answer.slice(0, 2000) });
     chatHistories[activeCourseId] = history;
     saveChatHistory();
   } catch (err) {
-    typing.remove();
+    if (typing) typing.remove();
     addChatMessage('ai', 'I am having trouble connecting right now. Please try again in a moment. (' + (err.message || 'error') + ')');
   }
-  $('chatSend').disabled = false;
-  $('chatInput').focus();
+  send.disabled = false;
+  input.focus();
 }
 
 function openChat() {
   const msgs = $('chatMsgs');
+  if (!msgs) return;
   msgs.innerHTML = '';
   addChatMessage('ai', 'Hello **' + escapeHtml((userData && userData.full_name) || 'student') + '**! 👋\n\nI am your **IDT Academy Teacher**. Ask me anything about the topic you are reading. You can ask in any language — Hausa, Yoruba, Igbo, French, Spanish, English and more.\n\nExample: *"Explain the difference between RAM and ROM with examples."*');
   const hist = chatHistories[activeCourseId] || [];
@@ -1713,17 +1812,27 @@ function openChat() {
     if (m.role === 'user') addChatMessage('user', m.content);
     if (m.role === 'assistant') addChatMessage('ai', m.content);
   });
-  $('chatOverlay').classList.add('open');
-  setTimeout(() => $('chatInput').focus(), 300);
+  const overlay = $('chatOverlay');
+  if (overlay) overlay.classList.add('open');
+  setTimeout(() => {
+    const input = $('chatInput');
+    if (input) input.focus();
+  }, 300);
 }
 
 async function handleExplain(lang) {
   if (!currentTopic) return;
-  $('langGrid').classList.add('hidden');
-  $('otherLangRow').classList.add('hidden');
-  $('explainResult').classList.add('hidden');
-  $('explainResult').innerHTML = '';
-  $('explainNote').textContent = '';
+  const grid = $('langGrid');
+  const otherRow = $('otherLangRow');
+  const result = $('explainResult');
+  const note = $('explainNote');
+  if (grid) grid.classList.add('hidden');
+  if (otherRow) otherRow.classList.add('hidden');
+  if (result) {
+    result.classList.add('hidden');
+    result.innerHTML = '';
+  }
+  if (note) note.textContent = '';
   miniLoad('Explaining in ' + lang + '...');
   try {
     const res = await explainText({
@@ -1735,12 +1844,16 @@ async function handleExplain(lang) {
       target_lang: lang
     });
     const explanation = res.explanation || res.message || 'No explanation returned.';
-    const result = $('explainResult');
-    result.innerHTML = '<b style="display:block;color:#a78bfa;margin-bottom:8px"><i class="fa-solid fa-language"></i> Explanation in ' + escapeHtml(lang) + '</b>' + markdownToHtml(explanation);
-    result.classList.remove('hidden');
-    $('explainNote').textContent = 'You can also ask questions about this explanation using "Ask Question".';
-    if (res.lang_detected || res.language) {
-      $('explainNote').textContent = 'Explained in ' + res.language + '. You can ask more questions with "Ask Question".';
+    if (result) {
+      result.innerHTML = '<b style="display:block;color:#a78bfa;margin-bottom:8px"><i class="fa-solid fa-language"></i> Explanation in ' + escapeHtml(lang) + '</b>' + markdownToHtml(explanation);
+      result.classList.remove('hidden');
+    }
+    if (note) {
+      if (res.lang_detected || res.language) {
+        note.textContent = 'Explained in ' + res.language + '. You can ask more questions with "Ask Question".';
+      } else {
+        note.textContent = 'You can also ask questions about this explanation using "Ask Question".';
+      }
     }
     setPreferredLang(lang);
     miniHide();
@@ -1768,18 +1881,19 @@ function getPrimaryCourse() {
   };
 }
 
-
-
-
 function startCountdown() {
+  if (!paymentState) return;
   if (paymentState.timer) clearInterval(paymentState.timer);
   paymentState.timer = setInterval(() => {
+    if (!paymentState) return;
     const remain = paymentState.endTime - Date.now();
     if (remain <= 0) {
       clearInterval(paymentState.timer);
       paymentState.timer = null;
-      $('paymentOverlay').classList.remove('open');
-      $('pendingGate').classList.add('open');
+      const po = $('paymentOverlay');
+      const pg = $('pendingGate');
+      if (po) po.classList.remove('open');
+      if (pg) pg.classList.add('open');
       showToast('error', 'Payment Expired', 'The payment window expired. Please tap Pay Now to create a new one.', '');
       return;
     }
@@ -1790,16 +1904,12 @@ function startCountdown() {
   }, 1000);
 }
 
-
-
 function stopStatusPolling() {
   if (statusPollTimer) {
     clearInterval(statusPollTimer);
     statusPollTimer = null;
   }
 }
-
-
 
 function startStatusPolling() {
   stopStatusPolling();
@@ -1812,8 +1922,10 @@ function startStatusPolling() {
           if (paymentState.timer) clearInterval(paymentState.timer);
           paymentState.verified = true;
         }
-        $('paymentOverlay').classList.remove('open');
-        $('pendingGate').classList.remove('open');
+        const po = $('paymentOverlay');
+        const pg = $('pendingGate');
+        if (po) po.classList.remove('open');
+        if (pg) pg.classList.remove('open');
         stopAllPayLinks();
         confetti();
         showToast('success', 'Payment Confirmed! 🎉', 'Congratulations! Your payment was successful. Your dashboard is now unlocked.', '');
@@ -1832,45 +1944,15 @@ function startVerifyPolling() {
       return;
     }
     try {
-      const res = await verifyPayment({ user_id: user.id });
-      if (res.paid === true || res.status === 'active') {
-        clearInterval(poll);
-        paymentState.verified = true;
-        if (paymentState.timer) clearInterval(paymentState.timer);
-        $('paymentOverlay').classList.remove('open');
-        $('pendingGate').classList.remove('open');
-        stopStatusPolling();
-        stopAllPayLinks();
-        confetti();
-        showToast('success', 'Payment Confirmed! 🎉', 'Congratulations! Your payment was successful. Your dashboard is now unlocked.', '');
-        await loadDashboard();
-      }
-    } catch (err) {}
-  }, 20000);
-}
-
-function stopAllPayLinks() {
-  const box = $('payTransferLinkBox');
-  if (box) box.remove();
-}
-
-
-
-function startVerifyPolling() {
-  let tries = 0;
-  const poll = setInterval(async () => {
-    tries++;
-    if (!paymentState || paymentState.verified || tries > 90) {
-      clearInterval(poll);
-      return;
-    }
-    try {
       const res = await verifyPayment({ reference: paymentState.reference, user_id: user.id });
       if (res.status === 'active' || res.paid === true) {
         clearInterval(poll);
         paymentState.verified = true;
         if (paymentState.timer) clearInterval(paymentState.timer);
-        $('paymentOverlay').classList.remove('open');
+        const po = $('paymentOverlay');
+        const pg = $('pendingGate');
+        if (po) po.classList.remove('open');
+        if (pg) pg.classList.remove('open');
         stopStatusPolling();
         stopAllPayLinks();
         confetti();
@@ -1885,10 +1967,6 @@ function stopAllPayLinks() {
   const box = $('payTransferLinkBox');
   if (box) box.remove();
 }
-
-
-
-
 
 async function startPayment() {
   const course = getPrimaryCourse();
@@ -1899,6 +1977,7 @@ async function startPayment() {
     return;
   }
   const payBtn = $('btnPayNow');
+  if (!payBtn) return;
   const oldBtnHtml = payBtn.innerHTML;
   payBtn.disabled = true;
   payBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
@@ -1929,16 +2008,24 @@ async function startPayment() {
       verified: false
     };
 
-    $('payAmount').textContent = formatMoney(amount);
-    $('payAccountNumber').textContent = accountNumber || 'See Paystack page';
-    $('payAccountName').textContent = accountName;
-    if ($('payBankName')) $('payBankName').textContent = bankName || '';
-    if ($('payReference')) {
-      $('payReference').childNodes[0].nodeValue = reference;
-      $('payReference').querySelector('small').textContent = 'Use this reference when making your transfer';
+    const amt = $('payAmount');
+    const accNum = $('payAccountNumber');
+    const accName = $('payAccountName');
+    const bank = $('payBankName');
+    const refEl = $('payReference');
+    if (amt) amt.textContent = formatMoney(amount);
+    if (accNum) accNum.textContent = accountNumber || 'See Paystack page';
+    if (accName) accName.textContent = accountName;
+    if (bank) bank.textContent = bankName || '';
+    if (refEl && refEl.childNodes[0]) {
+      refEl.childNodes[0].nodeValue = reference;
+      const small = refEl.querySelector('small');
+      if (small) small.textContent = 'Use this reference when making your transfer';
     }
-    if ($('btnCopyAccount')) $('btnCopyAccount').dataset.copy = accountNumber;
-    if ($('btnCopyRef')) $('btnCopyRef').dataset.copy = reference;
+    const btnAcc = $('btnCopyAccount');
+    const btnRef = $('btnCopyRef');
+    if (btnAcc) btnAcc.dataset.copy = accountNumber;
+    if (btnRef) btnRef.dataset.copy = reference;
 
     const oldBox = $('payTransferLinkBox');
     if (oldBox) oldBox.remove();
@@ -1953,12 +2040,17 @@ async function startPayment() {
       inner += '<a id="payOpenLink" href="' + escapeHtml(authUrl) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;padding:12px 22px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;font-size:13px;font-weight:800;text-decoration:none;box-shadow:0 10px 24px rgba(124,58,237,.3)"><i class="fa-solid fa-up-right-from-square"></i> Open Paystack Payment Page</a>';
       inner += '<p style="font-size:10.5px;color:#6d6a8a;margin-top:10px">Your dashboard unlocks automatically the moment your payment is confirmed.</p>';
       linkBox.innerHTML = inner;
-      const overlayCard = $('paymentOverlay').querySelector('div') || $('paymentOverlay');
-      overlayCard.insertBefore(linkBox, overlayCard.firstChild);
+      const overlayBody = $('paymentOverlay');
+      if (overlayBody) {
+        const overlayCard = overlayBody.querySelector('.ov-body') || overlayBody.querySelector('div') || overlayBody;
+        overlayCard.insertBefore(linkBox, overlayCard.firstChild);
+      }
     }
 
-    $('pendingGate').classList.remove('open');
-    $('paymentOverlay').classList.add('open');
+    const pg = $('pendingGate');
+    const po = $('paymentOverlay');
+    if (pg) pg.classList.remove('open');
+    if (po) po.classList.add('open');
     startCountdown();
     startVerifyPolling();
     startStatusPolling();
@@ -1973,8 +2065,6 @@ async function startPayment() {
     showToast('error', 'Payment Failed', 'Could not create payment details. Please try again.', err.message || String(err));
   }
 }
-
-
 
 async function loadDashboard() {
   showLoading();
@@ -1992,15 +2082,18 @@ async function loadDashboard() {
     const status = String((userData && userData.status) || 'pending');
     if (status !== 'active') {
       renderPendingGate();
-      $('pendingGate').classList.add('open');
+      const gate = $('pendingGate');
+      if (gate) gate.classList.add('open');
       if (isCourseMissing(userData)) {
         openCoursePush();
-        $('pnSub').textContent = 'Your account has no course yet. Pick a course below and complete your payment to start learning.';
+        const sub = $('pnSub');
+        if (sub) sub.textContent = 'Your account has no course yet. Pick a course below and complete your payment to start learning.';
       }
       hideLoading();
       return;
     }
-    $('pendingGate').classList.remove('open');
+    const gate = $('pendingGate');
+    if (gate) gate.classList.remove('open');
     const cid = pickDefaultCourse();
     if (!cid) {
       hideLoading();
@@ -2008,7 +2101,8 @@ async function loadDashboard() {
       return;
     }
     await selectCourse(cid);
-    $('app').classList.remove('hidden');
+    const app = $('app');
+    if (app) app.classList.remove('hidden');
     startSessionClock();
     loadAd();
     hideLoading();
@@ -2019,289 +2113,332 @@ async function loadDashboard() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-  showLoading();
-  try {
-    const raw = localStorage.getItem('idt_user');
-    if (!raw) {
-      window.location.replace('register.html');
-      return;
-    }
-    user = JSON.parse(raw);
-    if (!user || !user.id) {
-      localStorage.removeItem('idt_user');
-      window.location.replace('register.html');
-      return;
-    }
-    await loadDashboard();
-  } catch (err) {
-    hideLoading();
-    showToast('error', 'Error', 'Something went wrong. Please login again.', err.message || String(err));
-    setTimeout(() => window.location.replace('register.html'), 2500);
+function on(id, event, handler) {
+  const el = $(id);
+  if (!el) {
+    console.warn('[IDT] Missing element, binding skipped:', id);
+    return;
   }
+  el.addEventListener(event, handler);
+}
+
+function domReady(fn) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fn, { once: true });
+  } else {
+    fn();
+  }
+}
+
+domReady(() => {
+  ensureToastWrap();
+  showLoading();
+
+  (async () => {
+    try {
+      const raw = localStorage.getItem('idt_user');
+      if (!raw) {
+        window.location.replace('register.html');
+        return;
+      }
+      user = JSON.parse(raw);
+      if (!user || !user.id) {
+        localStorage.removeItem('idt_user');
+        window.location.replace('register.html');
+        return;
+      }
+      await loadDashboard();
+    } catch (err) {
+      hideLoading();
+      showToast('error', 'Error', 'Something went wrong. Please login again.', err.message || String(err));
+      setTimeout(() => window.location.replace('register.html'), 2500);
+    }
+  })();
+
   window.addEventListener('load', () => {
     setTimeout(hideLoading, 600);
   });
-});
 
-$('menuBtn').addEventListener('click', () => {
-  $('sideMenu').classList.add('open');
-});
+  document.documentElement.classList.add('ready');
 
-$('menuClose').addEventListener('click', () => {
-  $('sideMenu').classList.remove('open');
-});
+  on('menuBtn', 'click', () => {
+    const m = $('sideMenu');
+    if (m) m.classList.add('open');
+  });
 
-$('menuLogout').addEventListener('click', () => {
-  localStorage.removeItem('idt_user');
-  showToast('info', 'Logged Out', 'You have been logged out. Redirecting to login...');
-  setTimeout(() => window.location.replace('register.html'), 1200);
-});
+  on('menuClose', 'click', () => {
+    const m = $('sideMenu');
+    if (m) m.classList.remove('open');
+  });
 
-$('btnCopyUserId').addEventListener('click', async (e) => {
-  const btn = e.currentTarget;
-  const academyId = (userData && (userData.academy_id || userData.academyId)) || user.id;
-  try {
-    await copyText(academyId);
-    btn.classList.add('done');
-    btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-    showToast('success', 'Academy ID Copied!', 'Your ID: ' + academyId);
-    setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
-  } catch (err) {
-    showToast('error', 'Copy Failed', 'Could not copy your ID.', err.message);
-  }
-});
+  on('menuLogout', 'click', () => {
+    localStorage.removeItem('idt_user');
+    showToast('info', 'Logged Out', 'You have been logged out. Redirecting to login...');
+    setTimeout(() => window.location.replace('register.html'), 1200);
+  });
 
-$('pnClose').addEventListener('click', closeCoursePush);
-
-$('pnBody').addEventListener('click', () => {});
-
-$('btnPayNow').addEventListener('click', startPayment);
-
-$('paymentClose').addEventListener('click', () => {
-  $('paymentOverlay').classList.remove('open');
-  stopStatusPolling();
-});
-
-$('btnCopyAccount').addEventListener('click', async (e) => {
-  const val = e.target.closest('.mini-copy').dataset.copy;
-  if (!val) return;
-  try {
-    await copyText(val);
-    const btn = e.target.closest('.mini-copy');
-    btn.classList.add('done');
-    btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-    showToast('success', 'Copied!', 'Account number copied to clipboard.');
-    setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
-  } catch (err) {
-    showToast('error', 'Copy Failed', 'Could not copy.', err.message);
-  }
-});
-
-$('btnCopyRef').addEventListener('click', async (e) => {
-  const val = e.target.closest('.mini-copy').dataset.copy;
-  if (!val) return;
-  try {
-    await copyText(val);
-    const btn = e.target.closest('.mini-copy');
-    btn.classList.add('done');
-    btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-    showToast('success', 'Copied!', 'Payment reference copied to clipboard.');
-    setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
-  } catch (err) {
-    showToast('error', 'Copy Failed', 'Could not copy.', err.message);
-  }
-});
-
-$('btnCopyRefLink').addEventListener('click', async (e) => {
-  const btn = e.currentTarget;
-  try {
-    await copyText(buildReferralLink());
-    btn.classList.add('done');
-    btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-    showToast('success', 'Referral Link Copied!', 'Share this link with your friends and earn ₦1,500 when they pay for any course.');
-    setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
-  } catch (err) {
-    showToast('error', 'Copy Failed', 'Could not copy the link.', err.message);
-  }
-});
-
-$('btnOpenReferralPage').addEventListener('click', () => {
-  window.location.href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent((userData && userData.referral_code) || '');
-});
-
-document.querySelectorAll('.social-chip').forEach((chip) => {
-  chip.addEventListener('click', async () => {
-    const link = buildReferralLink();
-    const text = 'Join me at IDT Academy! Learn modern skills online. Use my referral link: ' + link;
-    if (chip.classList.contains('wa')) {
-      window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
-      return;
-    }
-    if (chip.classList.contains('x')) {
-      window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
-      return;
-    }
-    if (chip.classList.contains('fb')) {
-      window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(link), '_blank');
-      return;
-    }
+  on('btnCopyUserId', 'click', async (e) => {
+    const btn = e.currentTarget;
+    const academyId = (userData && (userData.academy_id || userData.academyId)) || (user && user.id) || '';
     try {
-      await copyText(link);
-      showToast('success', 'Link Copied!', 'Share it on ' + chip.textContent.trim() + ' and earn ₦1,500 per referral.');
+      await copyText(academyId);
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', 'Academy ID Copied!', 'Your ID: ' + academyId);
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    } catch (err) {
+      showToast('error', 'Copy Failed', 'Could not copy your ID.', err.message);
+    }
+  });
+
+  on('pnClose', 'click', closeCoursePush);
+
+  on('pnBody', 'click', () => {});
+
+  on('btnPayNow', 'click', startPayment);
+
+  on('paymentClose', 'click', () => {
+    const po = $('paymentOverlay');
+    if (po) po.classList.remove('open');
+    stopStatusPolling();
+  });
+
+  on('btnCopyAccount', 'click', async (e) => {
+    const btn = e.target.closest('.mini-copy') || e.currentTarget;
+    const val = btn.dataset.copy;
+    if (!val) return;
+    try {
+      await copyText(val);
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', 'Copied!', 'Account number copied to clipboard.');
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
     } catch (err) {
       showToast('error', 'Copy Failed', 'Could not copy.', err.message);
     }
   });
-});
 
-$('userAvatar').addEventListener('click', () => {
-  renderCoursePush();
-  $('coursePush').classList.add('open');
-});
-
-$('pendingCourseBox').addEventListener('click', () => {
-  renderCoursePush();
-  $('coursePush').classList.add('open');
-});
-
-$('btnPrevTopic').addEventListener('click', () => {
-  if (currentTopicIdx > 0) goToTopic(currentTopicIdx - 1);
-});
-
-$('btnNextTopic').addEventListener('click', () => {
-  if (isProcessingNext) return;
-  advanceTopic();
-});
-
-$('btnNotReady').addEventListener('click', () => {
-  closeUnderstandModal();
-  pendingNextIdx = -1;
-  showToast('info', 'Good Choice', 'Take your time. Read the topic again and make sure you understand before moving on.');
-});
-
-$('btnReady').addEventListener('click', () => {
-  handleReady();
-});
-
-$('btnCopyText').addEventListener('click', async (e) => {
-  const btn = e.currentTarget;
-  try {
-    await copyText(currentTopic.topic_text || '');
-    btn.classList.add('done');
-    btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-    showToast('success', 'Text Copied!', 'The full topic text was copied to your clipboard.');
-    setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
-  } catch (err) {
-    showToast('error', 'Copy Failed', 'Could not copy the text.', err.message);
-  }
-});
-
-$('btnAskQuestion').addEventListener('click', openChat);
-
-$('chatClose').addEventListener('click', () => {
-  $('chatOverlay').classList.remove('open');
-});
-
-$('chatForm').addEventListener('submit', handleChatSubmit);
-
-$('btnExplainLang').addEventListener('click', () => {
-  $('otherLangRow').classList.add('hidden');
-  $('langGrid').classList.remove('hidden');
-  $('explainResult').classList.add('hidden');
-  $('explainNote').textContent = '';
-  $('explainOverlay').classList.add('open');
-});
-
-$('explainClose').addEventListener('click', () => {
-  $('explainOverlay').classList.remove('open');
-});
-
-document.querySelectorAll('.lang-btn[data-lang]').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    handleExplain(btn.dataset.lang);
+  on('btnCopyRef', 'click', async (e) => {
+    const btn = e.target.closest('.mini-copy') || e.currentTarget;
+    const val = btn.dataset.copy;
+    if (!val) return;
+    try {
+      await copyText(val);
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', 'Copied!', 'Payment reference copied to clipboard.');
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    } catch (err) {
+      showToast('error', 'Copy Failed', 'Could not copy.', err.message);
+    }
   });
-});
 
-$('langOtherBtn').addEventListener('click', () => {
-  $('otherLangRow').classList.toggle('hidden');
-  if (!$('otherLangRow').classList.contains('hidden')) {
-    $('otherLangInput').focus();
-  }
-});
+  on('btnCopyRefLink', 'click', async (e) => {
+    const btn = e.currentTarget;
+    try {
+      await copyText(buildReferralLink());
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', 'Referral Link Copied!', 'Share this link with your friends and earn ₦1,500 when they pay for any course.');
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    } catch (err) {
+      showToast('error', 'Copy Failed', 'Could not copy the link.', err.message);
+    }
+  });
 
-$('btnSendOtherLang').addEventListener('click', () => {
-  const lang = $('otherLangInput').value.trim();
-  if (!lang) {
-    showToast('error', 'Language Required', 'Please type the language you want.', '');
-    return;
-  }
-  handleExplain(lang);
-});
+  on('btnOpenReferralPage', 'click', () => {
+    if (!user) return;
+    window.location.href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent((userData && userData.referral_code) || '');
+  });
 
-$('assessClose').addEventListener('click', () => {
-  $('assessmentOverlay').classList.remove('open');
-  if (quizState && quizState.stream) {
-    stopCamera();
-  }
-  if (quizState && quizState.timer) clearInterval(quizState.timer);
-  detachAntiCheat();
-});
+  document.querySelectorAll('.social-chip').forEach((chip) => {
+    chip.addEventListener('click', async () => {
+      const link = buildReferralLink();
+      const text = 'Join me at IDT Academy! Learn modern skills online. Use my referral link: ' + link;
+      if (chip.classList.contains('wa')) {
+        window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+        return;
+      }
+      if (chip.classList.contains('x')) {
+        window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
+        return;
+      }
+      if (chip.classList.contains('fb')) {
+        window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(link), '_blank');
+        return;
+      }
+      try {
+        await copyText(link);
+        showToast('success', 'Link Copied!', 'Share it on ' + chip.textContent.trim() + ' and earn ₦1,500 per referral.');
+      } catch (err) {
+        showToast('error', 'Copy Failed', 'Could not copy.', err.message);
+      }
+    });
+  });
 
-$('btnStartAssessment').addEventListener('click', startAssessmentFlow);
+  on('userAvatar', 'click', () => {
+    renderCoursePush();
+    const p = $('coursePush');
+    if (p) p.classList.add('open');
+  });
 
-$('btnPrevQ').addEventListener('click', () => {
-  if (quizState.currentQ > 0) {
-    quizState.currentQ--;
-    renderQuestion();
-  }
-});
+  on('pendingCourseBox', 'click', () => {
+    renderCoursePush();
+    const p = $('coursePush');
+    if (p) p.classList.add('open');
+  });
 
-$('btnNextQ').addEventListener('click', () => {
-  const q = quizState.questions[quizState.currentQ];
-  if (q && q.type !== 'write' && Array.isArray(q.options) && q.options.length && quizState.answers[quizState.currentQ] === '') {
-    showToast('info', 'Choose An Answer', 'Please select an answer before continuing.', '');
-    return;
-  }
-  if (quizState.currentQ < quizState.questions.length - 1) {
-    quizState.currentQ++;
-    renderQuestion();
-  }
-});
+  on('btnPrevTopic', 'click', () => {
+    if (currentTopicIdx > 0) goToTopic(currentTopicIdx - 1);
+  });
 
-$('btnSubmitQuiz').addEventListener('click', () => {
-  submitQuiz(false);
-});
+  on('btnNextTopic', 'click', () => {
+    if (isProcessingNext) return;
+    advanceTopic();
+  });
 
-$('btnDownloadPdf').addEventListener('click', downloadResultPdf);
+  on('btnNotReady', 'click', () => {
+    closeUnderstandModal();
+    pendingNextIdx = -1;
+    showToast('info', 'Good Choice', 'Take your time. Read the topic again and make sure you understand before moving on.');
+  });
 
-$('btnEmailResult').addEventListener('click', emailResult);
+  on('btnReady', 'click', () => {
+    handleReady();
+  });
 
-$('btnContinueStudy').addEventListener('click', () => {
-  $('assessmentOverlay').classList.remove('open');
-  if (window._assessBatch > 0) {
-    const batch = window._assessBatch;
-    window._assessBatch = 0;
-    goToTopic(batch);
-  }
-});
+  on('btnCopyText', 'click', async (e) => {
+    const btn = e.currentTarget;
+    try {
+      await copyText((currentTopic && currentTopic.topic_text) || '');
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', 'Text Copied!', 'The full topic text was copied to your clipboard.');
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    } catch (err) {
+      showToast('error', 'Copy Failed', 'Could not copy the text.', err.message);
+    }
+  });
 
-$('btnGoExam').addEventListener('click', () => {
-  $('assessmentOverlay').classList.remove('open');
-  window.location.href = 'exam.html?course_id=' + encodeURIComponent(activeCourseId) + '&user_id=' + encodeURIComponent(user.id);
-});
+  on('btnAskQuestion', 'click', openChat);
 
-$('btnGoExamModal').addEventListener('click', () => {
-  $('completionModal').classList.remove('open');
-  window.location.href = 'exam.html?course_id=' + encodeURIComponent(activeCourseId) + '&user_id=' + encodeURIComponent(user.id);
-});
+  on('chatClose', 'click', () => {
+    const o = $('chatOverlay');
+    if (o) o.classList.remove('open');
+  });
 
-$('sideMenu').addEventListener('click', (e) => {
-  if (e.target === $('sideMenu')) $('sideMenu').classList.remove('open');
-});
+  on('chatForm', 'submit', handleChatSubmit);
 
-window.__idtDashboardLoaded = true;
+  on('btnExplainLang', 'click', () => {
+    const otherRow = $('otherLangRow');
+    const grid = $('langGrid');
+    const result = $('explainResult');
+    const note = $('explainNote');
+    const overlay = $('explainOverlay');
+    if (otherRow) otherRow.classList.add('hidden');
+    if (grid) grid.classList.remove('hidden');
+    if (result) result.classList.add('hidden');
+    if (note) note.textContent = '';
+    if (overlay) overlay.classList.add('open');
+  });
 
-document.addEventListener('DOMContentLoaded', () => {
-  document.documentElement.classList.add('ready');
+  on('explainClose', 'click', () => {
+    const o = $('explainOverlay');
+    if (o) o.classList.remove('open');
+  });
+
+  document.querySelectorAll('.lang-btn[data-lang]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      handleExplain(btn.dataset.lang);
+    });
+  });
+
+  on('langOtherBtn', 'click', () => {
+    const row = $('otherLangRow');
+    if (!row) return;
+    row.classList.toggle('hidden');
+    if (!row.classList.contains('hidden')) {
+      const input = $('otherLangInput');
+      if (input) input.focus();
+    }
+  });
+
+  on('btnSendOtherLang', 'click', () => {
+    const input = $('otherLangInput');
+    const lang = (input && input.value.trim()) || '';
+    if (!lang) {
+      showToast('error', 'Language Required', 'Please type the language you want.', '');
+      return;
+    }
+    handleExplain(lang);
+  });
+
+  on('assessClose', 'click', () => {
+    const o = $('assessmentOverlay');
+    if (o) o.classList.remove('open');
+    if (quizState && quizState.stream) {
+      stopCamera();
+    }
+    if (quizState && quizState.timer) clearInterval(quizState.timer);
+    detachAntiCheat();
+  });
+
+  on('btnStartAssessment', 'click', startAssessmentFlow);
+
+  on('btnPrevQ', 'click', () => {
+    if (quizState && quizState.currentQ > 0) {
+      quizState.currentQ--;
+      renderQuestion();
+    }
+  });
+
+  on('btnNextQ', 'click', () => {
+    if (!quizState) return;
+    const q = quizState.questions[quizState.currentQ];
+    if (q && q.type !== 'write' && Array.isArray(q.options) && q.options.length && quizState.answers[quizState.currentQ] === '') {
+      showToast('info', 'Choose An Answer', 'Please select an answer before continuing.', '');
+      return;
+    }
+    if (quizState.currentQ < quizState.questions.length - 1) {
+      quizState.currentQ++;
+      renderQuestion();
+    }
+  });
+
+  on('btnSubmitQuiz', 'click', () => {
+    submitQuiz(false);
+  });
+
+  on('btnDownloadPdf', 'click', downloadResultPdf);
+
+  on('btnEmailResult', 'click', emailResult);
+
+  on('btnContinueStudy', 'click', () => {
+    const o = $('assessmentOverlay');
+    if (o) o.classList.remove('open');
+    if (window._assessBatch > 0) {
+      const batch = window._assessBatch;
+      window._assessBatch = 0;
+      goToTopic(batch);
+    }
+  });
+
+  on('btnGoExam', 'click', () => {
+    const o = $('assessmentOverlay');
+    if (o) o.classList.remove('open');
+    window.location.href = 'exam.html?course_id=' + encodeURIComponent(activeCourseId) + '&user_id=' + encodeURIComponent(user.id);
+  });
+
+  on('btnGoExamModal', 'click', () => {
+    const m = $('completionModal');
+    if (m) m.classList.remove('open');
+    window.location.href = 'exam.html?course_id=' + encodeURIComponent(activeCourseId) + '&user_id=' + encodeURIComponent(user.id);
+  });
+
+  on('sideMenu', 'click', (e) => {
+    const sm = $('sideMenu');
+    if (e.target === sm) sm.classList.remove('open');
+  });
+
+  window.__idtDashboardLoaded = true;
 });
