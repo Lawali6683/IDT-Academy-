@@ -47,6 +47,42 @@ let quillEditor = null;
 let quillEditorEdit = null;
 let editDeletePendingId = null;
 
+function getErrorMessage(err) {
+  if (!err) return 'Unknown error';
+  if (typeof err === 'string') return err;
+  if (err.message) return err.message;
+  if (err.error_description) return err.error_description;
+  if (err.details) return err.details;
+  if (err.hint) return err.hint;
+  try { return JSON.stringify(err); } catch (e) { return 'Unknown error'; }
+}
+
+function normalizeTopics(raw) {
+  let arr = [];
+  if (Array.isArray(raw)) {
+    arr = raw;
+  } else if (raw && typeof raw === 'object' && Array.isArray(raw.topics)) {
+    arr = raw.topics;
+  }
+  return arr
+    .filter((t) => t && typeof t === 'object' && t.id)
+    .map((t) => ({
+      id: String(t.id),
+      number: Number(t.number) || 0,
+      title: t.title || '',
+      video_link: t.video_link || '',
+      text: t.text || '',
+      final: t.final === 'yes' ? 'yes' : 'no',
+      created_at: t.created_at || null,
+      updated_at: t.updated_at || null
+    }));
+}
+
+function renumberTopics(arr) {
+  const sorted = [...arr].sort((a, b) => (a.number || 0) - (b.number || 0));
+  return sorted.map((t, idx) => ({ ...t, number: idx + 1 }));
+}
+
 function initQuill() {
   if ($('#topicEditor')) {
     quillEditor = new Quill('#topicEditor', {
@@ -109,9 +145,10 @@ function showToast(message, type = 'success', duration = 4000) {
   toast.className = `toast ${type}`;
   toast.innerHTML = `
     <span class="toast-icon"><i class="${icons[type] || icons.success}"></i></span>
-    <span class="toast-text">${message}</span>
+    <span class="toast-text"></span>
     <button class="toast-close"><i class="fas fa-xmark"></i></button>
   `;
+  toast.querySelector('.toast-text').textContent = message;
   el.toastContainer.appendChild(toast);
   const closeBtn = toast.querySelector('.toast-close');
   if (closeBtn) {
@@ -179,7 +216,7 @@ async function fetchTopics() {
   try {
     const { data, error } = await supabase
       .from('jamb')
-      .select('*')
+      .select('jamb_topic')
       .eq('id', JAMB_TABLE_ID)
       .maybeSingle();
 
@@ -194,31 +231,56 @@ async function fetchTopics() {
       if (insertError) throw insertError;
       topics = [];
     } else {
-      topics = data.jamb_topic || [];
+      topics = normalizeTopics(data.jamb_topic);
     }
 
     renderTopics();
     if (el.totalTopics) el.totalTopics.textContent = topics.length;
     return topics;
   } catch (err) {
-    showToast('Failed to load topics: ' + err.message, 'error');
+    console.error('fetchTopics error:', err);
+    showToast('Failed to load topics: ' + getErrorMessage(err), 'error');
+    topics = [];
+    renderTopics();
     return [];
   }
 }
 
 async function saveTopicsToDB(topicsArray) {
   try {
-    const { error } = await supabase
+    const clean = renumberTopics(normalizeTopics(topicsArray));
+
+    const { data: existing, error: checkError } = await supabase
       .from('jamb')
-      .upsert({ id: JAMB_TABLE_ID, jamb_topic: topicsArray }, { onConflict: 'id' });
+      .select('id')
+      .eq('id', JAMB_TABLE_ID)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    let error;
+    if (!existing) {
+      const res = await supabase
+        .from('jamb')
+        .insert({ id: JAMB_TABLE_ID, jamb_topic: clean });
+      error = res.error;
+    } else {
+      const res = await supabase
+        .from('jamb')
+        .update({ jamb_topic: clean })
+        .eq('id', JAMB_TABLE_ID);
+      error = res.error;
+    }
 
     if (error) throw error;
-    topics = [...topicsArray];
+
+    topics = clean;
     renderTopics();
     if (el.totalTopics) el.totalTopics.textContent = topics.length;
     return true;
   } catch (err) {
-    showToast('Failed to save: ' + err.message, 'error');
+    console.error('saveTopicsToDB error:', err);
+    showToast('Failed to save: ' + getErrorMessage(err), 'error');
     return false;
   }
 }
@@ -242,40 +304,76 @@ function renderTopics() {
 
   sorted.forEach((topic) => {
     const tr = document.createElement('tr');
+
     const finalBadge =
       topic.final === 'yes'
         ? '<span class="badge badge-yes"><i class="fas fa-check"></i>Yes</span>'
         : '<span class="badge badge-no"><i class="fas fa-times"></i>No</span>';
 
-    const videoHtml = topic.video_link
-      ? `<a href="${topic.video_link}" target="_blank" rel="noopener"><i class="fas fa-video" style="margin-right:4px"></i>Watch</a>`
-      : '<span style="color:var(--muted)">—</span>';
+    const videoCell = document.createElement('td');
+    videoCell.className = 'video-link-cell';
+    if (topic.video_link) {
+      const a = document.createElement('a');
+      a.href = topic.video_link;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.innerHTML = '<i class="fas fa-video" style="margin-right:4px"></i>Watch';
+      videoCell.appendChild(a);
+    } else {
+      videoCell.innerHTML = '<span style="color:var(--muted)">—</span>';
+    }
 
+    const numCell = document.createElement('td');
+    numCell.style.textAlign = 'center';
+    const numSpan = document.createElement('span');
+    numSpan.className = 'topic-num';
+    numSpan.textContent = topic.number || 0;
+    numCell.appendChild(numSpan);
+
+    const titleCell = document.createElement('td');
+    titleCell.className = 'topic-title-cell';
+    titleCell.textContent = topic.title || '';
+    titleCell.title = topic.title || '';
+
+    const textCell = document.createElement('td');
+    textCell.className = 'topic-text-cell';
     const cleanText = topic.text ? topic.text.replace(/<[^>]+>/g, '') : '';
-    const textPreview = cleanText.substring(0, 80) + (cleanText.length > 80 ? '...' : '');
+    textCell.textContent = cleanText ? cleanText.substring(0, 80) + (cleanText.length > 80 ? '...' : '') : '—';
 
-    tr.innerHTML = `
-      <td style="text-align:center"><span class="topic-num">${topic.number || 0}</span></td>
-      <td class="video-link-cell">${videoHtml}</td>
-      <td class="topic-title-cell" title="${(topic.title || '').replace(/"/g, '&quot;')}">${topic.title || ''}</td>
-      <td class="topic-text-cell">${textPreview || '—'}</td>
-      <td style="text-align:center">${finalBadge}</td>
-      <td style="text-align:center">
-        <div class="action-btns" style="justify-content:center">
-          <button class="btn-edit" data-topic-id="${topic.id}" title="Edit topic"><i class="fas fa-pencil"></i></button>
-          <button class="btn-del" data-topic-id="${topic.id}" title="Delete topic"><i class="fas fa-trash-can"></i></button>
-        </div>
-      </td>
-    `;
+    const finalCell = document.createElement('td');
+    finalCell.style.textAlign = 'center';
+    finalCell.innerHTML = finalBadge;
+
+    const actionCell = document.createElement('td');
+    actionCell.style.textAlign = 'center';
+    const actionDiv = document.createElement('div');
+    actionDiv.className = 'action-btns';
+    actionDiv.style.justifyContent = 'center';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn-edit';
+    editBtn.title = 'Edit topic';
+    editBtn.innerHTML = '<i class="fas fa-pencil"></i>';
+    editBtn.addEventListener('click', () => openEditModal(topic.id));
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn-del';
+    delBtn.title = 'Delete topic';
+    delBtn.innerHTML = '<i class="fas fa-trash-can"></i>';
+    delBtn.addEventListener('click', () => deleteTopic(topic.id));
+
+    actionDiv.appendChild(editBtn);
+    actionDiv.appendChild(delBtn);
+    actionCell.appendChild(actionDiv);
+
+    tr.appendChild(numCell);
+    tr.appendChild(videoCell);
+    tr.appendChild(titleCell);
+    tr.appendChild(textCell);
+    tr.appendChild(finalCell);
+    tr.appendChild(actionCell);
+
     el.topicsBody.appendChild(tr);
-  });
-
-  $$('.btn-edit').forEach((btn) => {
-    btn.addEventListener('click', () => openEditModal(btn.dataset.topicId));
-  });
-
-  $$('.btn-del').forEach((btn) => {
-    btn.addEventListener('click', () => deleteTopic(btn.dataset.topicId));
   });
 }
 
@@ -291,25 +389,28 @@ async function addTopic(e) {
   setFormLoading(true);
 
   try {
-    const maxNum = topics.length > 0 ? Math.max(...topics.map((t) => t.number || 0)) : 0;
+    const sorted = [...topics].sort((a, b) => (a.number || 0) - (b.number || 0));
+    const nextNum = sorted.length > 0 ? (sorted[sorted.length - 1].number || sorted.length) + 1 : 1;
+
     const newTopic = {
       id: generateId(),
-      number: maxNum + 1,
+      number: nextNum,
       title: data.title,
       video_link: data.video,
       text: data.text,
       final: data.final,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      updated_at: null
     };
 
-    const updated = [...topics, newTopic];
+    const updated = renumberTopics([...topics, newTopic]);
     const saved = await saveTopicsToDB(updated);
     if (saved) {
       showToast('Topic added successfully!', 'success');
       resetForm();
     }
   } catch (err) {
-    showToast('Error adding topic: ' + err.message, 'error');
+    showToast('Error adding topic: ' + getErrorMessage(err), 'error');
   } finally {
     setFormLoading(false);
   }
@@ -326,8 +427,7 @@ async function deleteTopic(topicId) {
   if (!confirm(`Delete topic "${topic.title}"? This cannot be undone.`)) return;
 
   try {
-    let updated = topics.filter((t) => t.id !== topicId);
-    updated = updated.map((t, idx) => ({ ...t, number: idx + 1 }));
+    const updated = renumberTopics(topics.filter((t) => t.id !== topicId));
 
     const saved = await saveTopicsToDB(updated);
     if (saved) {
@@ -337,7 +437,7 @@ async function deleteTopic(topicId) {
       }
     }
   } catch (err) {
-    showToast('Error deleting topic: ' + err.message, 'error');
+    showToast('Error deleting topic: ' + getErrorMessage(err), 'error');
   }
 }
 
@@ -374,7 +474,6 @@ function closeEditModal() {
 
 async function saveEdit() {
   const id = el.editTopicId ? el.editTopicId.value : '';
-  const num = el.editTopicNumber ? parseInt(el.editTopicNumber.value, 10) || 0 : 0;
   const title = el.editTopicTitle ? el.editTopicTitle.value.trim() : '';
   const video = el.editVideoLink ? el.editVideoLink.value.trim() : '';
   const text = quillEditorEdit ? quillEditorEdit.root.innerHTML : '';
@@ -409,7 +508,6 @@ async function saveEdit() {
           video_link: video,
           text,
           final,
-          number: num,
           updated_at: new Date().toISOString()
         };
       }
@@ -422,7 +520,7 @@ async function saveEdit() {
       closeEditModal();
     }
   } catch (err) {
-    showToast('Error updating topic: ' + err.message, 'error');
+    showToast('Error updating topic: ' + getErrorMessage(err), 'error');
   } finally {
     if (el.editSaveBtn) {
       el.editSaveBtn.classList.remove('loading');
@@ -445,8 +543,7 @@ async function deleteFromEdit() {
   if (!confirm(`Delete topic "${topic.title}"? This cannot be undone.`)) return;
 
   try {
-    let updated = topics.filter((t) => t.id !== id);
-    updated = updated.map((t, idx) => ({ ...t, number: idx + 1 }));
+    const updated = renumberTopics(topics.filter((t) => t.id !== id));
 
     const saved = await saveTopicsToDB(updated);
     if (saved) {
@@ -454,7 +551,7 @@ async function deleteFromEdit() {
       closeEditModal();
     }
   } catch (err) {
-    showToast('Error deleting topic: ' + err.message, 'error');
+    showToast('Error deleting topic: ' + getErrorMessage(err), 'error');
   }
 }
 
@@ -484,6 +581,7 @@ async function fetchStudentStats() {
     if (el.totalJambStudents) el.totalJambStudents.textContent = totalJamb;
     if (el.totalActiveStudents) el.totalActiveStudents.textContent = activeJamb;
   } catch (err) {
+    console.error('fetchStudentStats error:', err);
     if (el.totalJambStudents) el.totalJambStudents.textContent = 0;
     if (el.totalActiveStudents) el.totalActiveStudents.textContent = 0;
   }
@@ -566,7 +664,7 @@ if (el.loginForm) {
       showToast('Welcome back!', 'success');
     } catch (err) {
       if (el.loginError) {
-        el.loginError.textContent = err.message || 'Invalid email or password.';
+        el.loginError.textContent = getErrorMessage(err) || 'Invalid email or password.';
         el.loginError.classList.add('show');
       }
     } finally {
@@ -589,7 +687,7 @@ if (el.logoutBtn) {
       showLogin();
       showToast('Logged out successfully.', 'success');
     } catch (err) {
-      showToast('Error logging out.', 'error');
+      showToast('Error logging out: ' + getErrorMessage(err), 'error');
     }
   });
 }
