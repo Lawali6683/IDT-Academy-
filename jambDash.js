@@ -135,6 +135,7 @@ function removeToast(t) {
 }
 
 function showLoading(show) {
+  if (!el.loading) return;
   if (show) { el.loading.classList.remove('fade-out'); el.loading.style.display = 'flex'; }
   else { el.loading.classList.add('fade-out'); setTimeout(function() { el.loading.style.display = 'none'; }, 500); }
 }
@@ -194,9 +195,6 @@ async function activateUser(profile) {
   initDashboard();
 }
 
-
-
-
 async function checkPaymentStatus(userId) {
   try {
     const { data: profile, error } = await supabase
@@ -234,7 +232,6 @@ async function checkPaymentStatus(userId) {
   }
 }
 
-
 function stopPaymentPolling() {
   if (statusCheckInterval) {
     clearInterval(statusCheckInterval);
@@ -245,8 +242,6 @@ function stopPaymentPolling() {
     payTimerInterval = null;
   }
 }
-
-
 
 function showPayError(message) {
   let banner = document.getElementById('payErrorBanner');
@@ -310,13 +305,9 @@ function setupCopyButton() {
   host.insertAdjacentElement('afterend', btn);
 }
 
-
-
-
-
 function startPaymentFlow() {
   if (el.paymentOverlay) el.paymentOverlay.classList.add('active');
-  
+
   requestPaymentDetails();
 
   if (statusCheckInterval) clearInterval(statusCheckInterval);
@@ -344,9 +335,6 @@ function startPaymentFlow() {
   }, 5000);
 }
 
-
-
-
 async function requestPaymentDetails() {
   const u = getLocalUser();
   if (!u) return;
@@ -365,17 +353,17 @@ async function requestPaymentDetails() {
     });
 
     let data = null;
-    try { 
-      data = await res.json(); 
-    } catch (e) { 
-      data = null; 
+    try {
+      data = await res.json();
+    } catch (e) {
+      data = null;
     }
 
     if (!res.ok || !data || !data.success) {
-      const errMsg = (data && (data.error || data.message)) 
-        ? (data.error || data.message) 
+      const errMsg = (data && (data.error || data.message))
+        ? (data.error || data.message)
         : ('Payment service returned an error (HTTP ' + res.status + ').');
-      
+
       showPayError('Failed to initialize payment: ' + errMsg);
       showToast('Error: ' + errMsg, 'error', 6000);
       return;
@@ -386,7 +374,7 @@ async function requestPaymentDetails() {
       if (el.payAccountName) el.payAccountName.textContent = data.account_name || '';
       if (el.payBankName) el.payBankName.textContent = data.bank_name || '';
       if (el.payAmount) el.payAmount.textContent = '₦' + Number(data.amount || 3500).toLocaleString();
-      
+
       setupCopyButton();
       hidePayError();
     } else if (data.authorization_url) {
@@ -414,8 +402,6 @@ async function requestPaymentDetails() {
   }
 }
 
-
-
 async function checkAndInitUser() {
   const u = getLocalUser();
   if (!u) {
@@ -435,7 +421,6 @@ async function checkAndInitUser() {
     startPaymentFlow();
   }
 }
-
 
 function startPayTimer() {
   if (payTimerInterval) clearInterval(payTimerInterval);
@@ -476,82 +461,44 @@ async function initDashboard() {
   fetchAds();
 }
 
-
-
 async function fetchTopics() {
   try {
-    let all = [];
-
-    const { data: singleRow, error: singleError } = await supabase
+    const { data, error } = await supabase
       .from('jamb')
-      .select('*')
+      .select('jamb_topic')
       .eq('id', 'jamb_topics')
       .maybeSingle();
-
-    if (!singleError && singleRow) {
-      const jt = singleRow.jamb_topic;
-      if (Array.isArray(jt)) {
-        all = all.concat(jt);
-      } else if (jt && Array.isArray(jt.topics)) {
-        all = all.concat(jt.topics);
+    if (error) throw error;
+    let all = [];
+    if (data && data.jamb_topic) {
+      if (Array.isArray(data.jamb_topic)) {
+        all = data.jamb_topic;
+      } else if (data.jamb_topic && Array.isArray(data.jamb_topic.topics)) {
+        all = data.jamb_topic.topics;
       }
     }
-
-    if (all.length === 0) {
-      const { data: rows, error: rowsError } = await supabase
-        .from('jamb')
-        .select('*');
-
-      if (!rowsError && rows && Array.isArray(rows)) {
-        rows.forEach(function(row) {
-          const jt = row.jamb_topic || row.jamb_data;
-          if (Array.isArray(jt)) {
-            all = all.concat(jt);
-          } else if (jt && Array.isArray(jt.topics)) {
-            all = all.concat(jt.topics);
-          }
-        });
-      }
-    }
-
-    if (all.length === 0) {
-      const { data: legacyRows, error: legacyError } = await supabase
-        .from('jamb_topics')
-        .select('*');
-
-      if (!legacyError && legacyRows && Array.isArray(legacyRows)) {
-        legacyRows.forEach(function(row) {
-          const jd = row.jamb_data;
-          if (Array.isArray(jd)) {
-            all = all.concat(jd);
-          } else if (jd && Array.isArray(jd.topics)) {
-            all = all.concat(jd.topics);
-          }
-        });
-      }
-    }
-
-    const seen = {};
-    const unique = [];
-    all.forEach(function(t) {
-      if (t && t.id && !seen[t.id]) {
-        seen[t.id] = true;
-        unique.push(t);
-      } else if (t && !t.id) {
-        unique.push(t);
-      }
-    });
-
-    topics = unique;
-    topics.sort(function(a, b) {
-      return (a.number || 0) - (b.number || 0);
-    });
-
-    if (el.totalTopicNum) el.totalTopicNum.textContent = topics.length;
+    topics = all.filter(function(t) { return t && typeof t === 'object'; });
+    topics.sort(function(a,b) { return (Number(a.number) || 0) - (Number(b.number) || 0); });
   } catch (err) {
     console.error('fetchTopics error:', err);
     topics = [];
   }
+}
+
+function getFinalTopic() {
+  for (let i = topics.length - 1; i >= 0; i--) {
+    if (topics[i] && topics[i].final === 'yes') return topics[i];
+  }
+  return topics.length > 0 ? topics[topics.length - 1] : null;
+}
+
+function isExamUnlocked(progress) {
+  if (!topics || topics.length === 0) return false;
+  const completed = (progress && progress.completed) ? progress.completed : [];
+  if (completed.length < topics.length) return false;
+  const finalTopic = getFinalTopic();
+  if (!finalTopic) return false;
+  return completed.indexOf(finalTopic.id) !== -1;
 }
 
 async function fetchAds() {
@@ -614,7 +561,10 @@ function showAd(index) {
 function getStoredProgress() {
   try {
     const data = JSON.parse(localStorage.getItem('idt_progress_' + (currentUser && currentUser.id ? currentUser.id : '')));
-    return data || { current: 0, completed: [] };
+    if (!data || typeof data !== 'object') return { current: 0, completed: [] };
+    if (!Array.isArray(data.completed)) data.completed = [];
+    if (typeof data.current !== 'number') data.current = 0;
+    return data;
   } catch(e) { return { current: 0, completed: [] }; }
 }
 
@@ -625,6 +575,13 @@ function saveProgress(progress) {
 function renderLearning() {
   if (!topics || topics.length === 0) {
     el.tvContent.innerHTML = '<p style="text-align:center;color:var(--muted);padding:30px">No topics available yet. Check back later.</p>';
+    el.topicViewer.style.display = 'none';
+    el.allComplete.style.display = 'none';
+    if (el.progressFill) el.progressFill.style.width = '0%';
+    if (el.progressText) el.progressText.textContent = '0%';
+    if (el.progressPercent) el.progressPercent.textContent = '0%';
+    if (el.topicCount) el.topicCount.textContent = '0/0';
+    if (el.totalTopicNum) el.totalTopicNum.textContent = '0';
     return;
   }
   const progress = getStoredProgress();
@@ -637,7 +594,7 @@ function renderLearning() {
   el.topicCount.textContent = completedCount + '/' + totalCount;
   el.totalTopicNum.textContent = totalCount;
 
-  if (completedCount >= totalCount) {
+  if (completedCount >= totalCount && isExamUnlocked(progress)) {
     el.topicViewer.style.display = 'none';
     el.allComplete.style.display = 'block';
     return;
@@ -683,9 +640,18 @@ function showTopic(index) {
   if (!progress.completed) progress.completed = [];
   if (progress.completed.indexOf(topic.id) === -1) {
     progress.completed.push(topic.id);
-    progress.current = index + 1;
+    if (index + 1 > progress.current) progress.current = index + 1;
     saveProgress(progress);
-    renderLearning();
+    const completedCount = progress.completed.length;
+    const pct = Math.round((completedCount / total) * 100);
+    el.progressFill.style.width = pct + '%';
+    el.progressText.textContent = pct + '%';
+    el.progressPercent.textContent = pct + '%';
+    el.topicCount.textContent = completedCount + '/' + total;
+    if (completedCount >= total && isExamUnlocked(progress)) {
+      el.topicViewer.style.display = 'none';
+      el.allComplete.style.display = 'block';
+    }
   }
 }
 
@@ -704,7 +670,7 @@ el.tvNextBtn.addEventListener('click', function() {
   if (currentTopicIndex < topics.length - 1) {
     showTopic(currentTopicIndex + 1);
   } else {
-    if (progress.completed && progress.completed.length >= topics.length) {
+    if (progress.completed && progress.completed.length >= topics.length && isExamUnlocked(progress)) {
       el.topicViewer.style.display = 'none';
       el.allComplete.style.display = 'block';
     }
@@ -718,6 +684,11 @@ el.finalExamBtn.addEventListener('click', function() {
 async function openExamLock() {
   const u = getLocalUser();
   if (!u) return;
+  const progress = getStoredProgress();
+  if (!isExamUnlocked(progress)) {
+    showToast('You must finish reading all topics, including the final topic, before the exam is unlocked.', 'warning', 6000);
+    return;
+  }
   const lastFailed = localStorage.getItem('idt_exam_failed_' + u.id);
   el.cooldownDisplay.classList.add('hidden');
   el.startExamBtn.disabled = false;
@@ -758,6 +729,12 @@ function updateCooldownTimer(ms) {
 
 el.startExamBtn.addEventListener('click', async function() {
   if (this.disabled) return;
+  const progress = getStoredProgress();
+  if (!isExamUnlocked(progress)) {
+    el.examLockOverlay.classList.remove('active');
+    showToast('You must complete all topics first.', 'warning');
+    return;
+  }
   el.examLockOverlay.classList.remove('active');
   showLoading(true);
   await generateExamQuestions();
