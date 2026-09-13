@@ -403,6 +403,8 @@ $('adminLogoutBtn').addEventListener('click', async () => {
     showLoading();
     await supabase.auth.signOut();
     adminUser = null;
+    completedLoaded = false;
+    completedList = [];
     $('loginSection').style.display = 'flex';
     $('adminSection').style.display = 'none';
     $('adminEmail').value = '';
@@ -489,16 +491,29 @@ function removeCardAndUpdate(card, id) {
   updatePendingCounts();
 }
 
+
+
 function setCardProcessing(card, on) {
   if (!card) return;
+  const payBtn = card.querySelector('.btn-pay');
+  const delBtn = card.querySelector('.btn-delete');
   if (on) {
     card.dataset.processing = '1';
-    card.querySelectorAll('button').forEach(b => { b.disabled = true; b.style.opacity = '0.6'; });
+    if (delBtn) { delBtn.disabled = true; delBtn.style.opacity = '0.6'; }
+    if (payBtn) {
+      payBtn.disabled = true;
+      payBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing Payment...';
+    }
   } else {
     card.dataset.processing = '0';
-    card.querySelectorAll('button').forEach(b => { b.disabled = false; b.style.opacity = ''; });
+    if (delBtn) { delBtn.disabled = false; delBtn.style.opacity = ''; }
+    if (payBtn) {
+      payBtn.disabled = false;
+      payBtn.innerHTML = '<i class="fa-solid fa-check-circle"></i> Mark as Paid';
+    }
   }
 }
+
 
 function renderPendingList(pending, users) {
   const container = $('pendingList');
@@ -593,114 +608,59 @@ function renderPendingList(pending, users) {
       e.stopPropagation();
       const card = this.closest('.admin-card');
       const id = card.dataset.id;
-      showConfirm('green', 'Confirm Payment', 'Have you actually sent the money to this user? You will be asked to type the exact amount to confirm. This protects against double payment.', 'btn-green', 'Yes, Continue', () => markAsPaid(id, card));
+      showConfirm('green', 'Confirm Payment', 'Have you actually sent the money to this user? Confirming will deduct the amount from the user balance, record the payment and remove this request.', 'btn-green', 'Yes, Pay Now', () => markAsPaid(id, card));
     });
   });
 }
 
 async function deleteWithdrawal(id, card) {
-  showLoading();
+  setCardProcessing(card, true);
   try {
     const { error } = await supabase.from('pending').delete().eq('id', id);
     if (error) {
-      hideLoading();
+      setCardProcessing(card, false);
       showToast('error', 'Delete Failed', 'Could not delete this withdrawal request.');
       return;
     }
     removeCardAndUpdate(card, id);
-    hideLoading();
     showToast('success', 'Deleted', 'Withdrawal request has been deleted successfully.');
   } catch (err) {
-    hideLoading();
+    setCardProcessing(card, false);
     showToast('error', 'Error', 'An unexpected error occurred.');
   }
 }
 
-
-
-
-
-function showAmountConfirm(expectedAmount, onValid) {
-  const old = document.getElementById('amountVerifyModal');
-  if (old) old.remove();
-
-  const modal = document.createElement('div');
-  modal.id = 'amountVerifyModal';
-  modal.innerHTML = `
-    <style>
-      .avm-overlay{position:fixed;inset:0;z-index:99998;background:rgba(3,6,18,.8);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding:20px;animation:avmFade .25s ease}
-      @keyframes avmFade{from{opacity:0}to{opacity:1}}
-      .avm-card{width:100%;max-width:400px;background:#0e1226;border:1px solid rgba(124,92,255,.4);border-radius:18px;padding:28px 24px;box-shadow:0 24px 60px rgba(0,0,0,.6);color:#e6e9f5;text-align:center;animation:avmIn .35s cubic-bezier(.22,1,.36,1)}
-      @keyframes avmIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-      .avm-icon{width:54px;height:54px;margin:0 auto 14px;border-radius:50%;background:linear-gradient(145deg,rgba(251,191,36,.2),rgba(239,68,68,.15));border:1px solid rgba(251,191,36,.45);display:flex;align-items:center;justify-content:center}
-      .avm-icon i{font-size:22px;color:#fbbf24}
-      .avm-title{display:block;font-size:17px;font-weight:800;margin-bottom:8px}
-      .avm-msg{font-size:12.5px;line-height:1.6;color:#94a3b8;margin:0 0 16px}
-      .avm-expected{display:inline-block;margin-bottom:16px;padding:8px 18px;border-radius:10px;background:rgba(124,92,255,.14);border:1px solid rgba(124,92,255,.4);font-size:18px;font-weight:800;color:#a78bfa;letter-spacing:1px}
-      .avm-input{width:100%;box-sizing:border-box;padding:13px 16px;border-radius:12px;border:1px solid rgba(124,92,255,.35);background:rgba(255,255,255,.05);color:#f1f5f9;font-size:16px;text-align:center;letter-spacing:1px;outline:none;margin-bottom:6px}
-      .avm-input:focus{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,92,255,.2)}
-      .avm-error{display:none;min-height:16px;margin:0 0 8px;font-size:12px;color:#f87171}
-      .avm-actions{display:flex;gap:10px}
-      .avm-btn{flex:1;padding:12px;border:none;border-radius:11px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:transform .2s ease,opacity .2s ease}
-      .avm-btn:hover{transform:translateY(-1px)}
-      .avm-cancel{background:rgba(255,255,255,.08);color:#cbd5e1;border:1px solid rgba(255,255,255,.14)}
-      .avm-ok{background:linear-gradient(90deg,#7c3aed,#6d28d9);color:#fff}
-    </style>
-    <div class="avm-overlay">
-      <div class="avm-card">
-        <div class="avm-icon"><i class="fa-solid fa-shield-halved"></i></div>
-        <b class="avm-title">Verify Amount Before Payment</b>
-        <p class="avm-msg">For security, type the exact amount you sent to this user. The payment will only be recorded if the amount matches.</p>
-        <div class="avm-expected">₦${expectedAmount.toFixed(2)}</div>
-        <input type="number" class="avm-input" id="avmAmountInput" placeholder="Type exact amount" step="0.01" min="0" />
-        <p class="avm-error" id="avmError"></p>
-        <div class="avm-actions">
-          <button type="button" class="avm-btn avm-cancel"><i class="fa-solid fa-xmark"></i> Cancel</button>
-          <button type="button" class="avm-btn avm-ok"><i class="fa-solid fa-check"></i> Confirm Payment</button>
-        </div>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  const inputEl = $('avmAmountInput');
-  const errEl = $('avmError');
-  let avmAttempts = 0;
-  const closeModal = () => { if (modal.parentNode) modal.remove(); };
-  const submit = () => {
-    const val = parseFloat(inputEl.value);
-    if (isNaN(val)) {
-      errEl.textContent = 'Please type the amount as numbers only.';
-      errEl.style.display = 'block';
-      return;
-    }
-    if (Math.abs(val - expectedAmount) > 0.009) {
-      avmAttempts++;
-      if (avmAttempts >= 5) {
-        closeModal();
-        showToast('error', 'Verification Failed', 'Too many wrong amount attempts. This request was not processed.');
-        return;
+async function resolveUserId(data) {
+  let userId = data.user_id || '';
+  if (userId) {
+    const { data: row } = await supabase.from('user_profiles').select('id').eq('id', userId).maybeSingle();
+    if (row && row.id) return userId;
+  }
+  const email = (data.user_email || '').trim().toLowerCase();
+  if (!email) return '';
+  let foundId = '';
+  let page = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data: rows, error } = await supabase
+      .from('user_profiles')
+      .select('id, user_data')
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (error || !rows || rows.length === 0) break;
+    for (const r of rows) {
+      const ud = r.user_data || {};
+      const rowEmail = String(ud.email || '').trim().toLowerCase();
+      if (rowEmail === email) {
+        foundId = r.id;
+        break;
       }
-      errEl.textContent = 'Amount does not match the request. Attempts left: ' + (5 - avmAttempts) + '.';
-      errEl.style.display = 'block';
-      inputEl.value = '';
-      return;
     }
-    errEl.style.display = 'none';
-    closeModal();
-    onValid();
-  };
-  modal.querySelector('.avm-cancel').addEventListener('click', closeModal);
-  modal.querySelector('.avm-ok').addEventListener('click', submit);
-  inputEl.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      submit();
-    }
-  });
-  setTimeout(() => { if (inputEl) inputEl.focus(); }, 350);
+    if (foundId) break;
+    if (rows.length < pageSize) break;
+    page++;
+  }
+  return foundId;
 }
-
-
 
 async function markAsPaid(id, card) {
   const item = pendingList.find(p => p.id === id);
@@ -711,62 +671,36 @@ async function markAsPaid(id, card) {
   }
 
   const data = item.pending_pay || {};
-  const userId = data.user_id || '';
   const amount = parseFloat(data.amount || 0);
 
   setCardProcessing(card, true);
-  showLoading();
 
   try {
     const recheck = await supabase.from('pending').select('id, pending_pay').eq('id', id).maybeSingle();
     if (recheck.error || !recheck.data) {
-      hideLoading();
       removeCardAndUpdate(card, id);
       showToast('error', 'Already Processed', 'This withdrawal request is no longer pending. It may have been processed from another device.');
       return;
     }
 
-    let duplicate = false;
-    if (userId) {
-      const { data: completedRows } = await supabase
-        .from('completepay')
-        .select('complete_pay')
-        .filter('complete_pay->>user_id', 'eq', userId);
-      if (completedRows && completedRows.length > 0) {
-        duplicate = completedRows.some(r => {
-          const d = r.complete_pay || {};
-          return parseFloat(d.amount || 0) === amount && String(d.date || '') === String(data.date || '');
-        });
-      }
-    }
-
-    if (duplicate) {
-      await supabase.from('pending').delete().eq('id', id);
-      hideLoading();
-      removeCardAndUpdate(card, id);
-      showToast('error', 'Double Payment Blocked', 'This user has already been paid for this exact request. The pending entry has been removed automatically.');
+    const resolvedUserId = await resolveUserId(data);
+    if (!resolvedUserId) {
+      setCardProcessing(card, false);
+      showToast('error', 'User Not Found', 'Could not find this user profile by UUID or email. The payment was not processed.');
       return;
     }
 
-    hideLoading();
-    showAmountConfirm(amount, () => finalizePayment(id, data, userId, amount, card));
+    await finalizePayment(id, data, resolvedUserId, amount, card);
   } catch (err) {
-    hideLoading();
     setCardProcessing(card, false);
     showToast('error', 'Error', 'An unexpected error occurred while checking this payment.');
   }
 }
 
-
-
-
-
 async function finalizePayment(id, data, userId, amount, card) {
-  showLoading();
   try {
     const finalCheck = await supabase.from('pending').select('id').eq('id', id).maybeSingle();
     if (finalCheck.error || !finalCheck.data) {
-      hideLoading();
       removeCardAndUpdate(card, id);
       showToast('error', 'Already Processed', 'This request was already paid or removed. Nothing was recorded again.');
       return;
@@ -779,54 +713,65 @@ async function finalizePayment(id, data, userId, amount, card) {
       paid_by: adminUser && adminUser.email ? adminUser.email : 'admin'
     });
 
+    const { data: profileRow, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('id, user_data')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profileError || !profileRow || !profileRow.user_data) {
+      setCardProcessing(card, false);
+      showToast('error', 'Balance Error', 'Could not load the user profile to deduct the balance. Nothing was changed. Please try again.');
+      return;
+    }
+
+    const ud = profileRow.user_data;
+    const currentBonus = parseFloat(ud.referral_bonus) || 0;
+    let newBonus = currentBonus - amount;
+    if (newBonus < 0) newBonus = 0;
+    const currentWithdrawn = parseFloat(ud.total_withdrawn) || 0;
+    const newWithdrawn = currentWithdrawn + amount;
+
+    const existingTransactions = Array.isArray(ud.transactions) ? ud.transactions : [];
+    const transactionRecord = Object.assign({}, data, {
+      user_id: userId,
+      paid_date: now,
+      paid_by: adminUser && adminUser.email ? adminUser.email : 'admin'
+    });
+    const mergedUd = Object.assign({}, ud, {
+      referral_bonus: newBonus,
+      total_withdrawn: newWithdrawn,
+      transactions: [transactionRecord].concat(existingTransactions)
+    });
+
+    const { error: updateError } = await supabase
+      .from('user_profiles')
+      .update({ user_data: mergedUd })
+      .eq('id', userId);
+
+    if (updateError) {
+      setCardProcessing(card, false);
+      showToast('error', 'Balance Error', 'Could not deduct the balance from the user profile. Nothing was changed. Please try again.');
+      return;
+    }
+
     const { error: insertError } = await supabase.from('completepay').insert({
       complete_pay: completeData,
       date_complet: now
     });
 
     if (insertError) {
-      hideLoading();
-      setCardProcessing(card, false);
-      showToast('error', 'Error', 'Could not record the payment. Nothing was removed from pending. Please try again.');
-      return;
+      showToast('warning', 'Partial Success', 'Balance was deducted but payment could not be recorded in completed history.');
     }
 
     const { error: deleteError } = await supabase.from('pending').delete().eq('id', id);
     if (deleteError) {
-      hideLoading();
-      showToast('error', 'Warning', 'Payment was recorded but the pending entry could not be removed. Please delete it manually to avoid double payment.');
-      return;
+      showToast('error', 'Warning', 'Payment recorded but the pending entry could not be removed. Please delete it manually to avoid double payment.');
+    } else {
+      removeCardAndUpdate(card, id);
     }
 
-    removeCardAndUpdate(card, id);
-
-    let balanceDeducted = false;
-    let newBalance = 0;
-    if (userId) {
-      try {
-        const { data: profileRow, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('id, user_data')
-          .eq('id', userId)
-          .maybeSingle();
-
-        if (!profileError && profileRow && profileRow.user_data) {
-          const ud = profileRow.user_data;
-          const currentBonus = parseFloat(ud.referral_bonus) || 0;
-          newBalance = currentBonus - amount;
-          if (newBalance < 0) newBalance = 0;
-          const mergedUd = Object.assign({}, ud, { referral_bonus: newBalance });
-          const { error: updateError } = await supabase
-            .from('user_profiles')
-            .update({ user_data: mergedUd })
-            .eq('id', userId);
-          if (!updateError) balanceDeducted = true;
-        }
-      } catch (balErr) {
-        balanceDeducted = false;
-      }
-    }
-
+    let emailSent = false;
     try {
       const emailResponse = await fetch('/api/congr', {
         method: 'POST',
@@ -842,23 +787,18 @@ async function finalizePayment(id, data, userId, amount, card) {
         })
       });
       const emailResult = await emailResponse.json();
-      if (emailResult && emailResult.success) {
-        showToast('success', 'Payment Confirmed & Email Sent', '₦' + amount.toFixed(2) + ' has been marked as paid' + (balanceDeducted ? ' and ₦' + amount.toFixed(2) + ' has been deducted from the user balance (new balance: ₦' + newBalance.toFixed(2) + ').' : '. However, the user balance could not be updated — please deduct it manually.') + ' A confirmation email has been sent to the user.');
-      } else {
-        showToast('success', 'Payment Confirmed', '₦' + amount.toFixed(2) + ' has been marked as paid' + (balanceDeducted ? ' and deducted from the user balance (new balance: ₦' + newBalance.toFixed(2) + ').' : '. However, the user balance could not be updated — please deduct it manually.'));
-      }
+      emailSent = !!(emailResult && emailResult.success);
     } catch (emailErr) {
-      showToast('success', 'Payment Confirmed', '₦' + amount.toFixed(2) + ' has been marked as paid' + (balanceDeducted ? ' and deducted from the user balance (new balance: ₦' + newBalance.toFixed(2) + ').' : '. However, the user balance could not be updated — please deduct it manually.'));
+      emailSent = false;
     }
 
-    hideLoading();
+    showToast('success', 'Payment Successful', '₦' + amount.toFixed(2) + ' paid. Balance deducted (new balance: ₦' + newBonus.toFixed(2) + '), total withdrawn is now ₦' + newWithdrawn.toFixed(2) + '.' + (emailSent ? ' A confirmation email has been sent to the user.' : ' Confirmation email could not be sent.'));
+    completedLoaded = false;
   } catch (err) {
-    hideLoading();
     setCardProcessing(card, false);
     showToast('error', 'Error', 'An unexpected error occurred while processing payment.');
   }
 }
-
 
 async function loadCompletedPayments() {
   showLoading();
@@ -891,7 +831,11 @@ async function loadCompletedPayments() {
       return;
     }
 
-    let html = '';
+    let html = `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="btn btn-danger" id="clearHistoryBtn" style="font-size:12px;padding:10px 18px"><i class="fa-solid fa-broom"></i> Clear All History</button>
+      </div>
+    `;
     completedList.forEach(item => {
       const d = item.complete_pay || {};
       const rawDate = d.paid_date || item.date_complet;
@@ -902,7 +846,7 @@ async function loadCompletedPayments() {
       const amount = parseFloat(d.amount || 0);
 
       html += `
-        <div class="admin-card">
+        <div class="admin-card" data-id="${escapeHtml(item.id)}">
           <div class="ac-head">
             <div class="ac-user">
               <b>${escapeHtml(d.user_name || d.account_name || 'Unknown')}</b>
@@ -918,15 +862,85 @@ async function loadCompletedPayments() {
             <div class="ac-row"><i class="fa-solid fa-check-circle" style="color:var(--green)"></i> Paid on: ${escapeHtml(dateStr)}</div>
             <div class="ac-row" style="font-size:11px;color:var(--muted)"><i class="fa-solid fa-user-shield"></i> Processed by: ${escapeHtml(d.paid_by || 'admin')}</div>
           </div>
+          <div class="ac-actions">
+            <button class="btn btn-outline btn-del-history" style="font-size:12px;padding:10px 16px;width:100%"><i class="fa-solid fa-trash-can"></i> Delete This Record</button>
+          </div>
         </div>
       `;
     });
 
     container.innerHTML = html;
+
+    const clearBtn = document.getElementById('clearHistoryBtn');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function() {
+        showConfirm('amber', 'Clear All History?', 'This will permanently delete ALL completed payment records from the database. This cannot be undone.', 'btn-danger', 'Delete All', () => clearCompletedHistory());
+      });
+    }
+
+    container.querySelectorAll('.btn-del-history').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const card = this.closest('.admin-card');
+        const recId = card.dataset.id;
+        showConfirm('amber', 'Delete This Record?', 'This will permanently delete this completed payment record.', 'btn-danger', 'Delete', () => deleteCompletedRecord(recId, card));
+      });
+    });
+
     hideLoading();
   } catch (err) {
     hideLoading();
     showToast('error', 'Error', 'Could not load completed payments.');
+  }
+}
+
+async function deleteCompletedRecord(recId, card) {
+  try {
+    const { error } = await supabase.from('completepay').delete().eq('id', recId);
+    if (error) {
+      showToast('error', 'Delete Failed', 'Could not delete this payment record.');
+      return;
+    }
+    if (card && card.parentNode) card.remove();
+    completedList = completedList.filter(c => c.id !== recId);
+    $('completedCount').textContent = completedList.length;
+    if (completedList.length === 0) {
+      $('completedList').innerHTML = `
+        <div class="empty-state">
+          <i class="fa-solid fa-receipt"></i>
+          <b>No Completed Payments Yet</b>
+          <p>When you mark withdrawals as paid, they will appear here.</p>
+        </div>
+      `;
+    }
+    showToast('success', 'Deleted', 'Payment record has been deleted.');
+  } catch (err) {
+    showToast('error', 'Error', 'An unexpected error occurred.');
+  }
+}
+
+async function clearCompletedHistory() {
+  showLoading();
+  try {
+    const { error } = await supabase.from('completepay').delete().neq('id', '');
+    if (error) {
+      hideLoading();
+      showToast('error', 'Delete Failed', 'Could not clear the payment history.');
+      return;
+    }
+    completedList = [];
+    $('completedCount').textContent = 0;
+    $('completedList').innerHTML = `
+      <div class="empty-state">
+        <i class="fa-solid fa-receipt"></i>
+        <b>No Completed Payments Yet</b>
+        <p>When you mark withdrawals as paid, they will appear here.</p>
+      </div>
+    `;
+    hideLoading();
+    showToast('success', 'History Cleared', 'All completed payment records have been deleted.');
+  } catch (err) {
+    hideLoading();
+    showToast('error', 'Error', 'An unexpected error occurred.');
   }
 }
 
