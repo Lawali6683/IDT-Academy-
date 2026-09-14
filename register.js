@@ -1,3 +1,5 @@
+
+
 import { supabase } from './supabase.js';
 
 const $ = (id) => document.getElementById(id);
@@ -182,33 +184,6 @@ function getUrlRef() {
   if (!ref) ref = localStorage.getItem('idt_ref') || '';
   if (!ref) ref = sessionStorage.getItem('idt_ref') || '';
   return ref.trim().toUpperCase();
-}
-
-function wasBouncedFromDashboard() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('bounced') === '1') {
-    params.delete('bounced');
-    const qs = params.toString();
-    window.history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : ''));
-    sessionStorage.setItem('idt_auth_loop', '1');
-    return true;
-  }
-  if (sessionStorage.getItem('idt_auth_loop') === '1') return true;
-  return false;
-}
-
-async function redirectToDashboardIfLoggedIn() {
-  try {
-    const { data } = await supabase.auth.getSession();
-    if (data && data.session && data.session.user) {
-      const { data: fresh } = await supabase.auth.refreshSession();
-      if (fresh && fresh.session) {
-        return true;
-      }
-    }
-  } catch (err) {}
-  localStorage.removeItem('idt_user');
-  return false;
 }
 
 function switchTab(name) {
@@ -444,7 +419,6 @@ async function handleRegister(e) {
     localStorage.setItem('idt_user', JSON.stringify(json.user));
     localStorage.removeItem('idt_ref');
     sessionStorage.removeItem('idt_ref');
-    sessionStorage.removeItem('idt_auth_loop');
 
     showToast('success', 'Welcome To IDT Academy!', json.message || 'Account created. Redirecting to your dashboard...');
     setTimeout(() => window.location.replace('dashboard.html'), 1800);
@@ -488,7 +462,6 @@ async function handleLogin(e) {
     } catch (pe) {}
 
     localStorage.setItem('idt_user', JSON.stringify(userObj));
-    sessionStorage.removeItem('idt_auth_loop');
     hideLoading();
 
     showToast('success', 'Welcome Back!', 'Login successful. Opening your dashboard...');
@@ -548,27 +521,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   showLoading();
   parseUrl();
 
-  if (wasBouncedFromDashboard()) {
-    const refEarly = getUrlRef();
-    if (refEarly && $('regRef')) {
-      $('regRef').value = refEarly;
-      localStorage.setItem('idt_ref', refEarly);
-      sessionStorage.setItem('idt_ref', refEarly);
-    }
-    const visitedEarly = localStorage.getItem('idt_visited');
-    if (visitedEarly) { switchTab('login'); } else { switchTab('register'); }
-    localStorage.setItem('idt_visited', '1');
-    await loadCourses();
-    hideLoading();
-    return;
-  }
-
-  const loggedIn = await redirectToDashboardIfLoggedIn();
-  if (loggedIn) {
-    window.location.replace('dashboard.html');
-    return;
-  }
-
   const ref = getUrlRef();
   if (ref && $('regRef')) {
     $('regRef').value = ref;
@@ -590,3 +542,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 document.addEventListener('DOMContentLoaded', () => {
   document.documentElement.classList.add('ready');
 });
+
