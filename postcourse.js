@@ -124,15 +124,7 @@ const CATEGORY_MAP = {
   '4': 'Diploma'
 };
 
-const CEO_EMAILS = [
-  'harunalawali5522@gmail.com',
-  'lawaliharuna943@gmail.com',
-  'ubaidaaliyu2023@gmail.com'
-];
-const ADMIN_EMAILS = ['idtacademy3@gmail.com'];
-
 let currentUserId = null;
-let currentUserRole = null;
 let currentCourse = null;
 let currentAllCourseData = null;
 let currentCourseId = null;
@@ -196,17 +188,6 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function resolveRole(ud) {
-  const storedRole = String((ud || {}).role || '').toLowerCase();
-  if (storedRole === 'admin' || storedRole === 'ceo') {
-    return storedRole;
-  }
-  const em = normaliseEmail((ud || {}).email);
-  if (CEO_EMAILS.indexOf(em) !== -1) return 'ceo';
-  if (ADMIN_EMAILS.indexOf(em) !== -1) return 'admin';
-  return '';
-}
-
 function switchAdmin(show) {
   $('loginGate').classList.toggle('hidden', show);
   $('adminArea').classList.toggle('hidden', !show);
@@ -229,7 +210,6 @@ async function attemptAutoLogin() {
     if (!raw) return false;
     const u = JSON.parse(raw);
     if (!u || !u.id || !u.email) return false;
-    currentUserId = u.id;
     const { data, error } = await supabase
       .from('user_profiles')
       .select('*')
@@ -239,14 +219,7 @@ async function attemptAutoLogin() {
       localStorage.removeItem('idt_user');
       return false;
     }
-    const ud = data.user_data || {};
-    const role = resolveRole(ud);
-    if (role !== 'admin' && role !== 'ceo') {
-      localStorage.removeItem('idt_user');
-      return false;
-    }
     currentUserId = data.id;
-    currentUserRole = role;
     return true;
   } catch (err) {
     localStorage.removeItem('idt_user');
@@ -286,21 +259,9 @@ async function handleGateLogin(e) {
       showToast('error', 'No Account Found', 'No user found with this email. Please register first.', '');
       return;
     }
-    let matched = null;
-    for (let i = 0; i < rows.length; i++) {
-      const ud = rows[i].user_data || {};
-      const role = resolveRole(ud);
-      if (role === 'admin' || role === 'ceo') {
-        matched = { row: rows[i], ud: ud, role: role };
-        break;
-      }
-    }
-    if (!matched) {
-      hideLoading();
-      showToast('error', 'Access Denied', 'Only admins and CEOs can access this page.', '');
-      return;
-    }
-    const ud = matched.ud;
+
+    const row = rows[0];
+    const ud = row.user_data || {};
     const storedHash = ud.password_hash || ud.passwordHash || '';
     const storedSalt = ud.password_salt || ud.passwordSalt || '';
     const storedPlain = ud.password || '';
@@ -327,21 +288,20 @@ async function handleGateLogin(e) {
       });
       if (authErr || !authData || !authData.user) {
         hideLoading();
-        showToast('error', 'Invalid Account', 'This account has no usable password. Please contact support.', '');
+        showToast('error', 'Wrong Password', 'The password you entered is incorrect.', '');
+        $('gatePassword').focus();
         return;
       }
     }
 
-    currentUserId = matched.row.id;
-    currentUserRole = matched.role;
+    currentUserId = row.id;
     const safeUser = {
-      id: matched.row.id,
+      id: row.id,
       full_name: ud.full_name || '',
-      email: ud.email || email,
-      role: matched.role
+      email: ud.email || email
     };
     localStorage.setItem('idt_user', JSON.stringify(safeUser));
-    showToast('success', 'Welcome Admin!', 'Login successful. You can now manage course topics.');
+    showToast('success', 'Welcome!', 'Login successful. You can now manage course topics.');
     switchAdmin(true);
     hideLoading();
   } catch (err) {
@@ -773,7 +733,6 @@ document.addEventListener('click', (e) => {
 $('menuLogout').addEventListener('click', () => {
   localStorage.removeItem('idt_user');
   currentUserId = null;
-  currentUserRole = null;
   resetCourseDisplay();
   switchAdmin(false);
   showToast('info', 'Logged Out', 'You have been logged out successfully.');
@@ -784,7 +743,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const loggedIn = await attemptAutoLogin();
   if (loggedIn) {
     switchAdmin(true);
-    showToast('success', 'Welcome Back!', 'You are logged in as admin. You can now manage topics.');
+    showToast('success', 'Welcome Back!', 'You are logged in. You can now manage topics.');
   } else {
     switchAdmin(false);
   }
