@@ -3,6 +3,47 @@ import { supabase } from './supabase.js';
 const $ = (sel, ctx) => (ctx || document).querySelector(sel);
 const $$ = (sel, ctx) => [...(ctx || document).querySelectorAll(sel)];
 
+const departments = [
+  { id: 'eng_tech', name: 'Engineering & Technology', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry'] },
+  { id: 'medicine', name: 'Medicine & Surgery / Nursing / Pharmacy / Dentistry / Anatomy', subjects: ['English', 'Biology', 'Chemistry', 'Physics'] },
+  { id: 'cs_science', name: 'Computer Science (Science Stream) / Cybersecurity / Software Engineering', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry'] },
+  { id: 'cs_mgmt', name: 'Computer Science (Management / Polytechnics)', subjects: ['English', 'Mathematics', 'Physics', 'Economics'] },
+  { id: 'agric', name: 'Agricultural Science / Agronomy / Animal Science', subjects: ['English', 'Chemistry', 'Biology / Agric Science', 'Physics / Mathematics'] },
+  { id: 'architecture', name: 'Architecture / Building / Quantity Surveying / Urban Planning', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry / Fine Arts / Geography'] },
+  { id: 'bio_sciences', name: 'Biological Sciences (Biochemistry / Microbiology / Zoology / Botany)', subjects: ['English', 'Biology', 'Chemistry', 'Physics / Mathematics'] },
+  { id: 'physical_sci', name: 'Physical Sciences (Physics / Industrial Chemistry / Geology)', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry'] },
+  { id: 'math_stats', name: 'Mathematics / Statistics / Data Science', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry / Economics'] },
+  { id: 'food_sci', name: 'Food Science and Technology', subjects: ['English', 'Chemistry', 'Mathematics / Physics', 'Biology / Agric Science'] },
+  { id: 'law', name: 'Law (Civil / Common / Islamic)', subjects: ['English', 'Literature in English', 'Government / History', 'CRK / IRK / Economics'] },
+  { id: 'mass_comm', name: 'Mass Communication / Journalism / Media Studies', subjects: ['English', 'Literature in English', 'Government / History', 'Any Nigerian Language / CRK / IRK / Economics'] },
+  { id: 'pol_sci', name: 'Political Science / International Relations / Public Admin', subjects: ['English', 'Government / History', 'Economics', 'Literature in English / CRK / IRK / Geography'] },
+  { id: 'sociology', name: 'Sociology / Criminology / Psychology', subjects: ['English', 'Government / History', 'Economics', 'Any Arts or Social Science Subject'] },
+  { id: 'economics', name: 'Economics', subjects: ['English', 'Mathematics', 'Economics', 'Government / History / Geography / Commerce'] },
+  { id: 'english_lang', name: 'English Language / Linguistics / Literature', subjects: ['English', 'Literature in English', 'Government / History', 'Any Nigerian Language / Arts Subject'] },
+  { id: 'history', name: 'History and International Studies', subjects: ['English', 'History / Government', 'Literature in English', 'Any Arts or Social Science Subject'] },
+  { id: 'theatre', name: 'Theatre Arts / Performing Arts / Creative Arts', subjects: ['English', 'Literature in English', 'Government / History', 'Fine Arts / Music / Any Arts Subject'] },
+  { id: 'languages', name: 'Hausa / Yoruba / Igbo', subjects: ['English', 'The Specific Language', 'Literature in English', 'Any Arts Subject'] },
+  { id: 'religious', name: 'Islamic Studies / Christian Religious Studies', subjects: ['English', 'IRK / CRK', 'Government / History', 'Literature in English / Any Arts Subject'] },
+  { id: 'accounting', name: 'Accounting / Finance / Banking & Finance', subjects: ['English', 'Mathematics', 'Economics', 'Commerce / Financial Accounting / Government'] },
+  { id: 'business_admin', name: 'Business Administration / Business Management', subjects: ['English', 'Mathematics', 'Economics', 'Commerce / Government'] },
+  { id: 'marketing', name: 'Marketing / Procurement / Logistics', subjects: ['English', 'Mathematics', 'Economics', 'Commerce / Government'] },
+  { id: 'hr', name: 'Human Resource Management / Industrial Relations', subjects: ['English', 'Mathematics', 'Economics', 'Government'] },
+  { id: 'insurance', name: 'Insurance / Actuarial Science', subjects: ['English', 'Mathematics', 'Economics', 'Commerce / Physics / Financial Accounting'] },
+  { id: 'estate', name: 'Estate Management', subjects: ['English', 'Mathematics', 'Economics', 'Chemistry / Physics / Geography / Agric Science'] },
+  { id: 'geography', name: 'Geography / Environmental Management', subjects: ['English', 'Geography', 'Mathematics / Economics', 'Biology / Chemistry / Physics'] },
+  { id: 'edu_science', name: 'Education & Science (Physics / Chemistry / Biology)', subjects: ['English', 'Science Subject', 'Mathematics', 'Chemistry / Physics / Biology'] },
+  { id: 'edu_math', name: 'Education & Mathematics', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry / Economics'] },
+  { id: 'edu_english', name: 'Education & English', subjects: ['English', 'Literature in English', 'Government / History', 'Any Arts Subject'] },
+  { id: 'edu_econs', name: 'Education & Economics', subjects: ['English', 'Mathematics', 'Economics', 'Government / Geography'] },
+  { id: 'primary_edu', name: 'Primary Education / Special Education', subjects: ['English', 'Any 3 Arts / Social Science / Science Subjects'] },
+  { id: 'mls', name: 'Medical Laboratory Science / Radiography', subjects: ['English', 'Biology', 'Chemistry', 'Physics'] },
+  { id: 'physio', name: 'Physiotherapy / Prosthetics and Orthotics', subjects: ['English', 'Biology', 'Chemistry', 'Physics'] },
+  { id: 'public_health', name: 'Public Health / Environmental Health Science', subjects: ['English', 'Biology', 'Chemistry', 'Physics / Mathematics'] },
+  { id: 'veterinary', name: 'Veterinary Medicine', subjects: ['English', 'Biology', 'Chemistry', 'Physics'] },
+  { id: 'telecom', name: 'Telecommunication Engineering / Biomedical Engineering', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry'] },
+  { id: 'library', name: 'Library and Information Science', subjects: ['English', 'Any 3 Arts / Social Science / Science Subjects'] }
+];
+
 const el = {
   loading: $('#loadingScreen'),
   backBtn: $('#backBtn'),
@@ -45,6 +86,17 @@ const el = {
   allComplete: $('#allComplete'),
   finalExamBtn: $('#finalExamBtn'),
   referralPageBtn: $('#referralPageBtn'),
+  courseSelectOverlay: $('#courseSelectOverlay'),
+  deptGrid: $('#deptGrid'),
+  deptLoading: $('#deptLoading'),
+  payGetOverlay: $('#payGetOverlay'),
+  payGetCourseName: $('#payGetCourseName'),
+  payGetSubjects: $('#payGetSubjects'),
+  payGetAmount: $('#payGetAmount'),
+  payGetError: $('#payGetError'),
+  changeCourseBtn: $('#changeCourseBtn'),
+  payNowBtn: $('#payNowBtn'),
+  payNowLoading: $('#payNowLoading'),
   examLockOverlay: $('#examLockOverlay'),
   startExamBtn: $('#startExamBtn'),
   cooldownDisplay: $('#cooldownDisplay'),
@@ -69,6 +121,12 @@ const el = {
   camOptions: $('#camOptions'),
   camPrevBtn: $('#camPrevBtn'),
   camNextBtn: $('#camNextBtn'),
+  examWarning: $('#examWarning'),
+  netPauseOverlay: $('#netPauseOverlay'),
+  netPauseTimer: $('#netPauseTimer'),
+  netPauseLocked: $('#netPauseLocked'),
+  netPauseTimeLeft: $('#netPauseTimeLeft'),
+  netPauseContinue: $('#netPauseContinue'),
   resultsOverlay: $('#resultsOverlay'),
   resultsCard: $('#resultsCard'),
   certificateOverlay: $('#certificateOverlay'),
@@ -104,6 +162,10 @@ let isMobile = false;
 let camStream = null;
 let aiContext = [];
 let aiActiveLang = 'english+hausa';
+let netPaused = false;
+let netDeadline = null;
+let netCountdownInterval = null;
+let screenSwitchCount = 0;
 
 function escapeHtml(str) {
   return String(str == null ? '' : str).replace(/[&<>"']/g, function(ch) {
@@ -163,6 +225,17 @@ function setLocalUser(u) {
   localStorage.setItem('idt_user', JSON.stringify(u));
 }
 
+async function readApiError(res) {
+  try {
+    const data = await res.json();
+    if (data && (data.error || data.message)) return String(data.error || data.message);
+    if (data && data.msg) return String(data.msg);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function fetchUserProfile(userId) {
   try {
     const { data, error } = await supabase
@@ -178,21 +251,11 @@ async function fetchUserProfile(userId) {
   }
 }
 
-async function activateUser(profile) {
-  try {
-    const oldData = (profile && profile.user_data) || {};
-    const merged = Object.assign({}, oldData, { status: 'active' });
-    await supabase.from('user_profiles').update({ user_data: merged }).eq('id', profile.id);
-    setLocalUser(Object.assign({}, getLocalUser() || {}, merged, { status: 'active' }));
-  } catch (err) {
-    const stored = getLocalUser();
-    if (stored) { stored.status = 'active'; setLocalUser(stored); }
-  }
-  currentUser = getLocalUser();
-  el.paymentOverlay.classList.remove('active');
-  el.dashboardContent.classList.remove('hidden');
-  showToast('Payment confirmed! Welcome to your dashboard.', 'success');
-  initDashboard();
+function activateDashboardView() {
+  if (el.paymentOverlay) el.paymentOverlay.classList.remove('active');
+  if (el.courseSelectOverlay) el.courseSelectOverlay.classList.remove('active');
+  if (el.payGetOverlay) el.payGetOverlay.classList.remove('active');
+  if (el.dashboardContent) el.dashboardContent.classList.remove('hidden');
 }
 
 async function checkPaymentStatus(userId) {
@@ -214,9 +277,7 @@ async function checkPaymentStatus(userId) {
       setLocalUser(stored);
       currentUser = stored;
 
-      if (el.paymentOverlay) el.paymentOverlay.classList.remove('active');
-      if (el.dashboardContent) el.dashboardContent.classList.remove('hidden');
-
+      activateDashboardView();
       stopPaymentPolling();
 
       showToast('Congratulations! Payment confirmed. Welcome to your dashboard.', 'success', 6000);
@@ -251,8 +312,10 @@ function showPayError(message) {
     banner.style.cssText = 'margin:12px 0;padding:12px 14px;border-radius:12px;background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.3);color:#f43f5e;font-size:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap';
     if (el.payAccountNumber && el.payAccountNumber.parentNode) {
       el.payAccountNumber.parentNode.insertBefore(banner, el.payAccountNumber.parentNode.firstChild);
-    } else {
+    } else if (el.paymentOverlay) {
       el.paymentOverlay.appendChild(banner);
+    } else {
+      return;
     }
   }
   banner.innerHTML = '<i class="fas fa-triangle-exclamation"></i> <span style="flex:1">' + escapeHtml(message) + '</span> <button id="payErrorRetry" style="background:#f43f5e;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer">Try Again</button>';
@@ -264,6 +327,19 @@ function showPayError(message) {
       requestPaymentDetails();
     });
   }
+}
+
+function showPayGetError(message) {
+  if (!el.payGetError) {
+    showToast(message, 'error', 6000);
+    return;
+  }
+  el.payGetError.innerHTML = '<i class="fas fa-triangle-exclamation"></i> ' + escapeHtml(message);
+  el.payGetError.style.display = 'flex';
+}
+
+function hidePayGetError() {
+  if (el.payGetError) el.payGetError.style.display = 'none';
 }
 
 function hidePayError() {
@@ -305,11 +381,7 @@ function setupCopyButton() {
   host.insertAdjacentElement('afterend', btn);
 }
 
-function startPaymentFlow() {
-  if (el.paymentOverlay) el.paymentOverlay.classList.add('active');
-
-  requestPaymentDetails();
-
+function beginPaymentPolling() {
   if (statusCheckInterval) clearInterval(statusCheckInterval);
 
   const startTime = Date.now();
@@ -335,6 +407,12 @@ function startPaymentFlow() {
   }, 5000);
 }
 
+function startPaymentFlow() {
+  if (el.paymentOverlay) el.paymentOverlay.classList.add('active');
+  requestPaymentDetails();
+  beginPaymentPolling();
+}
+
 async function requestPaymentDetails() {
   const u = getLocalUser();
   if (!u) return;
@@ -348,7 +426,7 @@ async function requestPaymentDetails() {
       body: JSON.stringify({
         user_id: u.id,
         email: u.email,
-        price: 3500
+        price: Number(u.jambCoursePrice) || 3500
       })
     });
 
@@ -360,10 +438,10 @@ async function requestPaymentDetails() {
     }
 
     if (!res.ok || !data || !data.success) {
-      const errMsg = (data && (data.error || data.message))
-        ? (data.error || data.message)
-        : ('Payment service returned an error (HTTP ' + res.status + ').');
-
+      const apiMsg = data && (data.error || data.message) ? (data.error || data.message) : null;
+      const errMsg = apiMsg
+        ? apiMsg
+        : 'Payment service returned an error (HTTP ' + res.status + '). Please try again.';
       showPayError('Failed to initialize payment: ' + errMsg);
       showToast('Error: ' + errMsg, 'error', 6000);
       return;
@@ -373,7 +451,7 @@ async function requestPaymentDetails() {
       if (el.payAccountNumber) el.payAccountNumber.textContent = data.account_number;
       if (el.payAccountName) el.payAccountName.textContent = data.account_name || '';
       if (el.payBankName) el.payBankName.textContent = data.bank_name || '';
-      if (el.payAmount) el.payAmount.textContent = '₦' + Number(data.amount || 3500).toLocaleString();
+      if (el.payAmount) el.payAmount.textContent = '₦' + Number(data.amount || u.jambCoursePrice || 3500).toLocaleString();
 
       setupCopyButton();
       hidePayError();
@@ -387,11 +465,10 @@ async function requestPaymentDetails() {
 
     if (data.expires_at) {
       payExpiresAt = new Date(data.expires_at).getTime();
-      startPayTimer();
     } else {
       payExpiresAt = Date.now() + (30 * 60 * 1000);
-      startPayTimer();
     }
+    startPayTimer();
 
     showToast('Payment details generated successfully. Please proceed with your transfer.', 'info');
 
@@ -402,25 +479,163 @@ async function requestPaymentDetails() {
   }
 }
 
-async function checkAndInitUser() {
-  const u = getLocalUser();
-  if (!u) {
-    window.location.href = 'jamb.html';
-    return;
+function renderPayGet(u) {
+  if (el.payGetCourseName) el.payGetCourseName.textContent = u.jambCourseName || 'JAMB Preparation Course';
+  if (el.payGetSubjects) {
+    const subs = Array.isArray(u.jambCourseSubjects) ? u.jambCourseSubjects : [];
+    el.payGetSubjects.textContent = subs.length > 0 ? subs.join(' • ') : 'English + 3 subjects';
   }
+  if (el.payGetAmount) el.payGetAmount.textContent = '₦' + (Number(u.jambCoursePrice) || 3500).toLocaleString();
+  hidePayGetError();
+  el.payGetOverlay.classList.add('active');
+}
 
-  const profile = await fetchUserProfile(u.id);
-  const ud = (profile && profile.user_data) ? profile.user_data : u;
+function renderDeptGrid(u) {
+  if (!el.deptGrid) return;
+  el.deptGrid.innerHTML = '';
+  const currentId = u && (u.jambCourseId || '');
+  departments.forEach(function(d) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dept-card' + (d.id === currentId ? ' selected' : '');
+    btn.innerHTML = '<div class="dept-name">' + escapeHtml(d.name) + '</div><div class="dept-subjects">' + d.subjects.map(function(s) { return escapeHtml(s); }).join(' • ') + '</div>';
+    btn.addEventListener('click', function() { selectDepartment(d, btn); });
+    el.deptGrid.appendChild(btn);
+  });
+}
 
-  if (ud.payment_no === 'yes') {
-    if (el.paymentOverlay) el.paymentOverlay.classList.remove('active');
-    if (el.dashboardContent) el.dashboardContent.classList.remove('hidden');
-    initDashboard();
-  } else {
-    if (el.dashboardContent) el.dashboardContent.classList.add('hidden');
-    startPaymentFlow();
+function showCourseSelect() {
+  const u = getLocalUser();
+  if (!u) return;
+  renderDeptGrid(u);
+  el.courseSelectOverlay.classList.add('active');
+}
+
+async function selectDepartment(dept, btn) {
+  const u = getLocalUser();
+  if (!u) return;
+
+  if (el.deptLoading) el.deptLoading.classList.remove('hidden');
+  hidePayGetError();
+
+  try {
+    const res = await fetch('/api/jambData', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: u.id,
+        department_id: dept.id
+      })
+    });
+
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (e) {
+      data = null;
+    }
+
+    if (!res.ok || !data || !data.success) {
+      const apiMsg = data && (data.error || data.message) ? (data.error || data.message) : null;
+      const errMsg = apiMsg
+        ? apiMsg
+        : 'Could not update your course (HTTP ' + res.status + '). Please try again.';
+      showToast(errMsg, 'error', 6000);
+      return;
+    }
+
+    const updated = Object.assign({}, u, {
+      jambCourseId: data.jambCourseId,
+      jambCourseName: data.jambCourseName,
+      jambCourseSubjects: data.jambCourseSubjects,
+      jambCoursePrice: data.jambCoursePrice
+    });
+    setLocalUser(updated);
+    currentUser = updated;
+    userData = updated;
+
+    showToast(data.message || 'Your course has been updated successfully.', 'success');
+    el.courseSelectOverlay.classList.remove('active');
+    renderPayGet(updated);
+
+  } catch (err) {
+    console.error('jambData error:', err);
+    showToast('Network connection error. Please check your internet and try again.', 'error', 6000);
+  } finally {
+    if (el.deptLoading) el.deptLoading.classList.add('hidden');
   }
 }
+
+el.changeCourseBtn.addEventListener('click', showCourseSelect);
+
+el.payNowBtn.addEventListener('click', async function() {
+  const u = getLocalUser();
+  if (!u) return;
+
+  this.disabled = true;
+  if (el.payNowLoading) el.payNowLoading.classList.remove('hidden');
+  hidePayGetError();
+
+  try {
+    const res = await fetch('/api/paystack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: u.id,
+        email: u.email,
+        price: Number(u.jambCoursePrice) || 3500
+      })
+    });
+
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (e) {
+      data = null;
+    }
+
+    if (!res.ok || !data || !data.success) {
+      const apiMsg = data && (data.error || data.message) ? (data.error || data.message) : null;
+      const errMsg = apiMsg
+        ? apiMsg
+        : 'Payment service returned an error (HTTP ' + res.status + '). Please try again.';
+      showPayGetError(errMsg);
+      showToast('Error: ' + errMsg, 'error', 6000);
+      return;
+    }
+
+    if (data.authorization_url) {
+      showToast('Redirecting you to complete your payment...', 'info');
+      window.location.href = data.authorization_url;
+      return;
+    }
+
+    if (data.account_number && data.account_number.trim() !== '') {
+      if (el.payAccountNumber) el.payAccountNumber.textContent = data.account_number;
+      if (el.payAccountName) el.payAccountName.textContent = data.account_name || '';
+      if (el.payBankName) el.payBankName.textContent = data.bank_name || '';
+      if (el.payAmount) el.payAmount.textContent = '₦' + Number(data.amount || u.jambCoursePrice || 3500).toLocaleString();
+      setupCopyButton();
+      el.payGetOverlay.classList.remove('active');
+      el.paymentOverlay.classList.add('active');
+      payExpiresAt = data.expires_at ? new Date(data.expires_at).getTime() : Date.now() + (30 * 60 * 1000);
+      startPayTimer();
+      beginPaymentPolling();
+      showToast('Payment details generated. Please transfer to the account below.', 'info', 6000);
+      return;
+    }
+
+    showPayGetError('Unable to generate payment details. Please try again later.');
+
+  } catch (err) {
+    console.error('Pay Now network error:', err);
+    showPayGetError('Network connection error. Please verify your internet connection and try again.');
+    showToast('Network error while connecting to payment service.', 'error');
+  } finally {
+    this.disabled = false;
+    if (el.payNowLoading) el.payNowLoading.classList.add('hidden');
+  }
+});
 
 function startPayTimer() {
   if (payTimerInterval) clearInterval(payTimerInterval);
@@ -447,13 +662,46 @@ el.payRefreshBtn.addEventListener('click', function() {
   showToast('Payment details refreshed.', 'success');
 });
 
+function applyNewCourseFields(ud) {
+  return {
+    jambCourseId: ud.jambCourseId || '',
+    jambCourseName: ud.jambCourseName || '',
+    jambCourseSubjects: Array.isArray(ud.jambCourseSubjects) ? ud.jambCourseSubjects : [],
+    jambCoursePrice: ud.jambCoursePrice || 3500
+  };
+}
+
+async function checkAndInitUser() {
+  const u = getLocalUser();
+  if (!u) {
+    window.location.href = 'jamb.html';
+    return;
+  }
+
+  const profile = await fetchUserProfile(u.id);
+  const ud = (profile && profile.user_data) ? profile.user_data : u;
+
+  if (ud.payment_no === 'yes') {
+    activateDashboardView();
+    initDashboard();
+  } else {
+    if (el.dashboardContent) el.dashboardContent.classList.add('hidden');
+    const stored = Object.assign({}, u, applyNewCourseFields(ud), { payment_no: ud.payment_no || 'no', status: ud.status || 'pending' });
+    setLocalUser(stored);
+    currentUser = stored;
+    userData = stored;
+    renderPayGet(stored);
+    beginPaymentPolling();
+  }
+}
+
 async function initDashboard() {
   const u = getLocalUser();
   if (!u) { window.location.href = 'jamb.html'; return; }
   userData = u;
   currentUser = u;
   el.dashUserName.textContent = u.full_name || 'Student';
-  el.dashUserDept.textContent = u.course_name || 'JAMB Student';
+  el.dashUserDept.textContent = u.jambCourseName || 'JAMB Student';
   el.welcomeName.textContent = u.full_name || 'Student';
   el.referralEarn.textContent = '₦' + (Number(u.referral_bonus) || 0).toFixed(2);
   await fetchTopics();
@@ -723,7 +971,7 @@ async function openExamLock() {
 function updateCooldownTimer(ms) {
   const h = Math.floor(ms / 3600000);
   const m = Math.floor((ms % 3600000) / 60000);
-  const s = Math.floor((ms % 60000) / 1000);
+  const s = Math.floor(ms % 60000 / 1000);
   el.cooldownTimer.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
 }
 
@@ -735,16 +983,41 @@ el.startExamBtn.addEventListener('click', async function() {
     showToast('You must complete all topics first.', 'warning');
     return;
   }
-  el.examLockOverlay.classList.remove('active');
+
+  const originalHtml = this.innerHTML;
+  this.disabled = true;
+  this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
+
   showLoading(true);
-  await generateExamQuestions();
+  const camOk = await requireCamera();
   showLoading(false);
+
+  if (!camOk) {
+    this.disabled = false;
+    this.innerHTML = originalHtml;
+    showToast('Camera access is required before starting the exam. Please enable your camera and try again.', 'error', 6000);
+    return;
+  }
+
+  const ok = await generateExamQuestions();
+
+  this.disabled = false;
+  this.innerHTML = originalHtml;
+
+  if (!ok) {
+    stopCamera();
+    el.examLockOverlay.classList.add('active');
+    return;
+  }
+
+  el.examLockOverlay.classList.remove('active');
   startExam();
 });
 
 async function generateExamQuestions() {
   const u = getLocalUser();
-  if (!u) return;
+  if (!u) return false;
+
   try {
     const res = await fetch('/api/jambai', {
       method: 'POST',
@@ -752,100 +1025,65 @@ async function generateExamQuestions() {
       body: JSON.stringify({
         action: 'generate_exam',
         user_id: u.id,
-        course_id: u.course_id || '',
-        course_name: u.course_name || '',
+        jambCourseId: u.jambCourseId || '',
+        jambCourseName: u.jambCourseName || '',
+        jambCourseSubjects: u.jambCourseSubjects || [],
         full_name: u.full_name || ''
       })
     });
-    const data = await res.json();
-    if (data.success && data.questions) {
-      examQuestions = data.questions;
-    } else {
-      examQuestions = generateFallbackQuestions();
+
+    if (res.status !== 200) {
+      const apiMsg = await readApiError(res);
+      const errMsg = apiMsg
+        ? apiMsg
+        : 'The exam server returned an unexpected response (HTTP ' + res.status + '). Please try again.';
+      showToast('Could not start exam: ' + errMsg, 'error', 7000);
+      return false;
     }
+
+    const data = await res.json();
+
+    if (!data.success || !data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
+      const apiMsg = data && (data.error || data.message) ? (data.error || data.message) : null;
+      const errMsg = apiMsg
+        ? apiMsg
+        : 'The exam server did not return any questions. Please try again.';
+      showToast('Could not start exam: ' + errMsg, 'error', 7000);
+      return false;
+    }
+
+    examQuestions = data.questions;
+    return true;
+
   } catch (err) {
     console.error('generateExamQuestions error:', err);
-    examQuestions = generateFallbackQuestions();
+    showToast('Network connection error while preparing the exam. Please check your internet and try again.', 'error', 7000);
+    return false;
   }
 }
 
-function generateFallbackQuestions() {
-  const qs = [];
-  const subjects = getSubjectsForDepartment(userData && userData.course_id || '');
-  const allSubjects = ['Use of English', ...subjects];
-  const counts = [60, 40, 40, 40];
-  let qNum = 0;
-  allSubjects.forEach(function(subj, si) {
-    const count = counts[si] || 40;
-    for (let i = 0; i < count; i++) {
-      qNum++;
-      qs.push({
-        id: 'q' + qNum,
-        number: qNum,
-        subject: subj,
-        text: 'Sample ' + subj + ' question #' + (i + 1) + ': What is the correct answer?',
-        options: ['Option A', 'Option B', 'Option C', 'Option D'],
-        correct: Math.floor(Math.random() * 4)
-      });
-    }
-  });
-  return qs;
-}
-
-function getSubjectsForDepartment(deptId) {
-  const depts = [
-    { id: 'eng_tech', subs: ['Physics', 'Chemistry', 'Mathematics'] },
-    { id: 'medicine', subs: ['Biology', 'Chemistry', 'Physics'] },
-    { id: 'cs_science', subs: ['Mathematics', 'Physics', 'Chemistry'] },
-    { id: 'cs_mgmt', subs: ['Mathematics', 'Physics', 'Economics'] },
-    { id: 'agric', subs: ['Chemistry', 'Biology', 'Physics'] },
-    { id: 'architecture', subs: ['Mathematics', 'Physics', 'Chemistry'] },
-    { id: 'bio_sciences', subs: ['Biology', 'Chemistry', 'Physics'] },
-    { id: 'physical_sci', subs: ['Mathematics', 'Physics', 'Chemistry'] },
-    { id: 'math_stats', subs: ['Mathematics', 'Physics', 'Chemistry'] },
-    { id: 'food_sci', subs: ['Chemistry', 'Mathematics', 'Biology'] },
-    { id: 'law', subs: ['Literature', 'Government', 'CRK'] },
-    { id: 'mass_comm', subs: ['Literature', 'Government', 'Economics'] },
-    { id: 'pol_sci', subs: ['Government', 'Economics', 'Literature'] },
-    { id: 'sociology', subs: ['Government', 'Economics', 'Literature'] },
-    { id: 'economics', subs: ['Mathematics', 'Economics', 'Government'] },
-    { id: 'english_lang', subs: ['Literature', 'Government', 'Any Language'] },
-    { id: 'history', subs: ['History', 'Literature', 'Government'] },
-    { id: 'theatre', subs: ['Literature', 'Government', 'Fine Arts'] },
-    { id: 'languages', subs: ['Language', 'Literature', 'Any Arts'] },
-    { id: 'religious', subs: ['IRK', 'Government', 'Literature'] },
-    { id: 'accounting', subs: ['Mathematics', 'Economics', 'Commerce'] },
-    { id: 'business_admin', subs: ['Mathematics', 'Economics', 'Commerce'] },
-    { id: 'marketing', subs: ['Mathematics', 'Economics', 'Commerce'] },
-    { id: 'hr', subs: ['Mathematics', 'Economics', 'Government'] },
-    { id: 'insurance', subs: ['Mathematics', 'Economics', 'Commerce'] },
-    { id: 'estate', subs: ['Mathematics', 'Economics', 'Geography'] },
-    { id: 'geography', subs: ['Geography', 'Mathematics', 'Economics'] },
-    { id: 'edu_science', subs: ['Science', 'Mathematics', 'Chemistry'] },
-    { id: 'edu_math', subs: ['Mathematics', 'Physics', 'Chemistry'] },
-    { id: 'edu_english', subs: ['Literature', 'Government', 'Any Arts'] },
-    { id: 'edu_econs', subs: ['Mathematics', 'Economics', 'Government'] },
-    { id: 'primary_edu', subs: ['Arts', 'Social Science', 'Science'] },
-    { id: 'mls', subs: ['Biology', 'Chemistry', 'Physics'] },
-    { id: 'physio', subs: ['Biology', 'Chemistry', 'Physics'] },
-    { id: 'public_health', subs: ['Biology', 'Chemistry', 'Physics'] },
-    { id: 'veterinary', subs: ['Biology', 'Chemistry', 'Physics'] },
-    { id: 'telecom', subs: ['Mathematics', 'Physics', 'Chemistry'] },
-    { id: 'library', subs: ['Arts', 'Social Science', 'Science'] }
-  ];
-  const found = depts.find(function(d) { return d.id === deptId; });
-  return found ? found.subs : ['Physics', 'Chemistry', 'Biology'];
+async function requireCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
+    camStream = stream;
+    el.camVideo.srcObject = stream;
+    return true;
+  } catch (err) {
+    console.log('Camera not available or permission denied:', err.message);
+    return false;
+  }
 }
 
 function startExam() {
   if (!examQuestions || examQuestions.length === 0) {
-    showToast('No questions generated. Please try again.', 'error');
+    showToast('No questions were loaded. Please try again.', 'error');
     return;
   }
   examAnswers = new Array(examQuestions.length).fill(null);
   currentExamQ = 0;
   examTimeLeft = 7200;
   examStarted = true;
+  screenSwitchCount = 0;
 
   const subjects = [...new Set(examQuestions.map(function(q) { return q.subject; }))];
   el.examSubjects.innerHTML = subjects.map(function(s) {
@@ -854,17 +1092,24 @@ function startExam() {
 
   renderExamQuestion(0);
   renderExamGrid();
+
   el.examScreen.classList.add('active');
+  el.cameraOverlay.classList.add('active');
+  el.examScreen.classList.add('cam-active');
+  enableExamProtection();
 
-  if (isMobile && subjects.length > 0) {
-    startCamera();
-  }
+  startExamTimer();
 
+  document.addEventListener('keydown', examKeyHandler);
+}
+
+function startExamTimer() {
   if (examTimerInterval) clearInterval(examTimerInterval);
   examTimerInterval = setInterval(function() {
     examTimeLeft--;
     if (examTimeLeft <= 0) {
       clearInterval(examTimerInterval);
+      examTimerInterval = null;
       submitExam(true);
       return;
     }
@@ -873,11 +1118,17 @@ function startExam() {
     const s = examTimeLeft % 60;
     el.examTimerDisplay.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
   }, 1000);
+}
 
-  document.addEventListener('keydown', examKeyHandler);
+function stopExamTimer() {
+  if (examTimerInterval) {
+    clearInterval(examTimerInterval);
+    examTimerInterval = null;
+  }
 }
 
 function examKeyHandler(e) {
+  if (netPaused) return;
   const key = e.key.toUpperCase();
   if (key === 'A' || key === 'B' || key === 'C' || key === 'D') {
     const idx = key.charCodeAt(0) - 65;
@@ -928,16 +1179,18 @@ function renderExamQuestion(index) {
 }
 
 function selectExamOption(optIndex) {
-  if (!examStarted) return;
+  if (!examStarted || netPaused) return;
   examAnswers[currentExamQ] = optIndex;
   renderExamQuestion(currentExamQ);
 }
 
 function goExamPrev() {
+  if (netPaused) return;
   if (currentExamQ > 0) renderExamQuestion(currentExamQ - 1);
 }
 
 function goExamNext() {
+  if (netPaused) return;
   if (currentExamQ < examQuestions.length - 1) renderExamQuestion(currentExamQ + 1);
 }
 
@@ -954,18 +1207,122 @@ function renderExamGrid() {
     if (i === currentExamQ) btn.classList.add('current');
     if (examAnswers[i] !== null && examAnswers[i] !== undefined) btn.classList.add('answered');
     btn.textContent = i + 1;
-    btn.addEventListener('click', function() { renderExamQuestion(i); });
+    btn.addEventListener('click', function() { if (!netPaused) renderExamQuestion(i); });
     el.examQGrid.appendChild(btn);
   });
 }
 
+function preventCopy(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  showToast('Copying exam content is not allowed.', 'warning', 2500);
+  return false;
+}
+
+function enableExamProtection() {
+  document.body.classList.add('exam-no-copy');
+  document.addEventListener('copy', preventCopy, true);
+  document.addEventListener('cut', preventCopy, true);
+  document.addEventListener('contextmenu', preventCopy, true);
+  document.addEventListener('selectstart', preventCopy, true);
+}
+
+function disableExamProtection() {
+  document.body.classList.remove('exam-no-copy');
+  document.removeEventListener('copy', preventCopy, true);
+  document.removeEventListener('cut', preventCopy, true);
+  document.removeEventListener('contextmenu', preventCopy, true);
+  document.removeEventListener('selectstart', preventCopy, true);
+}
+
+function handleScreenSwitchAttempt() {
+  if (!examStarted || netPaused) return;
+  screenSwitchCount++;
+  showToast('Warning: Do not switch screens or leave the exam window! (' + screenSwitchCount + ')', 'warning', 5000);
+  if (el.examWarning && screenSwitchCount >= 3) {
+    el.examWarning.innerHTML = '<i class="fas fa-triangle-exclamation"></i> Suspicious activity detected (' + screenSwitchCount + ' screen switches). Your activity is being monitored.';
+    el.examWarning.classList.remove('hidden');
+  }
+}
+
+function pauseExamForNetwork() {
+  if (!examStarted || netPaused) return;
+  netPaused = true;
+  stopExamTimer();
+
+  netDeadline = Date.now() + 120000;
+  el.netPauseOverlay.classList.add('active');
+  el.netPauseTimer.classList.remove('hidden');
+  el.netPauseLocked.classList.add('hidden');
+  el.netPauseContinue.classList.add('hidden');
+  showToast('Network connection lost. You have 2 minutes to reconnect.', 'warning', 6000);
+
+  if (netCountdownInterval) clearInterval(netCountdownInterval);
+  netCountdownInterval = setInterval(function() {
+    const rem = netDeadline - Date.now();
+    if (rem <= 0) {
+      clearInterval(netCountdownInterval);
+      netCountdownInterval = null;
+      lockExamForNetwork();
+      return;
+    }
+    const m = Math.floor(rem / 60000);
+    const s = Math.floor((rem % 60000) / 1000);
+    el.netPauseTimer.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }, 250);
+}
+
+function lockExamForNetwork() {
+  el.netPauseTimer.classList.add('hidden');
+  el.netPauseLocked.classList.remove('hidden');
+  el.netPauseContinue.classList.remove('hidden');
+  el.netPauseTimeLeft.textContent = el.examTimerDisplay.textContent;
+}
+
+function resumeExamFromNetwork() {
+  if (netCountdownInterval) {
+    clearInterval(netCountdownInterval);
+    netCountdownInterval = null;
+  }
+  netPaused = false;
+  el.netPauseOverlay.classList.remove('active');
+  el.netPauseTimer.classList.remove('hidden');
+  el.netPauseLocked.classList.add('hidden');
+  el.netPauseContinue.classList.add('hidden');
+  if (examStarted) {
+    startExamTimer();
+    showToast('Connection restored. Continuing from where you stopped.', 'success');
+  }
+}
+
+el.netPauseContinue.addEventListener('click', function() {
+  resumeExamFromNetwork();
+});
+
+window.addEventListener('online', function() {
+  if (netPaused && netDeadline && Date.now() < netDeadline) {
+    resumeExamFromNetwork();
+  }
+});
+
+window.addEventListener('offline', function() {
+  pauseExamForNetwork();
+});
+
 async function submitExam(auto) {
   if (!auto && !confirm('Are you sure you want to submit? You cannot change your answers after submission.')) return;
   examStarted = false;
-  if (examTimerInterval) clearInterval(examTimerInterval);
+  stopExamTimer();
   document.removeEventListener('keydown', examKeyHandler);
+  disableExamProtection();
   stopCamera();
   el.examScreen.classList.remove('active');
+  el.netPauseOverlay.classList.remove('active');
+  if (netCountdownInterval) {
+    clearInterval(netCountdownInterval);
+    netCountdownInterval = null;
+  }
+  netPaused = false;
 
   showLoading(true);
   const u = getLocalUser();
@@ -978,24 +1335,41 @@ async function submitExam(auto) {
         user_id: u ? u.id : '',
         full_name: u ? u.full_name : '',
         email: u ? u.email : '',
-        course_id: u ? u.course_id : '',
-        course_name: u ? u.course_name : '',
+        jambCourseId: u ? (u.jambCourseId || '') : '',
+        jambCourseName: u ? (u.jambCourseName || '') : '',
         questions: examQuestions,
-        answers: examAnswers
+        answers: examAnswers,
+        screen_switches: screenSwitchCount
       })
     });
+
+    if (res.status !== 200) {
+      const apiMsg = await readApiError(res);
+      const errMsg = apiMsg ? apiMsg : 'HTTP ' + res.status;
+      showLoading(false);
+      showToast('Marking service issue (' + errMsg + '). Your exam was marked locally.', 'warning', 6000);
+      const fallback = markLocally();
+      showExamResults(fallback);
+      saveExamToHistory(fallback);
+      return;
+    }
+
     const data = await res.json();
     showLoading(false);
     if (data.success) {
       showExamResults(data);
       saveExamToHistory(data);
     } else {
+      const apiMsg = data && (data.error || data.message) ? (data.error || data.message) : 'Unknown server error';
+      showToast('Marking service issue (' + apiMsg + '). Your exam was marked locally.', 'warning', 6000);
       const fallback = markLocally();
       showExamResults(fallback);
       saveExamToHistory(fallback);
     }
   } catch (err) {
+    console.error('submitExam error:', err);
     showLoading(false);
+    showToast('Network error while submitting. Your exam was marked locally.', 'warning', 6000);
     const fallback = markLocally();
     showExamResults(fallback);
     saveExamToHistory(fallback);
@@ -1100,7 +1474,7 @@ function showExamResults(data) {
   });
 }
 
-el.submitExamBtn.addEventListener('click', submitExam);
+el.submitExamBtn.addEventListener('click', function() { submitExam(false); });
 
 function saveExamToHistory(data) {
   const u = getLocalUser();
@@ -1122,7 +1496,7 @@ function saveExamToHistory(data) {
 function downloadResultsPdf(data) {
   const u = getLocalUser();
   const name = u ? u.full_name || 'Student' : 'Student';
-  const dept = u ? u.course_name || '' : '';
+  const dept = u ? u.jambCourseName || '' : '';
   const date = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const div = document.createElement('div');
@@ -1154,7 +1528,7 @@ function showCertificate(data) {
   const u = getLocalUser();
   if (!u) return;
   const name = u.full_name || 'Student';
-  const dept = u.course_name || 'JAMB Preparation';
+  const dept = u.jambCourseName || 'JAMB Preparation';
   const date = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
 
   let subjectsHtml = '';
@@ -1179,18 +1553,6 @@ function showCertificate(data) {
     el.certificateOverlay.classList.remove('active');
     document.body.style.overflow = '';
   });
-}
-
-async function startCamera() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } } });
-    camStream = stream;
-    el.camVideo.srcObject = stream;
-    el.cameraOverlay.classList.add('active');
-    el.examScreen.classList.add('cam-active');
-  } catch (err) {
-    console.log('Camera not available or permission denied:', err.message);
-  }
 }
 
 function stopCamera() {
@@ -1314,19 +1676,50 @@ async function sendAIMessage() {
         full_name: currentUser ? currentUser.full_name : ''
       })
     });
+
+    if (res.status !== 200) {
+      const apiMsg = await readApiError(res);
+      const errMsg = apiMsg ? apiMsg : 'HTTP ' + res.status;
+      addAIMessage('bot', 'The AI tutor service reported a problem (' + errMsg + '). Please try again in a moment.');
+      return;
+    }
+
     const data = await res.json();
     if (data.success && data.response) {
       addAIMessage('bot', data.response);
       aiContext.push({ role: 'assistant', content: data.response });
     } else {
-      addAIMessage('bot', 'I apologize, I encountered an error. Please try again or rephrase your question.');
+      const apiMsg = data && (data.error || data.message) ? (data.error || data.message) : 'Unknown service error';
+      addAIMessage('bot', 'The AI tutor service reported a problem (' + apiMsg + '). Please try again or rephrase your question.');
     }
   } catch (err) {
-    addAIMessage('bot', 'I apologize, there was a network error. Please check your connection and try again.');
+    console.error('sendAIMessage error:', err);
+    addAIMessage('bot', 'There was a network error. Please check your connection and try again.');
   } finally {
     el.aiSendBtn.disabled = false;
     el.aiSendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
   }
+}
+
+function initExamVisibilityGuards() {
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden && examStarted) {
+      handleScreenSwitchAttempt();
+    }
+  });
+
+  window.addEventListener('blur', function() {
+    if (examStarted && !document.hidden) {
+      handleScreenSwitchAttempt();
+    }
+  });
+
+  window.addEventListener('beforeunload', function(e) {
+    if (examStarted) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
 }
 
 async function init() {
@@ -1345,45 +1738,49 @@ async function init() {
   const profile = await fetchUserProfile(u.id);
   if (profile && profile.user_data) {
     const ud = profile.user_data;
-    if (ud.status === 'active') {
-      setLocalUser(Object.assign({}, u, ud, { status: 'active' }));
-      el.dashboardContent.classList.remove('hidden');
+    const courseFields = applyNewCourseFields(ud);
+
+    if (ud.payment_no === 'yes') {
+      const stored = Object.assign({}, u, ud, courseFields, { status: 'active', payment_no: 'yes' });
+      setLocalUser(stored);
+      currentUser = stored;
+      userData = stored;
+      activateDashboardView();
       await initDashboard();
-      showLoading(false);
-    } else if (ud.status === 'pending') {
-      setLocalUser(Object.assign({}, u, ud, { status: 'pending' }));
-      const paid = await checkPaymentStatus(u.id);
-      if (paid) {
-        el.dashboardContent.classList.remove('hidden');
-        await initDashboard();
-      } else {
-        startPaymentFlow();
-      }
       showLoading(false);
     } else {
-      setLocalUser(Object.assign({}, u, ud));
-      el.dashboardContent.classList.remove('hidden');
-      await initDashboard();
+      const stored = Object.assign({}, u, ud, courseFields, { payment_no: ud.payment_no || 'no', status: ud.status || 'pending' });
+      setLocalUser(stored);
+      currentUser = stored;
+      userData = stored;
+      if (el.dashboardContent) el.dashboardContent.classList.add('hidden');
+      const paid = await checkPaymentStatus(u.id);
+      if (paid) {
+        activateDashboardView();
+        await initDashboard();
+      } else {
+        renderPayGet(stored);
+        beginPaymentPolling();
+      }
       showLoading(false);
     }
   } else {
-    el.dashboardContent.classList.remove('hidden');
-    await initDashboard();
+    const stored = Object.assign({}, u, applyNewCourseFields(u));
+    setLocalUser(stored);
+    currentUser = stored;
+    userData = stored;
+    if (stored.payment_no === 'yes') {
+      activateDashboardView();
+      await initDashboard();
+    } else {
+      if (el.dashboardContent) el.dashboardContent.classList.add('hidden');
+      renderPayGet(stored);
+      beginPaymentPolling();
+    }
     showLoading(false);
   }
 
-  document.addEventListener('visibilitychange', function() {
-    if (document.hidden && examStarted) {
-      showToast('Warning: Do not leave the exam screen!', 'warning');
-    }
-  });
+  initExamVisibilityGuards();
 }
 
 document.addEventListener('DOMContentLoaded', init);
-
-window.addEventListener('beforeunload', function(e) {
-  if (examStarted) {
-    e.preventDefault();
-    e.returnValue = '';
-  }
-});
