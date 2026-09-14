@@ -91,6 +91,22 @@ img { max-width: 100%; display: block; }
 }
 .gate-error.show { display: block; animation: shake .4s ease; }
 @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.login-gate {
+    position: fixed; inset: 0; z-index: 9998;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(248,246,255,0.95);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+.login-gate.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.login-field { text-align: left; margin-bottom: 12px; }
+.login-field label { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 6px; }
+.login-error {
+    display: none; margin-top: 12px; padding: 10px 14px;
+    background: rgba(244,63,94,.08); border: 1px solid rgba(244,63,94,.25);
+    color: var(--rose); border-radius: 12px; font-size: 12px; font-weight: 600;
+}
+.login-error.show { display: block; animation: shake .4s ease; }
 .admin-wrap { max-width: 1180px; margin: 0 auto; padding: 28px 18px 70px; }
 .admin-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
 .admin-brand { display: flex; align-items: center; gap: 14px; }
@@ -237,6 +253,18 @@ table.users-table { width: 100%; border-collapse: collapse; min-width: 640px; }
 .confirm-box h3 { font-size: 17px; font-weight: 900; margin-bottom: 8px; }
 .confirm-box p { font-size: 12.5px; color: var(--muted); margin-bottom: 22px; line-height: 1.6; }
 .confirm-actions { display: flex; gap: 10px; }
+.error-box {
+    position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+    width: min(680px, 92vw); z-index: 12000;
+    background: #2a1215; border: 1px solid var(--rose); border-radius: 14px;
+    color: #ffd7d7; box-shadow: 0 10px 40px rgba(0,0,0,.5);
+    overflow: hidden;
+}
+.error-box.hidden { display: none !important; }
+.error-box-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; font-weight: 700; font-size: 13px; border-bottom: 1px solid rgba(244,63,94,.35); }
+.error-box-head i { color: var(--rose); font-size: 15px; }
+.error-box-close { margin-left: auto; background: none; border: none; color: #ffd7d7; cursor: pointer; font-size: 16px; }
+.error-box-msg { padding: 12px 16px; font-family: 'Poppins', monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; max-height: 40vh; overflow: auto; margin: 0; line-height: 1.6; }
 .toast-wrap { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 11000; display: flex; flex-direction: column; gap: 10px; width: calc(100% - 36px); max-width: 400px; }
 .toast {
     display: flex; align-items: center; gap: 12px; padding: 14px 18px;
@@ -282,6 +310,33 @@ table.users-table { width: 100%; border-collapse: collapse; min-width: 640px; }
         <button class="gate-btn" id="ceoPassBtn"><i class="fa-solid fa-lock"></i> Verify</button>
         <p class="gate-error" id="ceoPassError">Invalid CEO password. Access denied.</p>
     </div>
+</div>
+
+<div class="login-gate hidden" id="loginGate">
+    <div class="gate-card">
+        <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="lo">
+        <h2>Admin Login</h2>
+        <p>Saka email da password don ci gaba</p>
+        <div class="login-field">
+            <label>Email</label>
+            <input type="email" class="gate-input" id="loginEmail" placeholder="admin@example.com" autocomplete="username">
+        </div>
+        <div class="login-field">
+            <label>Password</label>
+            <input type="password" class="gate-input" id="loginPassword" placeholder="Password" autocomplete="current-password">
+        </div>
+        <button class="gate-btn" id="loginBtn"><i class="fa-solid fa-right-to-bracket"></i> Login</button>
+        <p class="login-error" id="loginError"></p>
+    </div>
+</div>
+
+<div class="error-box hidden" id="errorBox">
+    <div class="error-box-head">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span id="errorBoxTitle">Error</span>
+        <button class="error-box-close" id="errorBoxClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <pre class="error-box-msg" id="errorBoxMsg"></pre>
 </div>
 
 <div class="admin-wrap hidden" id="adminPanel">
