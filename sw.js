@@ -1,4 +1,4 @@
-const CACHE_NAME = 'idt-academy-cache-v1';
+const CACHE_NAME = 'idt-academy-cache-v2';
 const APP_ICON = 'https://i.imgur.com/mgRKw4Q.png';
 const LOGO = 'https://i.imgur.com/oyqM5oF.png';
 const OFFLINE_URL = './register.html';
