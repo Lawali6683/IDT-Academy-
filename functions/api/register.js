@@ -51,11 +51,9 @@ function buildApi(env) {
       'Authorization': 'Bearer ' + key,
       'Content-Type': 'application/json'
     };
-
     if (method === 'POST' || method === 'PATCH' || method === 'DELETE') {
       headers['Prefer'] = 'return=representation';
     }
-
     const opts = { method: method, headers: headers };
     if (body !== undefined) opts.body = JSON.stringify(body);
     return fetch(restUrl + path, opts);
@@ -68,56 +66,47 @@ function buildApi(env) {
         'Authorization': 'Bearer ' + key,
         'Content-Type': 'application/json'
       };
-
       const body = {
         email: email,
         password: password,
         email_confirm: true,
         user_metadata: userMetadata || {}
       };
-
       return fetch(authAdminUrl, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(body)
       });
     },
-
     deleteAuthUser: async function (id) {
       const headers = {
         'apikey': key,
         'Authorization': 'Bearer ' + key,
         'Content-Type': 'application/json'
       };
-
       return fetch(authAdminUrl + '/' + encodeURIComponent(id), {
         method: 'DELETE',
         headers: headers
       });
     },
-
     findProfileByEmail: async function (email) {
       const res = await request('GET', 'user_profiles?select=*&user_data->>email=eq.' + encodeURIComponent(email));
       const arr = await res.json().catch(function () { return []; });
       return Array.isArray(arr) && arr.length ? arr[0] : null;
     },
-
     findProfileByReferralCode: async function (code) {
       const res = await request('GET', 'user_profiles?select=*&user_data->>referral_code=eq.' + encodeURIComponent(code));
       const arr = await res.json().catch(function () { return []; });
       return Array.isArray(arr) && arr.length ? arr[0] : null;
     },
-
     findProfileByAcademyId: async function (academyId) {
       const res = await request('GET', 'user_profiles?select=*&user_data->>academy_id=eq.' + encodeURIComponent(academyId));
       const arr = await res.json().catch(function () { return []; });
       return Array.isArray(arr) && arr.length ? arr[0] : null;
     },
-
     insertProfile: async function (id, userData) {
       return request('POST', 'user_profiles', { id: id, user_data: userData });
     },
-
     deleteProfile: async function (id) {
       return request('DELETE', 'user_profiles?id=eq.' + encodeURIComponent(id));
     }
@@ -151,14 +140,56 @@ async function handleRegister(body, api) {
   const phone = String(body.phone || '').trim();
   const password = String(body.password || '');
   const referredBy = String(body.referred_by || body.referredBy || '').trim().toUpperCase();
-
   const gender = accountType === 'student' ? na(body.gender) : 'N/A';
-  const courseId = accountType === 'student' ? na(body.course_id) : 'N/A';
-  const courseName = accountType === 'student' ? na(body.course_name) : 'N/A';
-  const courseNumber = accountType === 'student' ? na(body.course_number) : 'N/A';
-  const coursePrice = accountType === 'student' ? (Number(body.course_price) || 0) : 0;
   const dob = accountType === 'student' ? na(body.date_of_birth || body.dob) : 'N/A';
   const level = accountType === 'student' ? na(body.school_level) : 'N/A';
+
+  const isJambRequest = Boolean(
+    body.deptId || 
+    body.courseSubjects || 
+    body.jamb_course_id || 
+    body.jambCourseId || 
+    body.jamb_course_name || 
+    body.jambCourseName || 
+    body.jamb_course_subjects || 
+    body.jambCourseSubjects || 
+    body.jamb_course_price || 
+    body.jambCoursePrice
+  );
+
+  let courseId = 'N/A';
+  let courseName = 'N/A';
+  let courseNumber = 'N/A';
+  let coursePrice = 0;
+
+  let jambCourseId = 'N/A';
+  let jambCourseName = 'N/A';
+  let jambCourseSubjects = 'N/A';
+  let jambCoursePrice = 0;
+
+  if (accountType === 'student') {
+    if (isJambRequest) {
+      courseId = 'N/A';
+      courseName = 'N/A';
+      courseNumber = 'N/A';
+      coursePrice = 0;
+
+      jambCourseId = na(body.jambCourseId || body.jamb_course_id || body.deptId || body.course_id);
+      jambCourseName = na(body.jambCourseName || body.jamb_course_name || body.course_name);
+      jambCourseSubjects = na(body.jambCourseSubjects || body.jamb_course_subjects || body.courseSubjects || body.course_number);
+      jambCoursePrice = Number(body.jambCoursePrice || body.jamb_course_price || body.course_price) || 0;
+    } else {
+      courseId = na(body.course_id);
+      courseName = na(body.course_name);
+      courseNumber = na(body.course_number);
+      coursePrice = Number(body.course_price) || 0;
+
+      jambCourseId = 'N/A';
+      jambCourseName = 'N/A';
+      jambCourseSubjects = 'N/A';
+      jambCoursePrice = 0;
+    }
+  }
 
   if (fullName.length < 3) return jsonResponse({ error: 'Full name is required. Please enter your full name.' }, 400);
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return jsonResponse({ error: 'A valid email address is required.' }, 400);
@@ -171,7 +202,6 @@ async function handleRegister(body, api) {
   }
 
   let createdAuthId = null;
-
   try {
     const authRes = await api.createAuthUser(email, password, { full_name: fullName, account_type: accountType });
     const authData = await authRes.json().catch(function () { return {}; });
@@ -197,6 +227,10 @@ async function handleRegister(body, api) {
       course_name: courseName,
       course_number: courseNumber,
       course_price: coursePrice,
+      jambCourseId: jambCourseId,
+      jambCourseName: jambCourseName,
+      jambCourseSubjects: jambCourseSubjects,
+      jambCoursePrice: jambCoursePrice,
       payment_no: 'no',
       date_of_birth: dob,
       school_level: level,
@@ -218,7 +252,6 @@ async function handleRegister(body, api) {
     };
 
     const insertRes = await api.insertProfile(createdAuthId, userData);
-
     if (insertRes.status >= 400) {
       const text = await insertRes.text().catch(function () { return ''; });
       await api.deleteAuthUser(createdAuthId);
@@ -232,13 +265,11 @@ async function handleRegister(body, api) {
         : 'Registration successful! Welcome to IDT Academy.',
       user: Object.assign({}, userData, { id: createdAuthId })
     }, 201);
-
   } catch (err) {
     if (createdAuthId) {
       try { await api.deleteProfile(createdAuthId); } catch (e) {}
       try { await api.deleteAuthUser(createdAuthId); } catch (e) {}
     }
-
     return jsonResponse({ error: 'Registration failed: ' + (err.message || 'unknown error') }, 500);
   }
 }
@@ -249,18 +280,15 @@ export async function onRequestOptions() {
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-
   if (!env.SUPABASE_SERVICE_ROLE_KEY) {
     return jsonResponse({ error: 'SUPABASE_SERVICE_ROLE_KEY is not configured in Cloudflare Pages environment variables.' }, 500);
   }
-
   let body;
   try {
     body = await request.json();
   } catch (err) {
     return jsonResponse({ error: 'Invalid JSON body.' }, 400);
   }
-
   const api = buildApi(env);
   return handleRegister(body, api);
 }
