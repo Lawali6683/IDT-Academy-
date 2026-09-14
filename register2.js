@@ -184,26 +184,30 @@ function getUrlRef() {
   return ref.trim().toUpperCase();
 }
 
+function wasBouncedFromDashboard() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('bounced') === '1') {
+    params.delete('bounced');
+    const qs = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : ''));
+    sessionStorage.setItem('idt_auth_loop', '1');
+    return true;
+  }
+  if (sessionStorage.getItem('idt_auth_loop') === '1') return true;
+  return false;
+}
+
 async function redirectToDashboardIfLoggedIn() {
   try {
     const { data } = await supabase.auth.getSession();
     if (data && data.session && data.session.user) {
-      window.location.replace('dashboard.html');
-      return true;
-    }
-  } catch (err) {}
-  const saved = localStorage.getItem('idt_user');
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (parsed && (parsed.id || parsed.email)) {
-        window.location.replace('dashboard.html');
+      const { data: fresh } = await supabase.auth.refreshSession();
+      if (fresh && fresh.session) {
         return true;
       }
-    } catch (err) {
-      localStorage.removeItem('idt_user');
     }
-  }
+  } catch (err) {}
+  localStorage.removeItem('idt_user');
   return false;
 }
 
@@ -440,6 +444,7 @@ async function handleRegister(e) {
     localStorage.setItem('idt_user', JSON.stringify(json.user));
     localStorage.removeItem('idt_ref');
     sessionStorage.removeItem('idt_ref');
+    sessionStorage.removeItem('idt_auth_loop');
 
     showToast('success', 'Welcome To IDT Academy!', json.message || 'Account created. Redirecting to your dashboard...');
     setTimeout(() => window.location.replace('dashboard.html'), 1800);
@@ -483,6 +488,7 @@ async function handleLogin(e) {
     } catch (pe) {}
 
     localStorage.setItem('idt_user', JSON.stringify(userObj));
+    sessionStorage.removeItem('idt_auth_loop');
     hideLoading();
 
     showToast('success', 'Welcome Back!', 'Login successful. Opening your dashboard...');
@@ -542,8 +548,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   showLoading();
   parseUrl();
 
-  const redirected = await redirectToDashboardIfLoggedIn();
-  if (redirected) return;
+  if (wasBouncedFromDashboard()) {
+    const refEarly = getUrlRef();
+    if (refEarly && $('regRef')) {
+      $('regRef').value = refEarly;
+      localStorage.setItem('idt_ref', refEarly);
+      sessionStorage.setItem('idt_ref', refEarly);
+    }
+    const visitedEarly = localStorage.getItem('idt_visited');
+    if (visitedEarly) { switchTab('login'); } else { switchTab('register'); }
+    localStorage.setItem('idt_visited', '1');
+    await loadCourses();
+    hideLoading();
+    return;
+  }
+
+  const loggedIn = await redirectToDashboardIfLoggedIn();
+  if (loggedIn) {
+    window.location.replace('dashboard.html');
+    return;
+  }
 
   const ref = getUrlRef();
   if (ref && $('regRef')) {
