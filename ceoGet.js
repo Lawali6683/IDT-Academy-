@@ -2,7 +2,6 @@ import { supabase } from './supabase.js';
 
 const _k1 = 'aGFydW5h';
 const _k2 = 'NjY=';
-
 const _p1 = 'dWJhaWRh';
 const _p2 = 'Nzc=';
 
@@ -55,6 +54,7 @@ const $ = (id) => document.getElementById(id);
 
 function toast(msg, type = 'success') {
     const wrap = $('toastWrap');
+    if (!wrap) return;
     const el = document.createElement('div');
     el.className = 'toast ' + type;
     const icon = type === 'success' ? 'fa-circle-check' : type === 'error' ? 'fa-circle-xmark' : 'fa-circle-info';
@@ -104,7 +104,7 @@ function ceoUnlock(pw) {
 }
 
 function getFilteredList() {
-    const q = $('searchInput').value.trim().toLowerCase();
+    const q = $('searchInput') ? $('searchInput').value.trim().toLowerCase() : '';
     if (!q) return allUsers;
     return allUsers.filter(u =>
         (u.full_name || '').toLowerCase().includes(q) ||
@@ -115,10 +115,12 @@ function getFilteredList() {
 
 function renderTable(append) {
     const area = $('tableArea');
+    if (!area) return;
     const list = getFilteredList();
 
     if (!list.length) {
-        area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-user-slash"></i><h3>No Users Found</h3><p>' + ($('searchInput').value ? 'No user matches your search.' : 'No registered users yet.') + '</p></div>';
+        const query = $('searchInput') ? $('searchInput').value : '';
+        area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-user-slash"></i><h3>No Users Found</h3><p>' + (query ? 'No user matches your search.' : 'No registered users yet.') + '</p></div>';
         return;
     }
 
@@ -148,6 +150,7 @@ function renderTable(append) {
         const tmp = document.createElement('table');
         tmp.innerHTML = '<tbody>' + rows + '</tbody>';
         Array.from(tmp.querySelector('tbody').children).forEach(tr => old.appendChild(tr));
+
         const oldMore = area.querySelector('#loadMoreBtn');
         if (oldMore) oldMore.closest('div').outerHTML = moreBtn;
         else if (moreBtn) area.insertAdjacentHTML('beforeend', moreBtn);
@@ -159,36 +162,44 @@ function renderTable(append) {
 }
 
 function bindRows() {
-    $('tableArea').querySelectorAll('tr[data-id]').forEach(tr => {
+    const area = $('tableArea');
+    if (!area) return;
+
+    area.querySelectorAll('tr[data-id]').forEach(tr => {
         tr.addEventListener('click', (e) => {
             if (e.target.closest('.view-btn')) return;
             const u = allUsers.find(x => x.id === tr.dataset.id);
             if (u) openDetail(u);
         });
     });
-    $('tableArea').querySelectorAll('.view-btn').forEach(btn => {
+
+    area.querySelectorAll('.view-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const u = allUsers.find(x => x.id === btn.dataset.id);
             if (u) openDetail(u);
         });
     });
+
     const lm = $('loadMoreBtn');
     if (lm) lm.addEventListener('click', () => { visibleCount += PAGE_SIZE; renderTable(true); });
 }
 
 function updateStats() {
-    $('statTotal').textContent = allUsers.length;
-    $('statPending').textContent = allUsers.filter(u => (u.status || '').toLowerCase() === 'pending').length;
-    $('statActive').textContent = allUsers.filter(u => (u.status || '').toLowerCase() === 'active').length;
-    $('statStudents').textContent = allUsers.filter(u => (u.account_type || '').toLowerCase() === 'student').length;
+    if ($('statTotal')) $('statTotal').textContent = allUsers.length;
+    if ($('statPending')) $('statPending').textContent = allUsers.filter(u => (u.status || '').toLowerCase() === 'pending').length;
+    if ($('statActive')) $('statActive').textContent = allUsers.filter(u => (u.status || '').toLowerCase() === 'active').length;
+    if ($('statStudents')) $('statStudents').textContent = allUsers.filter(u => (u.account_type || '').toLowerCase() === 'student').length;
 }
 
 async function loadUsers() {
-    $('tableArea').innerHTML = '<div class="loader"><div class="spinner"></div><p>Loading users...</p></div>';
+    const area = $('tableArea');
+    if (area) area.innerHTML = '<div class="loader"><div class="spinner"></div><p>Loading users...</p></div>';
+
     let from = 0;
     let collected = [];
     let hasError = null;
+
     while (true) {
         const { data, error } = await supabase.from(TABLE).select('*').range(from, from + 999);
         if (error) { hasError = error; break; }
@@ -196,9 +207,12 @@ async function loadUsers() {
         if (!data || data.length < 1000) break;
         from += 1000;
     }
+
     if (hasError) {
         toast('Failed to load users: ' + hasError.message, 'error');
-        $('tableArea').innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-exclamation"></i><h3>Error Loading Users</h3><p>' + esc(hasError.message) + '</p><p style="margin-top:10px;">Check RLS policies on the <strong>user_profiles</strong> table in Supabase. Add a SELECT policy for anon users or use a service endpoint.</p></div>';
+        if (area) {
+            area.innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-exclamation"></i><h3>Error Loading Users</h3><p>' + esc(hasError.message) + '</p></div>';
+        }
         return;
     }
 
@@ -216,24 +230,31 @@ async function loadUsers() {
 }
 
 function renderDetail(u, editable) {
-    $('dAvatar').textContent = initials(u.full_name);
-    $('dName').textContent = u.full_name || 'N/A';
-    $('dEmail').textContent = u.email || '';
+    if ($('dAvatar')) $('dAvatar').textContent = initials(u.full_name);
+    if ($('dName')) $('dName').textContent = u.full_name || 'N/A';
+    if ($('dEmail')) $('dEmail').textContent = u.email || '';
 
     const grid = $('detailGrid');
+    if (!grid) return;
     grid.innerHTML = '';
+
     FIELDS.forEach(f => {
         if (SKIP_KEYS.includes(f.key)) return;
+
         const raw = u[f.key];
         let display = raw;
+
         if (DATE_KEYS.includes(f.key)) display = fmtDate(raw);
         if (f.key === 'certificate_issued') display = raw ? 'Yes' : 'No';
         if (raw !== null && typeof raw === 'object') display = JSON.stringify(raw);
+
         const field = document.createElement('div');
         field.className = 'field' + (f.full ? ' full' : '') + (editable && !f.readonly ? ' editing' : '');
+
         const label = document.createElement('label');
         label.textContent = f.label;
         field.appendChild(label);
+
         if (editable && !f.readonly) {
             const input = document.createElement('input');
             input.value = display == null ? '' : String(display);
@@ -245,21 +266,25 @@ function renderDetail(u, editable) {
             val.textContent = display == null || display === '' ? 'N/A' : display;
             field.appendChild(val);
         }
+
         grid.appendChild(field);
     });
 
-    $('detailActions').innerHTML = editable
-        ? '<button class="btn-act save" id="saveBtn"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button><button class="btn-act cancel" id="cancelEdit"><i class="fa-solid fa-xmark"></i> Cancel</button>'
-        : '<button class="btn-act edit" id="editBtn"><i class="fa-solid fa-pen-to-square"></i> Edit</button><button class="btn-act delete" id="deleteBtn"><i class="fa-solid fa-trash-can"></i> Delete</button>';
+    const actions = $('detailActions');
+    if (actions) {
+        actions.innerHTML = editable
+            ? '<button class="btn-act save" id="saveBtn"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button><button class="btn-act cancel" id="cancelEdit"><i class="fa-solid fa-xmark"></i> Cancel</button>'
+            : '<button class="btn-act edit" id="editBtn"><i class="fa-solid fa-pen-to-square"></i> Edit</button><button class="btn-act delete" id="deleteBtn"><i class="fa-solid fa-trash-can"></i> Delete</button>';
+    }
 
     if (editable) {
-        $('saveBtn').addEventListener('click', saveEdits);
-        $('cancelEdit').addEventListener('click', () => { editing = false; renderDetail(currentUser, false); });
+        if ($('saveBtn')) $('saveBtn').addEventListener('click', saveEdits);
+        if ($('cancelEdit')) $('cancelEdit').addEventListener('click', () => { editing = false; renderDetail(currentUser, false); });
     } else {
-        $('editBtn').addEventListener('click', () => { editing = true; renderDetail(currentUser, true); });
-        $('deleteBtn').addEventListener('click', () => {
-            $('confirmName').textContent = (currentUser.full_name || currentUser.email || 'this user');
-            $('confirmOverlay').classList.add('show');
+        if ($('editBtn')) $('editBtn').addEventListener('click', () => { editing = true; renderDetail(currentUser, true); });
+        if ($('deleteBtn')) $('deleteBtn').addEventListener('click', () => {
+            if ($('confirmName')) $('confirmName').textContent = (currentUser.full_name || currentUser.email || 'this user');
+            if ($('confirmOverlay')) $('confirmOverlay').classList.add('show');
         });
     }
 }
@@ -268,13 +293,13 @@ function openDetail(u) {
     currentUser = u;
     editing = false;
     renderDetail(u, false);
-    $('detailOverlay').classList.add('show');
+    if ($('detailOverlay')) $('detailOverlay').classList.add('show');
     document.body.style.overflow = 'hidden';
 }
 
 function closeDetail() {
-    $('detailOverlay').classList.remove('show');
-    $('confirmOverlay').classList.remove('show');
+    if ($('detailOverlay')) $('detailOverlay').classList.remove('show');
+    if ($('confirmOverlay')) $('confirmOverlay').classList.remove('show');
     currentUser = null;
     editing = false;
     document.body.style.overflow = '';
@@ -282,16 +307,22 @@ function closeDetail() {
 
 async function saveEdits() {
     if (!currentUser) return;
+
     const updates = {};
     document.querySelectorAll('#detailGrid input[data-key]').forEach(inp => {
         let v = inp.value;
         const key = inp.dataset.key;
         const orig = currentUser[key];
+
         if (NUMERIC_KEYS.includes(key)) {
             const n = Number(v);
-            if (!isNaN(n) && v !== '') v = n;
+            if (!isNaN(n) && v.trim() !== '') v = n;
         }
-        if (key === 'certificate_issued') v = v.trim().toLowerCase() === 'yes' || v.trim().toLowerCase() === 'true';
+
+        if (key === 'certificate_issued') {
+            v = v.trim().toLowerCase() === 'yes' || v.trim().toLowerCase() === 'true';
+        }
+
         if (String(orig) !== String(v)) updates[key] = v;
     });
 
@@ -303,28 +334,39 @@ async function saveEdits() {
     }
 
     const btn = $('saveBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    }
 
     const raw = rawRows[currentUser.id];
     const originalData = (raw && raw.user_data && typeof raw.user_data === 'object') ? raw.user_data : {};
     const newData = Object.assign({}, originalData, updates);
     newData.referral_activity = originalData.referral_activity || [];
 
-    const { error } = await supabase.from(TABLE).update({ user_data: newData }).eq('id', currentUser.id);
+    const { data, error } = await supabase.from(TABLE).update({ user_data: newData }).eq('id', currentUser.id).select();
 
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes';
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes';
+    }
 
     if (error) {
-        toast('Update failed: ' + error.message, 'error');
+        toast('Update Error: ' + error.message, 'error');
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        toast('Supabase Error: Record was not updated. Check RLS Policies or User ID.', 'error');
         return;
     }
 
     raw.user_data = newData;
     Object.assign(currentUser, updates);
+
     const idx = allUsers.findIndex(u => u.id === currentUser.id);
     if (idx > -1) allUsers[idx] = Object.assign({}, newData, { id: currentUser.id });
+
     editing = false;
     renderDetail(currentUser, false);
     updateStats();
@@ -334,10 +376,13 @@ async function saveEdits() {
 
 async function deleteUser() {
     if (!currentUser) return;
+
     const u = currentUser;
     const btn = $('confirmDeleteBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
+    }
 
     let authDeleted = false;
     try {
@@ -353,8 +398,10 @@ async function deleteUser() {
 
     const { error: profErr } = await supabase.from(TABLE).delete().eq('id', u.id);
 
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Delete';
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Delete';
+    }
 
     if (profErr) {
         toast('Delete failed: ' + profErr.message, 'error');
@@ -363,9 +410,11 @@ async function deleteUser() {
 
     delete rawRows[u.id];
     allUsers = allUsers.filter(x => x.id !== u.id);
+
     closeDetail();
     updateStats();
     renderTable(false);
+
     if (authDeleted) {
         toast('User fully deleted from Supabase.', 'success');
     } else {
@@ -374,53 +423,120 @@ async function deleteUser() {
 }
 
 function showPanel() {
-    $('pageGate').classList.add('hidden');
-    $('adminPanel').classList.remove('hidden');
+    if ($('pageGate')) $('pageGate').classList.add('hidden');
+    if ($('adminPanel')) $('adminPanel').classList.remove('hidden');
     loadUsers();
 }
 
-$('ceoPassBtn').addEventListener('click', () => {
-    const pw = $('ceoPassInput').value.trim();
-    const errEl = $('ceoPassError');
-    if (ceoUnlock(pw)) {
-        errEl.classList.remove('show');
-        sessionStorage.setItem('ceoUnlocked', '1');
-        showPanel();
-        toast('CEO access granted. Welcome!', 'success');
-    } else {
-        errEl.classList.add('show');
-        $('ceoPassInput').value = '';
+function hidePanel() {
+    if ($('adminPanel')) $('adminPanel').classList.add('hidden');
+    if ($('pageGate')) $('pageGate').classList.remove('hidden');
+}
+
+async function processAuthAndCEO() {
+    const emailEl = $('adminEmailInput');
+    const passEl = $('adminPasswordInput');
+    const ceoEl = $('ceoPassInput');
+    const errEl = $('loginError');
+
+    const email = emailEl ? emailEl.value.trim() : '';
+    const password = passEl ? passEl.value.trim() : '';
+    const ceoPass = ceoEl ? ceoEl.value.trim() : '';
+
+    if (errEl) errEl.classList.remove('show');
+
+    if (!email || !password || !ceoPass) {
+        if (errEl) {
+            errEl.textContent = 'Da fatan za ka cike Email, Password da CEO Password.';
+            errEl.classList.add('show');
+        }
+        return;
+    }
+
+    if (!ceoUnlock(ceoPass)) {
+        if (errEl) {
+            errEl.textContent = 'CEO Password din ba daidai bane!';
+            errEl.classList.add('show');
+        }
+        return;
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+    });
+
+    if (error) {
+        if (errEl) {
+            errEl.textContent = 'Supabase Login Failed: ' + error.message;
+            errEl.classList.add('show');
+        }
+        return;
+    }
+
+    if (emailEl) emailEl.value = '';
+    if (passEl) passEl.value = '';
+    if (ceoEl) ceoEl.value = '';
+
+    showPanel();
+    toast('Login Successful. Welcome!', 'success');
+}
+
+if ($('loginBtn')) $('loginBtn').addEventListener('click', processAuthAndCEO);
+
+if ($('ceoPassBtn')) $('ceoPassBtn').addEventListener('click', processAuthAndCEO);
+
+['adminEmailInput', 'adminPasswordInput', 'ceoPassInput'].forEach(id => {
+    const el = $(id);
+    if (el) {
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') processAuthAndCEO();
+        });
     }
 });
 
-$('ceoPassInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('ceoPassBtn').click(); });
+if ($('closeDetail')) $('closeDetail').addEventListener('click', closeDetail);
 
-$('closeDetail').addEventListener('click', closeDetail);
-$('detailOverlay').addEventListener('click', (e) => { if (e.target === $('detailOverlay')) closeDetail(); });
-$('cancelDelete').addEventListener('click', () => $('confirmOverlay').classList.remove('show'));
-$('confirmDeleteBtn').addEventListener('click', deleteUser);
-$('confirmOverlay').addEventListener('click', (e) => { if (e.target === $('confirmOverlay')) $('confirmOverlay').classList.remove('show'); });
+if ($('detailOverlay')) {
+    $('detailOverlay').addEventListener('click', (e) => {
+        if (e.target === $('detailOverlay')) closeDetail();
+    });
+}
 
-$('refreshBtn').addEventListener('click', () => { loadUsers(); });
-
-$('searchInput').addEventListener('input', () => renderTable(false));
-
-$('lockBtn').addEventListener('click', () => {
-    sessionStorage.removeItem('ceoUnlocked');
-    location.reload();
+if ($('cancelDelete')) $('cancelDelete').addEventListener('click', () => {
+    if ($('confirmOverlay')) $('confirmOverlay').classList.remove('show');
 });
+
+if ($('confirmDeleteBtn')) $('confirmDeleteBtn').addEventListener('click', deleteUser);
+
+if ($('confirmOverlay')) {
+    $('confirmOverlay').addEventListener('click', (e) => {
+        if (e.target === $('confirmOverlay')) $('confirmOverlay').classList.remove('show');
+    });
+}
+
+if ($('refreshBtn')) $('refreshBtn').addEventListener('click', () => { loadUsers(); });
+
+if ($('searchInput')) $('searchInput').addEventListener('input', () => renderTable(false));
+
+if ($('lockBtn')) {
+    $('lockBtn').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        location.reload();
+    });
+}
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        if ($('confirmOverlay').classList.contains('show')) $('confirmOverlay').classList.remove('show');
-        else if ($('detailOverlay').classList.contains('show')) closeDetail();
+        if ($('confirmOverlay') && $('confirmOverlay').classList.contains('show')) {
+            $('confirmOverlay').classList.remove('show');
+        } else if ($('detailOverlay') && $('detailOverlay').classList.contains('show')) {
+            closeDetail();
+        }
     }
 });
 
 (async function init() {
-    if (sessionStorage.getItem('ceoUnlocked')) {
-        showPanel();
-    } else {
-        $('pageGate').classList.remove('hidden');
-    }
+    await supabase.auth.signOut();
+    hidePanel();
 })();
