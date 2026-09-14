@@ -184,6 +184,29 @@ function getUrlRef() {
   return ref.trim().toUpperCase();
 }
 
+async function redirectToDashboardIfLoggedIn() {
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data && data.session && data.session.user) {
+      window.location.replace('dashboard.html');
+      return true;
+    }
+  } catch (err) {}
+  const saved = localStorage.getItem('idt_user');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed && (parsed.id || parsed.email)) {
+        window.location.replace('dashboard.html');
+        return true;
+      }
+    } catch (err) {
+      localStorage.removeItem('idt_user');
+    }
+  }
+  return false;
+}
+
 function switchTab(name) {
   const tabReg = $('tabRegister');
   const tabLog = $('tabLogin');
@@ -518,6 +541,9 @@ if (menuBtn && menuItems) {
 document.addEventListener('DOMContentLoaded', async () => {
   showLoading();
   parseUrl();
+
+  const redirected = await redirectToDashboardIfLoggedIn();
+  if (redirected) return;
 
   const ref = getUrlRef();
   if (ref && $('regRef')) {
