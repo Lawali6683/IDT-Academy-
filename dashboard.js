@@ -3,6 +3,36 @@ import { askQuestion, explainText, getAssessment, gradeAssessment, createPayment
 
 window.__idtDashboardLoaded = false;
 
+const APP_VERSION = '2026-09-14.1';
+
+function ensureAppFreshness() {
+  try {
+    const stored = localStorage.getItem('idt_app_version');
+    if (stored && stored !== APP_VERSION) {
+      try {
+        if (window.caches && caches.keys) {
+          caches.keys().then((names) => {
+            names.forEach((n) => caches.delete(n));
+          }).catch(() => {});
+        }
+      } catch (_) {}
+      try { sessionStorage.clear(); } catch (_) {}
+      try {
+        const keep = {};
+        ['idt_user'].forEach((k) => {
+          const v = localStorage.getItem(k);
+          if (v != null) keep[k] = v;
+        });
+        localStorage.clear();
+        Object.keys(keep).forEach((k) => localStorage.setItem(k, keep[k]));
+      } catch (_) {}
+      try { localStorage.setItem('idt_app_version', APP_VERSION); } catch (_) {}
+    } else if (!stored) {
+      try { localStorage.setItem('idt_app_version', APP_VERSION); } catch (_) {}
+    }
+  } catch (_) {}
+}
+
 window.addEventListener('error', function(e) {
   try {
     var el = document.createElement('div');
@@ -186,6 +216,24 @@ function escapeHtml(str) {
   return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[ch]));
+}
+
+function getAcademyId() {
+  try {
+    if (userData) {
+      const a = userData.academy_id || userData.academyId || userData.academyID || '';
+      if (a && String(a).trim() && String(a).trim().toUpperCase() !== 'N/A' && String(a).trim().toLowerCase() !== 'null' && String(a).trim().toLowerCase() !== 'undefined') {
+        return String(a).trim();
+      }
+    }
+    if (user && user.id) return String(user.id);
+    const raw = localStorage.getItem('idt_user');
+    if (raw) {
+      const u = JSON.parse(raw);
+      if (u && u.id) return String(u.id);
+    }
+  } catch (_) {}
+  return '------';
 }
 
 function ensureToastWrap() {
@@ -378,6 +426,10 @@ async function refreshProfile() {
   if (!data || !data[0]) throw new Error('Profile not found');
   profileData = data[0];
   userData = data[0].user_data || {};
+  if (!userData || typeof userData !== 'object') userData = {};
+  if (!userData.academy_id && !userData.academyId) {
+    userData.academy_id = String(user.id);
+  }
 }
 
 async function saveUserData() {
@@ -444,7 +496,7 @@ function renderUserIdBadge() {
   const n = $('userIdName');
   const c = $('userIdCode');
   if (n) n.textContent = (userData && userData.full_name) || 'Student';
-  if (c) c.textContent = (userData && (userData.academy_id || userData.academyId)) || '------';
+  if (c) c.textContent = getAcademyId();
 }
 
 function renderMenu() {
@@ -549,7 +601,12 @@ async function loadTopicsFor(courseId) {
     if (error) throw error;
     const row = (data && data[0]) || null;
     if (row && row.all_course && Array.isArray(row.all_course.topics)) {
-      topicsMap[courseId] = row.all_course.topics;
+      const sorted = row.all_course.topics.slice().sort((a, b) => {
+        const na = Number(a.topic_number != null ? a.topic_number : 0);
+        const nb = Number(b.topic_number != null ? b.topic_number : 0);
+        return na - nb;
+      });
+      topicsMap[courseId] = sorted;
     } else {
       topicsMap[courseId] = [];
     }
@@ -832,7 +889,7 @@ function renderTopic() {
   if (!currentTopics.length) return;
   currentTopic = currentTopics[currentTopicIdx];
   const total = currentTopics.length;
-  const isFinalTopic = currentTopicIdx === total - 1;
+  const isFinalTopic = currentTopic.is_final === true || currentTopicIdx === total - 1;
   const num = $('topicNumber');
   const numL = $('topicNumLabel');
   const totalL = $('topicTotalLabel');
@@ -843,7 +900,7 @@ function renderTopic() {
   if (name) name.textContent = currentTopic.topic_name || ('Topic ' + (currentTopicIdx + 1));
   const badge = $('topicBadge');
   if (badge) {
-    if (currentTopic.is_final === true || isFinalTopic) {
+    if (isFinalTopic) {
       badge.className = 'th-badge final';
       badge.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Final Topic';
     } else {
@@ -853,7 +910,7 @@ function renderTopic() {
   }
   const txt = $('topicText');
   if (txt) txt.textContent = currentTopic.topic_text || '';
-  if (num) num.classList.toggle('final-num', currentTopic.is_final === true || isFinalTopic);
+  if (num) num.classList.toggle('final-num', isFinalTopic);
   renderVideo();
   const watched = isWatched(currentTopicIdx);
   videoWatched = watched;
@@ -1121,6 +1178,7 @@ async function startAssessmentFlow() {
   try {
     const res = await getAssessment({
       user_id: user.id,
+      academy_id: getAcademyId(),
       course_id: activeCourseId,
       course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
       topics: batchTopics
@@ -1327,6 +1385,7 @@ async function submitQuiz(timedOut) {
   try {
     const res = await gradeAssessment({
       user_id: user.id,
+      academy_id: getAcademyId(),
       course_id: activeCourseId,
       course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
       assessment_id: quizState.assessmentId,
@@ -1356,6 +1415,7 @@ async function submitQuiz(timedOut) {
       const grades = Array.isArray(userData.assessment_grade) ? userData.assessment_grade : [];
       grades.push({
         assessment_id: quizState.assessmentId,
+        academy_id: getAcademyId(),
         course_id: activeCourseId,
         course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
         score: score,
@@ -1377,6 +1437,7 @@ async function submitQuiz(timedOut) {
       const grades = Array.isArray(userData.assessment_grade) ? userData.assessment_grade : [];
       grades.push({
         assessment_id: quizState.assessmentId,
+        academy_id: getAcademyId(),
         course_id: activeCourseId,
         score: score,
         pct: pct,
@@ -1450,7 +1511,6 @@ function showResult(score, pct, passed, results, timedOut, message) {
   if (list) list.innerHTML = listHtml || '<div class="result-item">No detailed breakdown available.</div>';
   const btnGoExam = $('btnGoExam');
   const btnCont = $('btnContinueStudy');
-  const lv = String((userData && userData.level_completed) || '');
   const atFinal = currentTopicIdx >= currentTopics.length - 1;
   if (passed && atFinal && btnGoExam && btnCont) {
     btnCont.classList.add('hidden');
@@ -1584,7 +1644,7 @@ async function downloadResultPdf() {
     doc.setTextColor(60, 58, 107);
     let y = 72;
     doc.text('Student Name:  ' + studentName, 16, y);
-    doc.text('Date:  ' + dateStr, 120, y);
+    doc.text('Academy ID:  ' + getAcademyId(), 120, y);
     y += 7;
     doc.text('Course:  ' + courseName, 16, y);
     doc.text('Pass Mark:  3 / 5 (60%)', 120, y);
@@ -1692,7 +1752,7 @@ async function emailResult() {
     doc.setFontSize(10);
     let y = 70;
     doc.text('Student: ' + ((userData && userData.full_name) || ''), 16, y);
-    doc.text('Date: ' + dateStr, 120, y);
+    doc.text('ID: ' + getAcademyId(), 120, y);
     y += 7;
     doc.text('Course: ' + courseName, 16, y);
     y += 7;
@@ -1707,6 +1767,8 @@ async function emailResult() {
     });
     const pdfBase64 = doc.output('datauristring');
     const res = await sendResultEmail({
+      user_id: user.id,
+      academy_id: getAcademyId(),
       email: userData.email || user.email,
       full_name: (userData && userData.full_name) || '',
       course_name: courseName,
@@ -1779,6 +1841,7 @@ async function handleChatSubmit(e) {
   try {
     const res = await askQuestion({
       user_id: user.id,
+      academy_id: getAcademyId(),
       course_id: activeCourseId,
       course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
       topic_name: (currentTopic && currentTopic.topic_name) || '',
@@ -1837,6 +1900,7 @@ async function handleExplain(lang) {
   try {
     const res = await explainText({
       user_id: user.id,
+      academy_id: getAcademyId(),
       course_id: activeCourseId,
       course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
       topic_name: currentTopic.topic_name || '',
@@ -1985,6 +2049,7 @@ async function startPayment() {
   try {
     const res = await createPayment({
       user_id: user.id,
+      academy_id: getAcademyId(),
       email: (userData && userData.email) || user.email,
       full_name: (userData && userData.full_name) || '',
       course_id: course.course_id,
@@ -2131,6 +2196,7 @@ function domReady(fn) {
 }
 
 domReady(() => {
+  ensureAppFreshness();
   ensureToastWrap();
   showLoading();
 
@@ -2179,7 +2245,7 @@ domReady(() => {
 
   on('btnCopyUserId', 'click', async (e) => {
     const btn = e.currentTarget;
-    const academyId = (userData && (userData.academy_id || userData.academyId)) || (user && user.id) || '';
+    const academyId = getAcademyId();
     try {
       await copyText(academyId);
       btn.classList.add('done');
