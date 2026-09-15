@@ -11,7 +11,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#7c3aed">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="IDT Academy">
@@ -32,7 +31,8 @@
   --line:rgba(124,58,237,.15);
   --shadow:0 24px 60px rgba(80,40,160,.16);
 }
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth;opacity:0;transition:opacity .3s ease-in-out}
+html.ready{opacity:1}
 body{
   font-family:'Poppins',system-ui,-apple-system,sans-serif;
   color:var(--ink);
@@ -194,7 +194,7 @@ textarea{resize:vertical}
   background:linear-gradient(135deg,rgba(124,58,237,.07),rgba(6,182,212,.07));
   border-radius:22px 0 0 0;
 }
-.sm-head img{width:46px;height:46px;border-radius:50%;background:;padding:6px;box-shadow:0 8px 20px rgba(124,58,237,.25)}
+.sm-head img{width:46px;height:46px;border-radius:50%;background:#fff;padding:6px;box-shadow:0 8px 20px rgba(124,58,237,.25)}
 .sm-head div{flex:1;min-width:0}
 .sm-head b{font-size:14.5px;font-weight:900;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sm-head small{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
@@ -300,7 +300,7 @@ textarea{resize:vertical}
   border-radius:14px;padding:12px 14px;margin:16px 0;
   text-align:left;
 }
-.refer-msg b{color:var(--amber-d,#b45309)}
+.refer-msg b{color:#b45309}
 .refer-copy-row{display:flex;gap:9px;margin-top:10px}
 .refer-link-box{
   flex:1;display:flex;align-items:center;gap:9px;
@@ -406,7 +406,8 @@ textarea{resize:vertical}
 .cs-chip.active .cs-done{color:#a7f3d0}
 
 .progress-card{
-  
+  background:rgba(255,255,255,.9);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
   border:1px solid rgba(255,255,255,.7);border-radius:22px;
   padding:20px;box-shadow:var(--shadow);margin-bottom:18px;
 }
@@ -678,7 +679,7 @@ textarea{resize:vertical}
 
 .code-runner{
   background:linear-gradient(160deg,#0f172a,#1e1b4b);
-  border-radius:16px;overflow:hidden;margin-top:14px;
+  border-radius:16px;overflow:hidden;margin:0 18px 16px;
 }
 .cr-head{
   display:flex;align-items:center;gap:10px;padding:10px 14px;
@@ -697,9 +698,7 @@ textarea{resize:vertical}
   display:flex;align-items:center;gap:5px;transition:all .2s ease;
 }
 .cr-run:hover{background:#10b981;color:#fff}
-.cr-editor{
-  padding:14px;min-height:100px;
-}
+.cr-editor{padding:14px;min-height:100px}
 .cr-editor textarea{
   width:100%;min-height:90px;background:#0a0c1a;color:#e2e8f0;
   border:1px solid rgba(167,139,250,.12);border-radius:10px;
@@ -715,7 +714,6 @@ textarea{resize:vertical}
 .cr-output .err{color:#f87171}
 .cr-output .ok{color:#4ade80}
 
-.assess-wrap{}
 .assess-intro{text-align:center}
 .ai-icon{
   width:72px;height:72px;margin:0 auto 14px;border-radius:22px;
@@ -910,10 +908,6 @@ textarea{resize:vertical}
 }
 .toast-x:hover{background:var(--rose);color:#fff}
 
-
-
-
-
 @media(max-width:640px){
   .topbar{padding:12px 4%}
   .brand h1{font-size:16px}
@@ -932,9 +926,6 @@ textarea{resize:vertical}
   .user-id-badge{margin:10px auto 0;padding:0 12px}
   .uid-name{font-size:12px}
 }
-
-html{opacity:0;transition:opacity 0.3s ease-in-out}
-html.ready{opacity:1}
 </style>
 </head>
 <body>
@@ -1045,9 +1036,13 @@ html.ready{opacity:1}
           <span class="pd-value" id="payAccountNumber">----</span>
           <button class="mini-copy" id="btnCopyAccount" data-copy="" aria-label="Copy account number"><i class="fa-solid fa-copy"></i></button>
         </div>
-        <div class="pd-row">
+        <div class="pd-row" id="payAccountNameRow">
           <span class="pd-label">Account Name</span>
           <span class="pd-value" id="payAccountName">----</span>
+        </div>
+        <div class="pd-row">
+          <span class="pd-label">Bank Name</span>
+          <span class="pd-value" id="payBankName">----</span>
         </div>
         <div class="pd-row">
           <span class="pd-label">Reference</span>
@@ -1130,7 +1125,7 @@ html.ready{opacity:1}
           </div>
           <div class="ai-info-grid">
             <div class="ai-info"><b>5</b><span>Questions</span></div>
-            <div class="ai-info"><b>4:00</b><span>Minutes</span></div>
+            <div class="ai-info"><b>3:00</b><span>Minutes</span></div>
             <div class="ai-info"><b>3/5</b><span>To Pass</span></div>
           </div>
           <button class="btn btn-primary" id="btnStartAssessment"><i class="fa-solid fa-play"></i> Start Assessment</button>
@@ -1145,9 +1140,9 @@ html.ready{opacity:1}
             <span id="quizCamLockMsg">Please allow camera access so we can verify you are taking the assessment honestly.</span>
           </div>
           <div class="rec-badge"><span class="rec-dot"></span> Recording</div>
-          <div class="quiz-timer" id="quizTimer"><i class="fa-solid fa-stopwatch"></i> <span>4:00</span></div>
+          <div class="quiz-timer" id="quizTimer"><i class="fa-solid fa-stopwatch"></i> <span>3:00</span></div>
         </div>
-        <div class="quiz-warn"><i class="fa-solid fa-shield-halved"></i> Stay on this page. Leaving the page, switching tabs or copying text will end the assessment.</div>
+        <div class="quiz-warn"><i class="fa-solid fa-shield-halved"></i> Stay on this page. Leaving the page, switching tabs, screenshots or copying text will end the assessment.</div>
         <div id="questionCard"></div>
         <div class="quiz-nav">
           <button class="btn btn-outline" id="btnPrevQ" style="width:auto;padding:12px 18px;font-size:13px"><i class="fa-solid fa-arrow-left"></i> Back</button>
@@ -1163,7 +1158,7 @@ html.ready{opacity:1}
           <div class="result-summary" id="resultSummary"></div>
           <div class="result-list" id="resultList"></div>
           <div class="btn-row">
-            <button class="btn btn-outline" id="btnDownloadPdf"><i class="fa-solid fa-file-pdf"></i> Download PDF</button>
+            <button class="btn btn-outline hidden" id="btnDownloadPdf"><i class="fa-solid fa-file-pdf"></i> Download PDF Slips</button>
             <button class="btn btn-outline" id="btnEmailResult"><i class="fa-solid fa-envelope"></i> Email Result</button>
           </div>
           <div style="height:10px"></div>
@@ -1205,7 +1200,7 @@ html.ready{opacity:1}
 
 <main class="dash-wrap hidden" id="app">
   <div class="greet">
-    <img id="userAvatar" src="https://i.imgur.com/oyqM5oF.png" alt="" title="Tap to change course">
+    <img id="userAvatar" src="https://i.imgur.com/oyqM5oF.png" alt="" title="Tap to open My Courses">
     <div>
       <small>Welcome back</small>
       <h2 id="userFullName">Student</h2>
@@ -1215,16 +1210,9 @@ html.ready{opacity:1}
   </div>
 
   <div class="course-switch hidden" id="courseSwitch"></div>
-  
-  
-  
 
- <div class="progress-card">
+  <div class="progress-card">
     <div class="progress-top">
-        
-      
-      
-      
       <span class="level-badge studying" id="levelBadge"><i class="fa-solid fa-book-open"></i> Studying</span>
     </div>
     <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
@@ -1238,10 +1226,6 @@ html.ready{opacity:1}
     <span class="ad-tag">Ad</span>
     <img id="adImage" src="" alt="Advertisement" onclick="window.open(window._adtLink,'_blank')">
   </div>
-  
-  
-  
-  
 
   <div class="topic-card hidden" id="topicCard">
     <div class="topic-head">
@@ -1312,8 +1296,7 @@ html.ready{opacity:1}
     <b style="font-size:15px;display:block;margin-bottom:6px">No Topics Available Yet</b>
     <p style="font-size:12.5px;color:var(--muted)">The topics for this course are being prepared by our teachers. Please check back soon.</p>
   </div>
-        
-  </main>
+</main>
 
 <div class="pn-wrap" id="coursePush">
   <div class="pn-card">
@@ -1330,7 +1313,6 @@ html.ready{opacity:1}
 </div>
 
 <div id="toastWrap" class="toast-wrap"></div>
-
 
 <style>
 .idt-footer-scope {
@@ -1554,25 +1536,14 @@ html.ready{opacity:1}
     grid-template-columns: 1fr;
   }
 }
-
-  html {
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out;
-  }
- 
-  html.ready {
-    opacity: 1;
-  }
 </style>
-
-
 
 <div class="idt-footer-scope">
   <footer class="footer" id="contact">
     <div class="idt-footer-inner">
       <div class="footer-grid">
         <div>
-          <div class="f-">
+          <div class="f-brand">
             <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy">
             <b>IDT Academy</b>
           </div>
@@ -1611,10 +1582,10 @@ html.ready{opacity:1}
             <li><i class="fa-solid fa-user-tie"></i><div><b>CEO — Ubaida Aliyu</b><small>Partnerships, sponsorship &amp; general enquiries</small></div></li>
             <li><a href="tel:+2349131264928"><i class="fa-solid fa-phone"></i><div><b>+234 913 126 4928</b><small>Call the CEO</small></div></a></li>
             <li><a href="https://wa.me/2349131264928" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i><div><b>WhatsApp CEO</b><small>Chat directly</small></div></a></li>
-            <li><i class="fa-solid fa-headset"></i><div><b>Customer Care — Surajo Habibu Ibrahim</b><small>Payment issues, course problems &amp; support</small></div></a></li>
+            <li><i class="fa-solid fa-headset"></i><div><b>Customer Care — Surajo Habibu Ibrahim</b><small>Payment issues, course problems &amp; support</small></div></li>
             <li><a href="tel:+2347068818760"><i class="fa-solid fa-phone"></i><div><b>+234 706 881 8760</b><small>Call Customer Care</small></div></a></li>
             <li><a href="https://wa.me/2347068818760" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i><div><b>WhatsApp Customer Care</b><small>Send a message</small></div></a></li>
-            <li><a  href="mailto:idtacademy3@gmail.com"><i class="fa-solid fa-envelope"></i><div><b>idtacademy3@gmail.com</b><small>Email us anytime</small></div></a></li>
+            <li><a href="mailto:idtacademy3@gmail.com"><i class="fa-solid fa-envelope"></i><div><b>idtacademy3@gmail.com</b><small>Email us anytime</small></div></a></li>
           </ul>
         </div>
       </div>
@@ -1624,7 +1595,7 @@ html.ready{opacity:1}
       </div>
     </div>
   </footer>
-
+</div>
 
 <script type="module" src="dashboard.js"></script>
 
