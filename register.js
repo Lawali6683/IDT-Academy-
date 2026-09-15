@@ -1,9 +1,6 @@
-
-
 import { supabase } from './supabase.js';
 
 const $ = (id) => document.getElementById(id);
-
 const getValue = (id) => {
   const el = $(id);
   return el ? el.value : '';
@@ -193,12 +190,10 @@ function switchTab(name) {
   const formLog = $('loginForm');
   const authTitle = $('authTitle');
   const authSub = $('authSub');
-
   if (tabReg) tabReg.classList.toggle('active', name === 'register');
   if (tabLog) tabLog.classList.toggle('active', name === 'login');
   if (formReg) formReg.classList.toggle('active', name === 'register');
   if (formLog) formLog.classList.toggle('active', name === 'login');
-
   if (name === 'register') {
     if (authTitle) authTitle.textContent = 'Create Your Account';
     if (authSub) authSub.textContent = 'Join IDT Academy and start learning today';
@@ -265,16 +260,11 @@ function extractCourse(row) {
 async function loadCourses() {
   const sel = $('regCourse');
   if (!sel) return;
-
   try {
     const { data, error } = await supabase.from('courses').select('*');
     if (error) throw error;
-
     const list = (data || []).map(extractCourse).filter(Boolean);
     list.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
-
-    console.log('IDT CHECK: register courses loaded =', list.length);
-
     sel.innerHTML = '<option value="">Choose your course</option>';
     list.forEach((c) => {
       courseMap[c.id] = c;
@@ -284,7 +274,6 @@ async function loadCourses() {
       if (c.id === urlCourseId) opt.selected = true;
       sel.appendChild(opt);
     });
-
     if (urlCourseId && !courseMap[urlCourseId]) {
       const fake = {
         id: String(urlCourseId),
@@ -303,16 +292,13 @@ async function loadCourses() {
       opt.selected = true;
       sel.appendChild(opt);
     }
-
     if (!list.length && !urlCourseId) {
       sel.innerHTML = '<option value="">No courses available yet</option>';
       showToast('info', 'No Courses Yet', 'Courses are being prepared. Please check back soon.', '');
     }
-
     updateCourseSummary();
   } catch (err) {
     sel.innerHTML = '<option value="">Could not load courses</option>';
-    console.error('IDT CHECK: register course load failed', err);
     showToast('error', 'Courses Failed To Load', 'Please refresh the page or check your Supabase connection.', err.message || String(err));
   }
 }
@@ -320,27 +306,21 @@ async function loadCourses() {
 function updateCourseSummary() {
   const sel = $('regCourse');
   if (!sel) return;
-
   const id = sel.value;
   const summary = $('courseSummary');
   const regPrice = $('regPrice');
-
   if (!id || !courseMap[id]) {
     if (summary) summary.classList.add('hidden');
     if (regPrice) regPrice.value = '';
     return;
   }
-
   const c = courseMap[id] || {};
   if (regPrice) regPrice.value = c.price.toLocaleString('en-NG');
-
   const summaryName = $('courseSummaryName');
   if (summaryName) summaryName.textContent = c.course_name || 'Course';
-
   const cat = CATEGORIES[c.category] || '';
   const summaryMeta = $('courseSummaryMeta');
   if (summaryMeta) summaryMeta.textContent = [cat, c.course_number ? '#' + c.course_number : ''].filter(Boolean).join(' - ');
-
   const img = $('courseImg');
   if (img) {
     if (c.image_url && typeof c.image_url === 'string' && c.image_url.trim() !== '') {
@@ -351,7 +331,6 @@ function updateCourseSummary() {
       img.style.display = 'none';
     }
   }
-
   if (summary) summary.classList.remove('hidden');
 }
 
@@ -359,7 +338,6 @@ async function handleRegister(e) {
   if (e && typeof e.preventDefault === 'function') {
     e.preventDefault();
   }
-
   const fullName = getValue('regFullName').trim();
   const phone = getValue('regPhone').trim();
   const courseId = getValue('regCourse');
@@ -370,7 +348,6 @@ async function handleRegister(e) {
   const password = getValue('regPassword');
   const confirm = getValue('regConfirm');
   const ref = getValue('regRef').trim().toUpperCase();
-
   if (fullName.length < 3) { showToast('error', 'Full Name Required', 'Please enter your full name.', ''); if ($('regFullName')) $('regFullName').focus(); return; }
   if (!validPhone(phone)) { showToast('error', 'Invalid Phone Number', 'Please enter a valid Nigerian phone number, e.g. 08123456789.', ''); if ($('regPhone')) $('regPhone').focus(); return; }
   if (!courseId) { showToast('error', 'Choose A Course', 'Please select the course you want to study.', ''); if ($('regCourse')) $('regCourse').focus(); return; }
@@ -381,7 +358,6 @@ async function handleRegister(e) {
   if (password.length < 6) { showToast('error', 'Weak Password', 'Password must be at least 6 characters.', ''); if ($('regPassword')) $('regPassword').focus(); return; }
   if (password !== confirm) { showToast('error', 'Password Mismatch', 'The two passwords do not match. Please type them again.', ''); if ($('regConfirm')) $('regConfirm').focus(); return; }
   if (ref && !validRefCode(ref)) { showToast('error', 'Invalid Referral Code', 'Referral codes are 4 to 8 letters or numbers. Please check it.', ''); if ($('regRef')) $('regRef').focus(); return; }
-
   const course = courseMap[courseId] || {};
   const payload = {
     full_name: fullName,
@@ -397,9 +373,7 @@ async function handleRegister(e) {
     password: password,
     referred_by: ref
   };
-
   showLoading();
-
   try {
     const res = await fetch('/api/register', {
       method: 'POST',
@@ -407,19 +381,15 @@ async function handleRegister(e) {
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(30000)
     });
-
     const json = await res.json().catch(() => ({}));
     hideLoading();
-
     if (!res.ok || !json.success) {
       showToast('error', 'Registration Failed', friendlyRegisterError(json), json.error || json.message || ('HTTP ' + res.status));
       return;
     }
-
     localStorage.setItem('idt_user', JSON.stringify(json.user));
     localStorage.removeItem('idt_ref');
     sessionStorage.removeItem('idt_ref');
-
     showToast('success', 'Welcome To IDT Academy!', json.message || 'Account created. Redirecting to your dashboard...');
     setTimeout(() => window.location.replace('dashboard.html'), 1800);
   } catch (err) {
@@ -432,27 +402,21 @@ async function handleLogin(e) {
   if (e && typeof e.preventDefault === 'function') {
     e.preventDefault();
   }
-
   const email = getValue('loginEmail').trim().toLowerCase();
   const password = getValue('loginPassword');
-
   if (!validEmail(email)) { showToast('error', 'Invalid Email', 'Please enter the email you registered with.', ''); if ($('loginEmail')) $('loginEmail').focus(); return; }
   if (!password) { showToast('error', 'Password Required', 'Please enter your password.', ''); if ($('loginPassword')) $('loginPassword').focus(); return; }
-
   showLoading();
-
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email,
       password: password
     });
-
     if (error) {
       hideLoading();
       showToast('error', 'Login Failed', friendlyLoginError(error), error.message || String(error));
       return;
     }
-
     let userObj = data.user;
     try {
       const { data: profile } = await supabase.from('users').select('*').eq('id', data.user.id).single();
@@ -460,10 +424,8 @@ async function handleLogin(e) {
         userObj = { ...data.user, ...profile };
       }
     } catch (pe) {}
-
     localStorage.setItem('idt_user', JSON.stringify(userObj));
     hideLoading();
-
     showToast('success', 'Welcome Back!', 'Login successful. Opening your dashboard...');
     setTimeout(() => window.location.replace('dashboard.html'), 1600);
   } catch (err) {
@@ -503,13 +465,11 @@ document.querySelectorAll('.eye-btn').forEach((btn) => {
 
 const menuBtn = $('menuBtn');
 const menuItems = $('menuItems');
-
 if (menuBtn && menuItems) {
   menuBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     menuItems.classList.toggle('open');
   });
-
   document.addEventListener('click', (e) => {
     if (!menuItems.contains(e.target) && !menuBtn.contains(e.target)) {
       menuItems.classList.remove('open');
@@ -517,10 +477,23 @@ if (menuBtn && menuItems) {
   });
 }
 
+async function checkAuthAndRedirect() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session && session.user) {
+      window.location.replace('dashboard.html');
+      return true;
+    }
+  } catch (err) {}
+  return false;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   showLoading();
-  parseUrl();
+  const isLoggedIn = await checkAuthAndRedirect();
+  if (isLoggedIn) return;
 
+  parseUrl();
   const ref = getUrlRef();
   if (ref && $('regRef')) {
     $('regRef').value = ref;
@@ -539,7 +512,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   hideLoading();
 });
 
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN' && session) {
+    window.location.replace('dashboard.html');
+  }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   document.documentElement.classList.add('ready');
 });
-
