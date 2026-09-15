@@ -2127,20 +2127,37 @@ async function handleExplain(lang) {
   }
 }
 
+
+
+
 function getPrimaryCourse() {
-  const fromData = {
-    course_id: (userData && userData.course_id) || '',
-    course_name: (userData && userData.course_name) || '',
-    course_number: (userData && userData.course_number) || '',
-    course_price: Number((userData && (userData.course_price || userData.price)) || 0)
-  };
-  if (fromData.course_id && fromData.course_price) return fromData;
-  const list = courseList[0] || {};
+  const cid = String((userData && userData.course_id) || '').trim();
+  const cname = String((userData && userData.course_name) || '').trim();
+  const cnum = String((userData && userData.course_number) || '').trim();
+  const cprice = Number((userData && (userData.course_price || userData.price)) || 0);
+  const validId = cid &&
+    cid.toUpperCase() !== 'N/A' &&
+    cid.toLowerCase() !== 'null' &&
+    cid.toLowerCase() !== 'undefined';
+  const validName = cname &&
+    cname.toUpperCase() !== 'N/A' &&
+    cname.toUpperCase() !== 'NULL' &&
+    cname.toUpperCase() !== 'UNDEFINED';
+  if (validId && validName && cprice > 0) {
+    return {
+      course_id: cid,
+      course_name: cname,
+      course_number: cnum || '000',
+      course_price: cprice,
+      valid: true
+    };
+  }
   return {
-    course_id: list.course_id || '',
-    course_name: list.course_name || 'Selected Course',
-    course_number: list.course_number || '000',
-    course_price: Number(list.course_price || list.price || 0)
+    course_id: '',
+    course_name: '',
+    course_number: '',
+    course_price: 0,
+    valid: false
   };
 }
 
@@ -2231,14 +2248,19 @@ function stopAllPayLinks() {
   if (box) box.remove();
 }
 
+
+
+
 async function startPayment() {
   const course = getPrimaryCourse();
-  const price = Number(course.course_price || 0);
-  if (!price) {
-    showToast('error', 'Payment Error', 'Course price not found. Please select a course first.', '');
+  if (!course.valid || !course.course_price || !course.course_id) {
+    showToast('info', 'Select A Course First', 'Please choose a course before paying. Pick the one you want below.', '');
     openCoursePush();
+    const sub = $('pnSub');
+    if (sub) sub.textContent = 'Please select a course below to continue with your payment.';
     return;
   }
+  const price = Number(course.course_price || 0);
   const payBtn = $('btnPayNow');
   if (!payBtn) return;
   const oldBtnHtml = payBtn.innerHTML;
@@ -2310,11 +2332,7 @@ async function startPayment() {
       const btnRef = $('btnCopyRef');
       if (btnAcc) btnAcc.dataset.copy = accountNumber;
       if (btnRef) btnRef.dataset.copy = reference;
-      const btnAccName = $('payAccountNameRow');
-      if (btnAccName) btnAccName.classList.add('hidden');
-      const btnAccBox = $('btnCopyAccount');
-      if (btnAccBox) btnAccBox.classList.remove('hidden');
-      const accNameRow = accName && accName.parentElement ? accName.parentElement : null;
+      const accNameRow = $('payAccountNameRow');
       if (accNameRow) accNameRow.classList.add('hidden');
       const accNumRow = accNum && accNum.parentElement ? accNum.parentElement : null;
       if (accNumRow) accNumRow.classList.remove('hidden');
@@ -2357,6 +2375,10 @@ async function startPayment() {
     showToast('error', 'Payment Failed', 'Could not create payment details. Please try again.', err.message || String(err));
   }
 }
+
+
+
+
 
 async function loadDashboard() {
   showLoading();
