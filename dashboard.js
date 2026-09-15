@@ -177,6 +177,7 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const REGULAR_WATCH_SECONDS = 90;
 const ASSESS_BATCH_SIZE = 3;
 const STATUS_POLL_MS = 4000;
+const QUIZ_SECONDS = 180;
 
 let user = null;
 let profileData = null;
@@ -338,6 +339,11 @@ function isDiploma(courseId) {
   return String(info.category || '') === '4';
 }
 
+function isValidCourseId(v) {
+  const s = String(v || '').trim();
+  return Boolean(s) && s.toUpperCase() !== 'N/A' && s.toLowerCase() !== 'null' && s.toLowerCase() !== 'undefined';
+}
+
 function collectCourses(ud) {
   const arr = [];
   const main = {
@@ -347,20 +353,24 @@ function collectCourses(ud) {
     course_price: Number(ud.course_price || ud.price || 0),
     status: ud.status || 'pending'
   };
-  if (main.course_id) arr.push(main);
-  ['new_course2', 'new_course3', 'new_course4', 'new_course5'].forEach((k) => {
-    const c = ud[k];
-    if (c && typeof c === 'object' && c.course_id) {
-      arr.push({
-        course_id: c.course_id,
-        course_name: c.course_name || '',
-        course_number: c.course_number || '',
-        course_price: Number(c.course_price || c.price || 0),
-        status: c.status || ud.status || 'active'
-      });
-    }
+  if (isValidCourseId(main.course_id) && main.course_name && main.course_price) arr.push(main);
+  for (let n = 2; n <= 20; n++) {
+    const cid = ud[n + 'course_id'];
+    if (!isValidCourseId(cid)) continue;
+    arr.push({
+      course_id: String(cid).trim(),
+      course_name: ud[n + 'course_name'] || '',
+      course_number: ud[n + 'course_number'] || '000',
+      course_price: Number(ud[n + 'course_price'] || 0),
+      status: ud[n + 'course_status'] || 'active'
+    });
+  }
+  const seen = {};
+  return arr.filter((c) => {
+    if (!c.course_id || seen[c.course_id]) return false;
+    seen[c.course_id] = true;
+    return true;
   });
-  return arr;
 }
 
 function isCourseMissing(ud) {
@@ -521,7 +531,7 @@ function renderUserGreet() {
   const n = $('userFullName');
   const c = $('userCourseName');
   if (n) n.textContent = (userData && userData.full_name) || 'Student';
-  if (c) c.textContent = 'Course: ' + ((userData && userData.course_name) || 'Loading...');
+  if (c) c.textContent = 'Course: ' + ((courseInfoMap[activeCourseId] || {}).course_name || (userData && userData.course_name) || 'Loading...');
 }
 
 async function loadAd() {
@@ -616,6 +626,7 @@ async function loadTopicsFor(courseId) {
 }
 
 function pickDefaultCourse() {
+  if (courseList.length === 1) return courseList[0].course_id;
   const unfinished = courseList.find((c) => {
     const lv = String(userData.level_completed || '');
     const topicCount = (topicsMap[c.course_id] || []).length;
@@ -624,7 +635,7 @@ function pickDefaultCourse() {
     if (typeof batch === 'number' && topicCount > 0 && batch >= topicCount - 1) return false;
     return true;
   });
-  return unfinished ? unfinished.course_id : (courseList.length ? courseList[courseList.length - 1].course_id : '');
+  return unfinished ? unfinished.course_id : '';
 }
 
 function categoryLabel(cat) {
@@ -674,8 +685,61 @@ function renderCoursePush() {
   });
 }
 
+function renderMyCourses() {
+  const body = $('pnBody');
+  if (!body) return false;
+  if (courseList.length === 0) return false;
+  let html = '<div class="pn-cat"><i class="fa-solid fa-graduation-cap"></i> My Courses</div>';
+  html += '<div class="pn-row">';
+  courseList.forEach((c) => {
+    const info = courseInfoMap[c.course_id] || {};
+    const img = info.image_url || 'https://i.imgur.com/oyqM5oF.png';
+    const isActive = c.course_id === activeCourseId;
+    const lv = String(userData.level_completed || '');
+    const done = lv === 'final' && isActive;
+    html += '<div class="pn-course" data-mcid="' + escapeHtml(c.course_id) + '">' +
+      '<img src="' + escapeHtml(img) + '" alt="' + escapeHtml(c.course_name || 'Course') + '" loading="lazy">' +
+      '<div class="pnc-in">' +
+      '<b>' + escapeHtml(c.course_name || 'Course') + '</b>' +
+      '<small><i class="fa-solid fa-hashtag"></i> ' + escapeHtml(c.course_number || '000') + '</small>' +
+      '<span class="pnc-price">' + (done ? '<i class="fa-solid fa-circle-check"></i> Completed' : (isActive ? '<i class="fa-solid fa-book-open"></i> Studying' : '<i class="fa-solid fa-book"></i> Tap to open')) + '</span>' +
+      '</div></div>';
+  });
+  html += '</div>';
+  body.innerHTML = html;
+  body.querySelectorAll('.pn-course[data-mcid]').forEach((card) => {
+    card.addEventListener('click', async () => {
+      const cid = card.dataset.mcid;
+      closeCoursePush();
+      if (cid === activeCourseId && currentTopics.length) {
+        const app = $('app');
+        if (app) app.classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      miniLoad('Opening your course...');
+      if (!topicsMap[cid]) await loadTopicsFor(cid);
+      await selectCourse(cid);
+      const app = $('app');
+      if (app) app.classList.remove('hidden');
+      miniHide();
+    });
+  });
+  return true;
+}
+
 function openCoursePush() {
   renderCoursePush();
+  const p = $('coursePush');
+  if (p) p.classList.add('open');
+}
+
+function openMyCourses() {
+  const opened = renderMyCourses();
+  if (!opened) {
+    openCoursePush();
+    return;
+  }
   const p = $('coursePush');
   if (p) p.classList.add('open');
 }
@@ -699,10 +763,10 @@ async function chooseCourse(courseId) {
   }
   try {
     const info = courseInfoMap[courseId] || {};
-    const courseName = info.course_name || 'Selected Course';
-    const courseNumber = info.course_number || '000';
-    const price = Number(info.price || info.course_price || 0);
-    if (!courseName || courseName === 'Selected Course' || !price) {
+    let courseName = info.course_name || '';
+    let courseNumber = info.course_number || '000';
+    let price = Number(info.price || info.course_price || 0);
+    if (!courseName || !price) {
       try {
         const { data, error } = await supabase
           .from('courses')
@@ -712,20 +776,38 @@ async function chooseCourse(courseId) {
         if (!error && data && data[0]) {
           const cd = data[0].course_data || {};
           courseInfoMap[courseId] = cd;
-          allCourses = allCourses.map((r) => r.id === courseId ? { id: courseId, cd: cd } : r);
+          courseName = cd.course_name || courseName;
+          courseNumber = cd.course_number || courseNumber;
+          price = Number(cd.price || cd.course_price || price);
         }
       } catch (err) {}
     }
-    const info2 = courseInfoMap[courseId] || info;
-    if (!userData) userData = {};
-    userData.course_id = courseId;
-    userData.course_name = info2.course_name || courseName;
-    userData.course_number = info2.course_number || courseNumber;
-    userData.course_price = Number(info2.price || info2.course_price || price);
-    if (!userData.course_name || !userData.course_price) {
+    if (!courseName || !price) {
       throw new Error('Course details not found for this course');
     }
-    await saveUserData();
+    miniLoad('Saving your course...');
+    const res = await fetch('/api/chengeCourse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: user.id,
+        course_id: courseId,
+        course_name: courseName,
+        course_number: courseNumber,
+        course_price: price
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    miniHide();
+    if (!res.ok || data.success !== true) {
+      throw new Error(data.message || 'Could not save your course. Please try again.');
+    }
+    if (!userData) userData = {};
+    userData.course_id = courseId;
+    userData.course_name = courseName;
+    userData.course_number = courseNumber;
+    userData.course_price = price;
+    userData.status = 'pending';
     const safe = JSON.parse(localStorage.getItem('idt_user') || '{}');
     safe.course_id = userData.course_id;
     safe.course_name = userData.course_name;
@@ -737,9 +819,9 @@ async function chooseCourse(courseId) {
     closeCoursePush();
     const gate = $('pendingGate');
     if (gate) gate.classList.add('open');
-    showToast('success', 'Course Selected ✓', 'You selected ' + userData.course_name + ' for ' + formatMoney(userData.course_price) + '. Tap Pay Now to complete your payment.');
+    showToast('success', 'Course Selected ✓', 'You selected ' + courseName + ' for ' + formatMoney(price) + '. Tap Pay Now to complete your payment.');
   } catch (err) {
-    showToast('error', 'Selection Failed', 'Could not select this course. Please try again.', err.message || String(err));
+    showToast('error', 'Selection Failed', err.message || 'Could not select this course. Please try again.', err.message || String(err));
   } finally {
     if (clickedCard) {
       delete clickedCard.dataset.busy;
@@ -814,6 +896,7 @@ async function selectCourse(courseId) {
   }
   const topicCard = $('topicCard');
   const emptyState = $('emptyState');
+  renderUserGreet();
   if (currentTopics.length === 0) {
     if (topicCard) topicCard.classList.add('hidden');
     if (emptyState) emptyState.classList.remove('hidden');
@@ -1189,7 +1272,7 @@ async function startAssessmentFlow() {
       questions: questions,
       answers: questions.map(() => ''),
       currentQ: 0,
-      secondsLeft: 240,
+      secondsLeft: QUIZ_SECONDS,
       timer: null,
       flags: 0,
       stream: null,
@@ -1325,45 +1408,73 @@ function startQuizTimer() {
 function attachAntiCheat() {
   document.addEventListener('visibilitychange', antiCheatHandler);
   document.addEventListener('copy', antiCheatCopy);
+  document.addEventListener('cut', antiCheatCopy);
+  document.addEventListener('contextmenu', antiCheatContext);
+  document.addEventListener('selectstart', antiCheatSelect);
   window.addEventListener('blur', antiCheatBlur);
+  document.addEventListener('keydown', antiCheatKeys);
 }
 
 function detachAntiCheat() {
   document.removeEventListener('visibilitychange', antiCheatHandler);
   document.removeEventListener('copy', antiCheatCopy);
+  document.removeEventListener('cut', antiCheatCopy);
+  document.removeEventListener('contextmenu', antiCheatContext);
+  document.removeEventListener('selectstart', antiCheatSelect);
   window.removeEventListener('blur', antiCheatBlur);
+  document.removeEventListener('keydown', antiCheatKeys);
+}
+
+function antiCheatKeys(e) {
+  if (!quizState) return;
+  const k = (e.key || '').toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && ['c', 'x', 'v', 'a', 'u', 's', 'p'].indexOf(k) !== -1) {
+    e.preventDefault();
+    flagAntiCheat('Copying is not allowed during the assessment.');
+    return;
+  }
+  if (k === 'printscreen') {
+    e.preventDefault();
+    flagAntiCheat('Screenshots are not allowed during the assessment.');
+  }
+}
+
+function antiCheatContext(e) {
+  if (!quizState) return;
+  e.preventDefault();
+  flagAntiCheat('Right click is disabled during the assessment.');
+}
+
+function antiCheatSelect(e) {
+  if (!quizState) return;
+  e.preventDefault();
+}
+
+function flagAntiCheat(msg) {
+  if (!quizState) return;
+  quizState.flags++;
+  if (quizState.flags >= 2) {
+    submitQuiz(true);
+  } else {
+    showToast('error', 'Warning!', msg + ' This is recorded.', 'Flag ' + quizState.flags + '/2');
+  }
 }
 
 function antiCheatHandler() {
   if (document.hidden && quizState) {
-    quizState.flags++;
-    if (quizState.flags >= 2) {
-      submitQuiz(true);
-    } else {
-      showToast('error', 'Warning!', 'Do not leave the assessment page. This is recorded.', 'Flag ' + quizState.flags + '/2');
-    }
+    flagAntiCheat('Do not leave the assessment page.');
   }
 }
 
 function antiCheatCopy(e) {
   if (!quizState) return;
   e.preventDefault();
-  quizState.flags++;
-  if (quizState.flags >= 2) {
-    submitQuiz(true);
-  } else {
-    showToast('error', 'Copying Not Allowed', 'Copying is not allowed during the assessment. This is recorded.', 'Flag ' + quizState.flags + '/2');
-  }
+  flagAntiCheat('Copying is not allowed during the assessment.');
 }
 
 function antiCheatBlur() {
   if (quizState) {
-    quizState.flags++;
-    if (quizState.flags >= 2) {
-      submitQuiz(true);
-    } else {
-      showToast('error', 'Warning!', 'Stay on the assessment page.', 'Flag ' + quizState.flags + '/2');
-    }
+    flagAntiCheat('Stay on the assessment page.');
   }
 }
 
@@ -1380,7 +1491,7 @@ async function submitQuiz(timedOut) {
     type: q.type || 'mcq',
     user_answer: quizState.answers[i] || ''
   }));
-  const timeSpent = Math.max(0, 240 - quizState.secondsLeft);
+  const timeSpent = Math.max(0, QUIZ_SECONDS - quizState.secondsLeft);
   miniLoad('Grading your answers...');
   try {
     const res = await gradeAssessment({
@@ -1490,7 +1601,7 @@ function showResult(score, pct, passed, results, timedOut, message) {
       '<div class="rs-row"><span>Correct Answers</span><b class="ok">' + (results.filter((r) => r.is_correct === true).length || score) + '</b></div>' +
       '<div class="rs-row"><span>Wrong Answers</span><b class="bad">' + (results.filter((r) => r.is_correct === false).length || Math.max(0, totalQ - score)) + '</b></div>' +
       '<div class="rs-row"><span>Pass Mark</span><b>' + PASS_MARK + ' / ' + totalQ + '</b></div>' +
-      '<div class="rs-row"><span>Time Used</span><b>' + Math.max(0, 240 - (quizState ? quizState.secondsLeft : 0)) + 's</b></div>';
+      '<div class="rs-row"><span>Time Used</span><b>' + Math.max(0, QUIZ_SECONDS - (quizState ? quizState.secondsLeft : 0)) + 's</b></div>';
   }
   let listHtml = '';
   results.forEach((r, i) => {
@@ -1519,8 +1630,10 @@ function showResult(score, pct, passed, results, timedOut, message) {
     btnCont.classList.remove('hidden');
     btnGoExam.classList.add('hidden');
   }
+  const btnPdf = $('btnDownloadPdf');
+  if (btnPdf && passed) btnPdf.classList.remove('hidden');
   if (timedOut) {
-    showToast('error', 'Time Up', 'The 4 minutes finished. Your answers were submitted automatically.', '');
+    showToast('error', 'Time Up', 'The ' + Math.round(QUIZ_SECONDS / 60) + ' minutes finished. Your answers were submitted automatically.', '');
   }
 }
 
@@ -1598,120 +1711,206 @@ function imageToDataUrl(url) {
   });
 }
 
+function pdfHeader(doc, w, title) {
+  doc.setFillColor(124, 58, 237);
+  doc.rect(0, 0, w, 34, 'F');
+  doc.setFillColor(6, 182, 212);
+  doc.rect(0, 34, w, 2.5, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text('IDT ACADEMY', 14, 14);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text('Intelligent Digital Technology Academy  •  www.idtacademy.com.ng', 14, 21);
+  doc.text('Learn Beyond Limits', 14, 27);
+  doc.setTextColor(30, 27, 75);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text(title, 14, 47);
+  doc.setDrawColor(124, 58, 237);
+  doc.setLineWidth(0.8);
+  doc.line(14, 51, w - 14, 51);
+}
+
+function pdfSignatures(doc, w, y, signChair, signCeo) {
+  if (y > 240) {
+    doc.addPage();
+    y = 30;
+  }
+  const rowY = y + 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(109, 106, 138);
+  doc.text('_______________________', 22, rowY);
+  doc.text('_______________________', w - 72, rowY);
+  if (signChair) doc.addImage(signChair, 'PNG', 22, rowY + 2, 26, 13);
+  if (signCeo) doc.addImage(signCeo, 'PNG', w - 72, rowY + 2, 26, 13);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(30, 27, 75);
+  doc.text('Haruna Lawali', 22, rowY + 19);
+  doc.text('Ubaida Aliyu', w - 72, rowY + 19);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(109, 106, 138);
+  doc.text('Chairman, Board of Trustees', 22, rowY + 24);
+  doc.text('CEO, IDT Academy', w - 72, rowY + 24);
+  doc.setTextColor(109, 106, 138);
+  doc.setFontSize(8);
+  doc.text('IDT Academy • Official Assessment Document • ' + new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }), w / 2, rowY + 34, { align: 'center' });
+}
+
 async function downloadResultPdf() {
-  miniLoad('Preparing your PDF...');
+  miniLoad('Preparing your slips...');
   try {
     await loadPdfLib();
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'mm', 'a4');
     const w = doc.internal.pageSize.getWidth();
+    const h = doc.internal.pageSize.getHeight();
     const results = window._lastResults || [];
     const score = window._lastScore || 0;
     const pct = window._lastPct || 0;
     const passed = window._lastPassed || false;
+    const totalQ = results.length || (quizState && quizState.questions.length) || 5;
     const courseName = (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '';
     const studentName = (userData && userData.full_name) || '';
+    const academyId = getAcademyId();
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
     const logo = await imageToDataUrl('https://i.imgur.com/oyqM5oF.png');
-    const sign = await imageToDataUrl('https://i.imgur.com/sing.png');
+    const signChair = await imageToDataUrl('https://i.imgur.com/z8HOr4D.png');
+    const signCeo = await imageToDataUrl('https://i.imgur.com/leqHq9I.png');
+
     if (logo) {
-      doc.addImage(logo, 'PNG', (w - 22) / 2, 12, 22, 22);
-    } else {
-      doc.setFillColor(124, 58, 237);
-      doc.circle(w / 2, 23, 11, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('IDT', w / 2, 26, { align: 'center' });
+      doc.setGState(new doc.GState({ opacity: 0.06 }));
+      doc.addImage(logo, 'PNG', (w - 150) / 2, (h - 150) / 2, 150, 150);
+      doc.setGState(new doc.GState({ opacity: 1 }));
     }
-    doc.setTextColor(30, 27, 75);
+    pdfHeader(doc, w, 'ASSESSMENT SLIP');
+    let y = 62;
+    doc.setFillColor(245, 243, 255);
+    doc.roundedRect(14, y, w - 28, 26, 3, 3, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text('Intelligent Digital Technology Academy', w / 2, 42, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.setTextColor(109, 106, 138);
-    doc.text('www.idtacademy.com.ng  •  Learn Beyond Limits', w / 2, 48, { align: 'center' });
-    doc.setDrawColor(124, 58, 237);
-    doc.setLineWidth(0.8);
-    doc.line(14, 53, w - 14, 53);
     doc.setTextColor(30, 27, 75);
+    doc.text('Student: ' + studentName, 18, y + 7);
+    doc.text('Academy ID: ' + academyId, 18, y + 14);
+    doc.text('Course: ' + courseName, 18, y + 21);
+    doc.setTextColor(109, 40, 221);
+    doc.text('Date: ' + dateStr, w - 18, y + 7, { align: 'right' });
+    doc.text('Time Used: ' + Math.max(0, QUIZ_SECONDS - (quizState ? quizState.secondsLeft : QUIZ_SECONDS)) + 's', w - 18, y + 14, { align: 'right' });
+    y += 34;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.text('ASSESSMENT RESULT', w / 2, 62, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(60, 58, 107);
-    let y = 72;
-    doc.text('Student Name:  ' + studentName, 16, y);
-    doc.text('Academy ID:  ' + getAcademyId(), 120, y);
+    doc.setFontSize(11);
+    doc.setTextColor(30, 27, 75);
+    doc.text('Questions & Answers', 16, y);
     y += 7;
-    doc.text('Course:  ' + courseName, 16, y);
-    doc.text('Pass Mark:  3 / 5 (60%)', 120, y);
-    y += 7;
-    doc.text('Score:  ' + score + ' / 5   (' + pct + '%)', 16, y);
-    doc.text('Status:  ' + (passed ? 'PASSED' : 'NOT PASSED'), 120, y);
-    y += 12;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Question Breakdown', 16, y);
-    y += 6;
-    doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     results.forEach((r, i) => {
-      if (y > 265) {
+      if (y > 225) {
         doc.addPage();
-        y = 20;
+        if (logo) {
+          doc.setGState(new doc.GState({ opacity: 0.06 }));
+          doc.addImage(logo, 'PNG', (w - 150) / 2, (h - 150) / 2, 150, 150);
+          doc.setGState(new doc.GState({ opacity: 1 }));
+        }
+        y = 30;
       }
       const ok = r.is_correct === true;
-      const mark = ok ? '✓' : '✖';
-      doc.setTextColor(ok ? 16 : 244, ok ? 185 : 63, ok ? 129 : 94);
-      doc.text(mark, 18, y);
+      doc.setFillColor(ok ? 232 : 254, ok ? 245 : 226, ok ? 241 : 231);
+      doc.roundedRect(14, y - 4, w - 28, 5, 1.5, 1.5, 'F');
+      doc.setTextColor(ok ? 16 : 220, ok ? 185 : 38, ok ? 129 : 38);
+      doc.setFont('helvetica', 'bold');
+      doc.text((ok ? '✔' : '✖') + ' Q' + (i + 1), 17, y);
       doc.setTextColor(30, 27, 75);
-      doc.text('Q' + (i + 1) + ': ' + String(r.question || '').slice(0, 60), 24, y);
-      y += 5;
-      doc.setTextColor(109, 106, 138);
-      const ansText = 'Your answer: ' + String(r.user_answer || '(no answer)') + (ok ? '' : '  |  Correct: ' + String(r.correct_answer != null ? r.correct_answer : ''));
-      const lines = doc.splitTextToSize(ansText, 170);
-      doc.text(lines, 26, y);
-      y += lines.length * 4.5 + 3;
-    });
-    y += 4;
-    if (passed) {
-      doc.setDrawColor(16, 185, 129);
-      doc.setFillColor(16, 185, 129);
-      doc.roundedRect((w - 90) / 2, y, 90, 12, 3, 3, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('CONGRATULATIONS - PASSED', w / 2, y + 8, { align: 'center' });
-      y += 18;
-    } else {
-      doc.setDrawColor(244, 63, 94);
-      doc.setFillColor(244, 63, 94);
-      doc.roundedRect((w - 90) / 2, y, 90, 12, 3, 3, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('NOT PASSED - KEEP LEARNING', w / 2, y + 8, { align: 'center' });
-      y += 18;
-    }
-    if (sign) {
-      doc.addImage(sign, 'PNG', w - 55, y, 30, 14);
-    } else {
+      const qLines = doc.splitTextToSize(String(r.question || ''), w - 50);
+      doc.text(qLines, 30, y);
+      y += qLines.length * 4.5 + 2;
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(14);
-      doc.setTextColor(30, 27, 75);
-      doc.text('IDT Academy', w - 55, y + 10);
+      doc.setTextColor(60, 58, 107);
+      const ansLines = doc.splitTextToSize('Your answer: ' + String(r.user_answer || '(no answer)'), w - 44);
+      doc.text(ansLines, 30, y);
+      y += ansLines.length * 4.2;
+      if (!ok && r.correct_answer != null) {
+        doc.setTextColor(16, 130, 100);
+        const cLines = doc.splitTextToSize('Correct answer: ' + String(r.correct_answer), w - 44);
+        doc.text(cLines, 30, y);
+        y += cLines.length * 4.2;
+      }
+      y += 4;
+    });
+    pdfSignatures(doc, w, y, signChair, signCeo);
+
+    doc.addPage();
+    if (logo) {
+      doc.setGState(new doc.GState({ opacity: 0.06 }));
+      doc.addImage(logo, 'PNG', (w - 150) / 2, (h - 150) / 2, 150, 150);
+      doc.setGState(new doc.GState({ opacity: 1 }));
     }
+    pdfHeader(doc, w, 'PROFESSIONAL RESULT SLIP');
+    y = 66;
+    doc.setFillColor(passed ? 16 : 244, passed ? 185 : 63, passed ? 129 : 94);
+    doc.roundedRect(14, y, w - 28, 34, 4, 4, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(34);
+    doc.text(pct + '%', 22, y + 22);
+    doc.setFontSize(11);
+    doc.text(passed ? 'PASSED' : 'NOT PASSED', w - 22, y + 14, { align: 'right' });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.setTextColor(109, 106, 138);
-    doc.text('Signature', w - 55, y + 16);
-    doc.text('Student Signature', 16, y + 16);
-    doc.text('IDT Academy • Official Assessment Document', w / 2, y + 26, { align: 'center' });
-    doc.save('IDT_Assessment_Result_' + studentName.replace(/\s+/g, '_') + '.pdf');
+    doc.text('Score: ' + score + ' / ' + totalQ + '   •   Pass Mark: ' + PASS_MARK + ' / ' + totalQ + '   •   Grade: ' + (pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : pct >= 50 ? 'D' : 'F'), w - 22, y + 22, { align: 'right' });
+    doc.text('Assessment: ' + (quizState && quizState.assessmentId ? String(quizState.assessmentId) : '—'), w - 22, y + 29, { align: 'right' });
+    y += 44;
+    doc.setFillColor(245, 243, 255);
+    doc.roundedRect(14, y, w - 28, 30, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(30, 27, 75);
+    doc.text('Student Name: ' + studentName, 18, y + 8);
+    doc.text('Academy ID: ' + academyId, 18, y + 15);
+    doc.text('Course: ' + courseName, 18, y + 22);
+    doc.setTextColor(109, 40, 221);
+    doc.text('Date: ' + dateStr, w - 18, y + 8, { align: 'right' });
+    doc.text('Status: ' + (passed ? 'CONGRATULATIONS - PASSED' : 'NOT PASSED - KEEP LEARNING'), w - 18, y + 15, { align: 'right' });
+    doc.text('Signed & Verified by IDT Academy', w - 18, y + 22, { align: 'right' });
+    y += 40;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(30, 27, 75);
+    doc.text('Performance Summary', 16, y);
+    y += 7;
+    doc.setFontSize(9);
+    const correct = results.filter((r) => r.is_correct === true).length;
+    const wrong = results.filter((r) => r.is_correct === false).length;
+    const skipped = results.filter((r) => !r.user_answer).length;
+    const rows = [
+      ['Total Questions', String(totalQ)],
+      ['Correct Answers', String(correct)],
+      ['Wrong Answers', String(wrong)],
+      ['Skipped', String(skipped)],
+      ['Final Score', score + ' / ' + totalQ + ' (' + pct + '%)'],
+      ['Time Allowed', Math.round(QUIZ_SECONDS / 60) + ' minutes']
+    ];
+    rows.forEach((row, i) => {
+      if (i % 2 === 0) {
+        doc.setFillColor(248, 247, 255);
+        doc.rect(14, y - 4.5, w - 28, 7, 'F');
+      }
+      doc.setTextColor(60, 58, 107);
+      doc.setFont('helvetica', 'normal');
+      doc.text(row[0], 18, y);
+      doc.setTextColor(30, 27, 75);
+      doc.setFont('helvetica', 'bold');
+      doc.text(row[1], w - 18, y, { align: 'right' });
+      y += 7;
+    });
+    pdfSignatures(doc, w, y + 4, signChair, signCeo);
+
+    doc.save('IDT_Assessment_Slips_' + studentName.replace(/\s+/g, '_') + '.pdf');
     miniHide();
-    showToast('success', 'PDF Downloaded', 'Your assessment result PDF has been downloaded. You can print it anytime.');
+    showToast('success', 'PDF Downloaded', 'Your assessment slips have been downloaded. You can print them anytime.');
   } catch (err) {
     miniHide();
     showToast('error', 'PDF Failed', 'Could not create the PDF.', err.message || String(err));
@@ -2058,7 +2257,6 @@ async function startPayment() {
     });
 
     const accountNumber = res.account_number || res.accountNumber || '';
-    const accountName = res.account_name || res.accountName || 'IDT ACADEMY';
     const bankName = res.bank_name || res.bankName || '';
     const authUrl = res.authorization_url || res.authorizationUrl || '';
     const reference = res.reference || res.ref || '';
@@ -2073,36 +2271,63 @@ async function startPayment() {
       verified: false
     };
 
-    const amt = $('payAmount');
-    const accNum = $('payAccountNumber');
-    const accName = $('payAccountName');
-    const bank = $('payBankName');
-    const refEl = $('payReference');
-    if (amt) amt.textContent = formatMoney(amount);
-    if (accNum) accNum.textContent = accountNumber || 'See Paystack page';
-    if (accName) accName.textContent = accountName;
-    if (bank) bank.textContent = bankName || '';
-    if (refEl && refEl.childNodes[0]) {
-      refEl.childNodes[0].nodeValue = reference;
-      const small = refEl.querySelector('small');
-      if (small) small.textContent = 'Use this reference when making your transfer';
-    }
-    const btnAcc = $('btnCopyAccount');
-    const btnRef = $('btnCopyRef');
-    if (btnAcc) btnAcc.dataset.copy = accountNumber;
-    if (btnRef) btnRef.dataset.copy = reference;
-
     const oldBox = $('payTransferLinkBox');
     if (oldBox) oldBox.remove();
 
     if (authUrl) {
+      const po = $('paymentOverlay');
+      if (po) po.classList.remove('open');
+      const pg = $('pendingGate');
+      if (pg) pg.classList.remove('open');
+      miniLoad('Opening Paystack...');
+      startCountdown();
+      startVerifyPolling();
+      startStatusPolling();
+      showToast('info', 'Payment Window Opened', 'Complete your payment in the Paystack window. Your dashboard unlocks automatically after payment.', '');
+      setTimeout(() => {
+        window.location.href = authUrl;
+      }, 800);
+      payBtn.disabled = false;
+      payBtn.innerHTML = oldBtnHtml;
+      return;
+    }
+
+    if (accountNumber) {
+      const amt = $('payAmount');
+      const accNum = $('payAccountNumber');
+      const accName = $('payAccountName');
+      const bank = $('payBankName');
+      const refEl = $('payReference');
+      if (amt) amt.textContent = formatMoney(amount);
+      if (accNum) accNum.textContent = accountNumber;
+      if (bank) bank.textContent = bankName;
+      if (refEl && refEl.childNodes[0]) {
+        refEl.childNodes[0].nodeValue = reference;
+        const small = refEl.querySelector('small');
+        if (small) small.textContent = 'Use this reference when making your transfer';
+      }
+      const btnAcc = $('btnCopyAccount');
+      const btnRef = $('btnCopyRef');
+      if (btnAcc) btnAcc.dataset.copy = accountNumber;
+      if (btnRef) btnRef.dataset.copy = reference;
+      const btnAccName = $('payAccountNameRow');
+      if (btnAccName) btnAccName.classList.add('hidden');
+      const btnAccBox = $('btnCopyAccount');
+      if (btnAccBox) btnAccBox.classList.remove('hidden');
+      const accNameRow = accName && accName.parentElement ? accName.parentElement : null;
+      if (accNameRow) accNameRow.classList.add('hidden');
+      const accNumRow = accNum && accNum.parentElement ? accNum.parentElement : null;
+      if (accNumRow) accNumRow.classList.remove('hidden');
+      const bankRow = bank && bank.parentElement ? bank.parentElement : null;
+      if (bankRow) bankRow.classList.remove('hidden');
+      const refRow = refEl && refEl.parentElement ? refEl.parentElement : null;
+      if (refRow) refRow.classList.remove('hidden');
       const linkBox = document.createElement('div');
       linkBox.id = 'payTransferLinkBox';
       linkBox.style.cssText = 'margin:14px 0 4px;padding:14px 16px;border-radius:14px;background:rgba(124,58,237,.07);border:1.5px solid rgba(124,58,237,.25);text-align:center';
       let inner = '<div style="font-size:12px;font-weight:800;color:#1e1b4b;margin-bottom:4px"><i class="fa-solid fa-building-columns"></i> Transfer to the temporary account below</div>';
       if (bankName) inner += '<div style="font-size:11.5px;color:#6d6a8a;margin-bottom:10px">Bank: <b>' + escapeHtml(bankName) + '</b> • Expires in ' + minutes + ' minutes</div>';
-      inner += '<div style="font-size:20px;font-weight:900;letter-spacing:1.5px;color:#6d28d9">' + escapeHtml(accountNumber || '— — —') + '</div>';
-      inner += '<a id="payOpenLink" href="' + escapeHtml(authUrl) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;padding:12px 22px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;font-size:13px;font-weight:800;text-decoration:none;box-shadow:0 10px 24px rgba(124,58,237,.3)"><i class="fa-solid fa-up-right-from-square"></i> Open Paystack Payment Page</a>';
+      inner += '<div style="font-size:20px;font-weight:900;letter-spacing:1.5px;color:#6d28d9">' + escapeHtml(accountNumber) + '</div>';
       inner += '<p style="font-size:10.5px;color:#6d6a8a;margin-top:10px">Your dashboard unlocks automatically the moment your payment is confirmed.</p>';
       linkBox.innerHTML = inner;
       const overlayBody = $('paymentOverlay');
@@ -2110,19 +2335,21 @@ async function startPayment() {
         const overlayCard = overlayBody.querySelector('.ov-body') || overlayBody.querySelector('div') || overlayBody;
         overlayCard.insertBefore(linkBox, overlayCard.firstChild);
       }
+      const pg = $('pendingGate');
+      const po = $('paymentOverlay');
+      if (pg) pg.classList.remove('open');
+      if (po) po.classList.add('open');
+      startCountdown();
+      startVerifyPolling();
+      startStatusPolling();
+      miniHide();
+      payBtn.disabled = false;
+      payBtn.innerHTML = oldBtnHtml;
+      showToast('info', 'Payment Details Ready', 'Transfer the exact amount to the account shown. Your dashboard unlocks automatically after payment.', '');
+      return;
     }
 
-    const pg = $('pendingGate');
-    const po = $('paymentOverlay');
-    if (pg) pg.classList.remove('open');
-    if (po) po.classList.add('open');
-    startCountdown();
-    startVerifyPolling();
-    startStatusPolling();
-    miniHide();
-    payBtn.disabled = false;
-    payBtn.innerHTML = oldBtnHtml;
-    showToast('info', 'Payment Details Ready', 'Transfer the exact amount or tap "Open Paystack Payment Page". Your dashboard unlocks automatically after payment.', '');
+    throw new Error('No payment details returned from server');
   } catch (err) {
     miniHide();
     payBtn.disabled = false;
@@ -2159,6 +2386,19 @@ async function loadDashboard() {
     }
     const gate = $('pendingGate');
     if (gate) gate.classList.remove('open');
+    if (courseList.length === 0) {
+      hideLoading();
+      showToast('error', 'No Course Found', 'No course is linked to your account. Please contact support.', '');
+      return;
+    }
+    if (courseList.length > 1) {
+      hideLoading();
+      const app = $('app');
+      if (app) app.classList.remove('hidden');
+      openMyCourses();
+      showToast('info', 'Choose Your Course', 'You have ' + courseList.length + ' courses. Tap the one you want to study.', '');
+      return;
+    }
     const cid = pickDefaultCourse();
     if (!cid) {
       hideLoading();
@@ -2342,11 +2582,7 @@ domReady(() => {
     });
   });
 
-  on('userAvatar', 'click', () => {
-    renderCoursePush();
-    const p = $('coursePush');
-    if (p) p.classList.add('open');
-  });
+  on('userAvatar', 'click', openMyCourses);
 
   on('pendingCourseBox', 'click', () => {
     renderCoursePush();
