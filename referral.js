@@ -540,6 +540,35 @@ async function loadReferralStats(refCode) {
   }
 }
 
+async function ensureTotalWithdrawnField(ud) {
+  try {
+    if (ud && typeof ud.total_withdrawn === 'undefined') {
+      const merged = Object.assign({}, ud, { total_withdrawn: 0 });
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ user_data: merged })
+        .eq('id', userId);
+      if (!error) {
+        currentProfile.user_data = merged;
+        return merged;
+      }
+    }
+  } catch (err) {}
+  return ud;
+}
+
+function updateTotalWithdrawnDisplay(ud) {
+  const totalWithdrawn = parseFloat(ud.total_withdrawn) || 0;
+  const smWithdrawn = document.getElementById('smWithdrawn');
+  if (smWithdrawn) smWithdrawn.textContent = totalWithdrawn.toFixed(2);
+  const smWithdrawnExtra = document.getElementById('smWithdrawnExtra');
+  if (smWithdrawnExtra) smWithdrawnExtra.textContent = `₦${totalWithdrawn.toFixed(2)}`;
+  const wdTotalWithdrawn = document.getElementById('wdTotalWithdrawn');
+  if (wdTotalWithdrawn) wdTotalWithdrawn.textContent = totalWithdrawn.toFixed(2);
+  const txnTotalWithdrawn = document.getElementById('txnTotalWithdrawn');
+  if (txnTotalWithdrawn) txnTotalWithdrawn.textContent = `₦${totalWithdrawn.toFixed(2)}`;
+}
+
 async function loadReferralData() {
   showLoading();
   try {
@@ -587,12 +616,13 @@ async function loadReferralData() {
     }
 
     currentProfile = profile;
-    const ud = profile.user_data || {};
+    let ud = profile.user_data || {};
+    ud = await ensureTotalWithdrawnField(ud);
     const bonus = parseFloat(ud.referral_bonus) || 0;
     const refLink = ud.referral_link || 'https://www.idtacademy.com.ng/index/ref/' + (ud.referral_code || '');
     const refCode = ud.referral_code || 'N/A';
 
-    renderProfileHeader(profile);
+    renderProfileHeader(currentProfile);
 
     $('refBalance').textContent = bonus.toFixed(2);
     $('wdBalance').textContent = bonus.toFixed(2);
@@ -603,6 +633,8 @@ async function loadReferralData() {
 
     const extra = document.querySelector('#smReferralExtra');
     if (extra) extra.textContent = `₦${bonus.toFixed(2)}`;
+
+    updateTotalWithdrawnDisplay(ud);
 
     generateQRCode(refLink);
     hideLoading();
@@ -751,6 +783,27 @@ function storedHashOk(hash, salt) {
   return Boolean(hash) && Boolean(salt);
 }
 
+function txnKey(amount, accountNumber, dateStr) {
+  const amt = parseFloat(amount || 0).toFixed(2);
+  const acc = String(accountNumber || '');
+  const dt = dateStr ? new Date(dateStr).getTime() : 0;
+  const day = isNaN(dt) ? String(dateStr || '') : new Date(dt).toISOString().slice(0, 10);
+  return amt + '|' + acc + '|' + day;
+}
+
+function buildCompletedFromProfile(ud) {
+  const txns = Array.isArray(ud && ud.transactions) ? ud.transactions : [];
+  return txns.filter(t => t && (t.paid_date || t.date)).map(t => ({
+    amount: t.amount,
+    bank_name: t.bank_name,
+    account_number: t.account_number,
+    account_name: t.account_name,
+    paid_date: t.paid_date || t.date,
+    bank_code: t.bank_code,
+    user_id: t.user_id || userId
+  }));
+}
+
 async function loadTransactions() {
   const txnList = $('txnList');
   txnList.innerHTML = '<div style="text-align:center;padding:20px"><i class="fa-solid fa-spinner fa-spin" style="font-size:24px;color:var(--violet)"></i><p style="margin-top:10px;font-size:13px;color:var(--muted)">Loading transactions...</p></div>';
@@ -766,13 +819,33 @@ async function loadTransactions() {
       const db = new Date((b.pending_pay || {}).date || 0).getTime();
       return db - da;
     });
-    const completed = (completedRes.data || []).sort((a, b) => {
-      const da = new Date((a.complete_pay || {}).paid_date || a.date_complet || 0).getTime();
-      const db = new Date((b.complete_pay || {}).paid_date || b.date_complet || 0).getTime();
+
+    let completedRows = (completedRes.data || []).map(item => ({
+      source: 'completepay',
+      data: item.complete_pay || {},
+      date_complet: item.date_complet
+    }));
+
+    const ud = (currentProfile && currentProfile.user_data) || {};
+    const profileTxns = buildCompletedFromProfile(ud);
+    if (profileTxns.length > 0) {
+      const seenKeys = new Set(completedRows.map(r => txnKey(r.data.amount, r.data.account_number, r.data.paid_date || r.date_complet)));
+      profileTxns.forEach(t => {
+        const k = txnKey(t.amount, t.account_number, t.paid_date);
+        if (!seenKeys.has(k)) {
+          seenKeys.add(k);
+          completedRows.push({ source: 'profile', data: t, date_complet: t.paid_date });
+        }
+      });
+    }
+
+    completedRows.sort((a, b) => {
+      const da = new Date(a.data.paid_date || a.date_complet || 0).getTime();
+      const db = new Date(b.data.paid_date || b.date_complet || 0).getTime();
       return db - da;
     });
 
-    if (pending.length === 0 && completed.length === 0) {
+    if (pending.length === 0 && completedRows.length === 0) {
       txnList.innerHTML = `
         <div class="empty-state">
           <i class="fa-solid fa-receipt"></i>
@@ -810,8 +883,8 @@ async function loadTransactions() {
       `;
     });
 
-    completed.forEach(item => {
-      const data = item.complete_pay || {};
+    completedRows.forEach(item => {
+      const data = item.data || {};
       const date = new Date(data.paid_date || item.date_complet || data.date || Date.now()).toLocaleString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
       html += `
         <div class="txn-item">
@@ -889,8 +962,9 @@ function initOverlays() {
   $('withdrawBack').addEventListener('click', () => toggleOverlay('withdrawOverlay', false));
   $('withdrawClose').addEventListener('click', () => toggleOverlay('withdrawOverlay', false));
 
-  $('btnTxnOpen').addEventListener('click', () => {
+  $('btnTxnOpen').addEventListener('click', async () => {
     toggleOverlay('transactionsOverlay', true);
+    await refreshProfileBeforeTransactions();
     loadTransactions();
   });
   $('txnBack').addEventListener('click', () => toggleOverlay('transactionsOverlay', false));
@@ -902,6 +976,25 @@ function initOverlays() {
   });
 
   $('withdrawForm').addEventListener('submit', handleWithdrawSubmit);
+}
+
+async function refreshProfileBeforeTransactions() {
+  try {
+    const { data: profile, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+    if (!error && profile) {
+      currentProfile = profile;
+      const ud = profile.user_data || {};
+      const bonus = parseFloat(ud.referral_bonus) || 0;
+      $('refBalance').textContent = bonus.toFixed(2);
+      $('wdBalance').textContent = bonus.toFixed(2);
+      $('smBonus').textContent = bonus.toFixed(2);
+      updateTotalWithdrawnDisplay(ud);
+    }
+  } catch (err) {}
 }
 
 function initVerification() {
