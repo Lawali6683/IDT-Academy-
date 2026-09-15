@@ -1,205 +1,284 @@
 import { supabase } from './supabase.js';
+import { askQuestion, explainText, getAssessment, gradeAssessment, createPayment, verifyPayment, sendResultEmail } from './ai.js';
 
-const $ = (sel, ctx) => (ctx || document).querySelector(sel);
-const $$ = (sel, ctx) => [...(ctx || document).querySelectorAll(sel)];
+window.__idtDashboardLoaded = false;
 
-const departments = [
-  { id: 'eng_tech', name: 'Engineering & Technology', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry'] },
-  { id: 'medicine', name: 'Medicine & Surgery / Nursing / Pharmacy / Dentistry / Anatomy', subjects: ['English', 'Biology', 'Chemistry', 'Physics'] },
-  { id: 'cs_science', name: 'Computer Science (Science Stream) / Cybersecurity / Software Engineering', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry'] },
-  { id: 'cs_mgmt', name: 'Computer Science (Management / Polytechnics)', subjects: ['English', 'Mathematics', 'Physics', 'Economics'] },
-  { id: 'agric', name: 'Agricultural Science / Agronomy / Animal Science', subjects: ['English', 'Chemistry', 'Biology / Agric Science', 'Physics / Mathematics'] },
-  { id: 'architecture', name: 'Architecture / Building / Quantity Surveying / Urban Planning', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry / Fine Arts / Geography'] },
-  { id: 'bio_sciences', name: 'Biological Sciences (Biochemistry / Microbiology / Zoology / Botany)', subjects: ['English', 'Biology', 'Chemistry', 'Physics / Mathematics'] },
-  { id: 'physical_sci', name: 'Physical Sciences (Physics / Industrial Chemistry / Geology)', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry'] },
-  { id: 'math_stats', name: 'Mathematics / Statistics / Data Science', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry / Economics'] },
-  { id: 'food_sci', name: 'Food Science and Technology', subjects: ['English', 'Chemistry', 'Mathematics / Physics', 'Biology / Agric Science'] },
-  { id: 'law', name: 'Law (Civil / Common / Islamic)', subjects: ['English', 'Literature in English', 'Government / History', 'CRK / IRK / Economics'] },
-  { id: 'mass_comm', name: 'Mass Communication / Journalism / Media Studies', subjects: ['English', 'Literature in English', 'Government / History', 'Any Nigerian Language / CRK / IRK / Economics'] },
-  { id: 'pol_sci', name: 'Political Science / International Relations / Public Admin', subjects: ['English', 'Government / History', 'Economics', 'Literature in English / CRK / IRK / Geography'] },
-  { id: 'sociology', name: 'Sociology / Criminology / Psychology', subjects: ['English', 'Government / History', 'Economics', 'Any Arts or Social Science Subject'] },
-  { id: 'economics', name: 'Economics', subjects: ['English', 'Mathematics', 'Economics', 'Government / History / Geography / Commerce'] },
-  { id: 'english_lang', name: 'English Language / Linguistics / Literature', subjects: ['English', 'Literature in English', 'Government / History', 'Any Nigerian Language / Arts Subject'] },
-  { id: 'history', name: 'History and International Studies', subjects: ['English', 'History / Government', 'Literature in English', 'Any Arts or Social Science Subject'] },
-  { id: 'theatre', name: 'Theatre Arts / Performing Arts / Creative Arts', subjects: ['English', 'Literature in English', 'Government / History', 'Fine Arts / Music / Any Arts Subject'] },
-  { id: 'languages', name: 'Hausa / Yoruba / Igbo', subjects: ['English', 'The Specific Language', 'Literature in English', 'Any Arts Subject'] },
-  { id: 'religious', name: 'Islamic Studies / Christian Religious Studies', subjects: ['English', 'IRK / CRK', 'Government / History', 'Literature in English / Any Arts Subject'] },
-  { id: 'accounting', name: 'Accounting / Finance / Banking & Finance', subjects: ['English', 'Mathematics', 'Economics', 'Commerce / Financial Accounting / Government'] },
-  { id: 'business_admin', name: 'Business Administration / Business Management', subjects: ['English', 'Mathematics', 'Economics', 'Commerce / Government'] },
-  { id: 'marketing', name: 'Marketing / Procurement / Logistics', subjects: ['English', 'Mathematics', 'Economics', 'Commerce / Government'] },
-  { id: 'hr', name: 'Human Resource Management / Industrial Relations', subjects: ['English', 'Mathematics', 'Economics', 'Government'] },
-  { id: 'insurance', name: 'Insurance / Actuarial Science', subjects: ['English', 'Mathematics', 'Economics', 'Commerce / Physics / Financial Accounting'] },
-  { id: 'estate', name: 'Estate Management', subjects: ['English', 'Mathematics', 'Economics', 'Chemistry / Physics / Geography / Agric Science'] },
-  { id: 'geography', name: 'Geography / Environmental Management', subjects: ['English', 'Geography', 'Mathematics / Economics', 'Biology / Chemistry / Physics'] },
-  { id: 'edu_science', name: 'Education & Science (Physics / Chemistry / Biology)', subjects: ['English', 'Science Subject', 'Mathematics', 'Chemistry / Physics / Biology'] },
-  { id: 'edu_math', name: 'Education & Mathematics', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry / Economics'] },
-  { id: 'edu_english', name: 'Education & English', subjects: ['English', 'Literature in English', 'Government / History', 'Any Arts Subject'] },
-  { id: 'edu_econs', name: 'Education & Economics', subjects: ['English', 'Mathematics', 'Economics', 'Government / Geography'] },
-  { id: 'primary_edu', name: 'Primary Education / Special Education', subjects: ['English', 'Any 3 Arts / Social Science / Science Subjects'] },
-  { id: 'mls', name: 'Medical Laboratory Science / Radiography', subjects: ['English', 'Biology', 'Chemistry', 'Physics'] },
-  { id: 'physio', name: 'Physiotherapy / Prosthetics and Orthotics', subjects: ['English', 'Biology', 'Chemistry', 'Physics'] },
-  { id: 'public_health', name: 'Public Health / Environmental Health Science', subjects: ['English', 'Biology', 'Chemistry', 'Physics / Mathematics'] },
-  { id: 'veterinary', name: 'Veterinary Medicine', subjects: ['English', 'Biology', 'Chemistry', 'Physics'] },
-  { id: 'telecom', name: 'Telecommunication Engineering / Biomedical Engineering', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry'] },
-  { id: 'library', name: 'Library and Information Science', subjects: ['English', 'Any 3 Arts / Social Science / Science Subjects'] }
-];
+const APP_VERSION = '2026-09-14.1';
 
-const el = {
-  loading: $('#loadingScreen'),
-  backBtn: $('#backBtn'),
-  dashUserName: $('#dashUserName'),
-  dashUserDept: $('#dashUserDept'),
-  referralBadge: $('#referralBadge'),
-  referralEarn: $('#referralEarn'),
-  logoutBtn: $('#logoutBtn'),
-  paymentOverlay: $('#paymentOverlay'),
-  payAccountNumber: $('#payAccountNumber'),
-  payAccountName: $('#payAccountName'),
-  payBankName: $('#payBankName'),
-  payAmount: $('#payAmount'),
-  payTimer: $('#payTimer'),
-  payTimerCount: $('#payTimerCount'),
-  payTimerExpired: $('#payTimerExpired'),
-  payRefreshBtn: $('#payRefreshBtn'),
-  payStatusCheck: $('#payStatusCheck'),
-  dashboardContent: $('#dashboardContent'),
-  welcomeName: $('#welcomeName'),
-  progressPercent: $('#progressPercent'),
-  topicCount: $('#topicCount'),
-  adSlider: $('#adSlider'),
-  adDots: $('#adDots'),
-  currentTopicNum: $('#currentTopicNum'),
-  totalTopicNum: $('#totalTopicNum'),
-  learningSection: $('#learningSection'),
-  progressFill: $('#progressFill'),
-  progressText: $('#progressText'),
-  topicViewer: $('#topicViewer'),
-  tvNum: $('#tvNum'),
-  tvTitle: $('#tvTitle'),
-  tvVideo: $('#tvVideo'),
-  tvVideoIframe: $('#tvVideoIframe'),
-  tvContent: $('#tvContent'),
-  tvBackBtn: $('#tvBackBtn'),
-  tvQuestionBtn: $('#tvQuestionBtn'),
-  tvExplainBtn: $('#tvExplainBtn'),
-  tvNextBtn: $('#tvNextBtn'),
-  allComplete: $('#allComplete'),
-  finalExamBtn: $('#finalExamBtn'),
-  referralPageBtn: $('#referralPageBtn'),
-  courseSelectOverlay: $('#courseSelectOverlay'),
-  deptGrid: $('#deptGrid'),
-  deptLoading: $('#deptLoading'),
-  payGetOverlay: $('#payGetOverlay'),
-  payGetCourseName: $('#payGetCourseName'),
-  payGetSubjects: $('#payGetSubjects'),
-  payGetAmount: $('#payGetAmount'),
-  payGetError: $('#payGetError'),
-  changeCourseBtn: $('#changeCourseBtn'),
-  payNowBtn: $('#payNowBtn'),
-  payNowLoading: $('#payNowLoading'),
-  examLockOverlay: $('#examLockOverlay'),
-  startExamBtn: $('#startExamBtn'),
-  cooldownDisplay: $('#cooldownDisplay'),
-  cooldownTimer: $('#cooldownTimer'),
-  examScreen: $('#examScreen'),
-  examSubjects: $('#examSubjects'),
-  examTimerDisplay: $('#examTimerDisplay'),
-  examMainArea: $('#examMainArea'),
-  examQNum: $('#examQNum'),
-  examQText: $('#examQText'),
-  examOptions: $('#examOptions'),
-  examPrevBtn: $('#examPrevBtn'),
-  examNextBtn: $('#examNextBtn'),
-  examPanel: $('#examPanel'),
-  examQGrid: $('#examQGrid'),
-  submitExamBtn: $('#submitExamBtn'),
-  cameraOverlay: $('#cameraOverlay'),
-  camVideo: $('#camVideo'),
-  examMainCam: $('#examMainCam'),
-  camQNum: $('#camQNum'),
-  camQText: $('#camQText'),
-  camOptions: $('#camOptions'),
-  camPrevBtn: $('#camPrevBtn'),
-  camNextBtn: $('#camNextBtn'),
-  examWarning: $('#examWarning'),
-  netPauseOverlay: $('#netPauseOverlay'),
-  netPauseTimer: $('#netPauseTimer'),
-  netPauseLocked: $('#netPauseLocked'),
-  netPauseTimeLeft: $('#netPauseTimeLeft'),
-  netPauseContinue: $('#netPauseContinue'),
-  resultsOverlay: $('#resultsOverlay'),
-  resultsCard: $('#resultsCard'),
-  certificateOverlay: $('#certificateOverlay'),
-  certificateContent: $('#certificateContent'),
-  certCloseBtn: $('#certCloseBtn'),
-  aiModalOverlay: $('#aiModalOverlay'),
-  aiModalClose: $('#aiModalClose'),
-  aiLangSelect: $('#aiLangSelect'),
-  aiChatArea: $('#aiChatArea'),
-  aiInput: $('#aiInput'),
-  aiSendBtn: $('#aiSendBtn'),
-  aiOtherLang: $('#aiOtherLang'),
-  toastContainer: $('#toastContainer')
-};
+function ensureAppFreshness() {
+  try {
+    const stored = localStorage.getItem('idt_app_version');
+    if (stored && stored !== APP_VERSION) {
+      try {
+        if (window.caches && caches.keys) {
+          caches.keys().then((names) => {
+            names.forEach((n) => caches.delete(n));
+          }).catch(() => {});
+        }
+      } catch (_) {}
+      try { sessionStorage.clear(); } catch (_) {}
+      try {
+        const keep = {};
+        ['idt_user'].forEach((k) => {
+          const v = localStorage.getItem(k);
+          if (v != null) keep[k] = v;
+        });
+        localStorage.clear();
+        Object.keys(keep).forEach((k) => localStorage.setItem(k, keep[k]));
+      } catch (_) {}
+      try { localStorage.setItem('idt_app_version', APP_VERSION); } catch (_) {}
+    } else if (!stored) {
+      try { localStorage.setItem('idt_app_version', APP_VERSION); } catch (_) {}
+    }
+  } catch (_) {}
+}
 
-let currentUser = null;
+window.addEventListener('error', function(e) {
+  try {
+    var el = document.createElement('div');
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#f43f5e;color:#fff;padding:12px 16px;font-family:sans-serif;font-size:12.5px;font-weight:700;text-align:left;line-height:1.5';
+    el.textContent = 'JS Error: ' + (e.message || 'Unknown error') + (e.filename ? ' @ ' + e.filename : '');
+    document.body.appendChild(el);
+    setTimeout(function() { el.remove(); }, 10000);
+  } catch (_) {}
+});
+
+window.addEventListener('unhandledrejection', function(e) {
+  try {
+    var el = document.createElement('div');
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#f59e0b;color:#fff;padding:12px 16px;font-family:sans-serif;font-size:12.5px;font-weight:700;text-align:left;line-height:1.5';
+    el.textContent = 'API Error: ' + ((e.reason && e.reason.message) || 'Request failed');
+    document.body.appendChild(el);
+    setTimeout(function() { el.remove(); }, 10000);
+  } catch (_) {}
+});
+
+function showLoading() {
+  let loader = document.getElementById('idt-loader-2');
+  if (loader) {
+    loader.classList.remove('idt-hide');
+  } else {
+    const loaderHTML = `
+      <div class="idt-loader-2" id="idt-loader-2">
+        <div class="i2-bg">
+          <span class="i2-blob i2-b1"></span>
+          <span class="i2-blob i2-b2"></span>
+          <span class="i2-blob i2-b3"></span>
+          <span class="i2-glow"></span>
+          <span class="i2-grid"></span>
+          <span class="i2-star i2-s1"></span><span class="i2-star i2-s2"></span>
+          <span class="i2-star i2-s3"></span><span class="i2-star i2-s4"></span>
+          <span class="i2-star i2-s5"></span><span class="i2-star i2-s6"></span>
+          <span class="i2-star i2-s7"></span><span class="i2-star i2-s8"></span>
+          <span class="i2-star i2-s9"></span><span class="i2-star i2-s10"></span>
+          <span class="i2-star i2-s11"></span><span class="i2-star i2-s12"></span>
+        </div>
+        <div class="i2-wrap">
+          <div class="i2-bookwrap">
+            <span class="i2-orbit"></span>
+            <div class="i2-book">
+              <div class="i2-cover i2-cl"><img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="i2-coverlogo"></div>
+              <div class="i2-cover i2-cr"><img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="i2-coverlogo i2-crlogo"></div>
+              <div class="i2-page i2-p1"><i></i><i></i><i></i><i></i></div>
+              <div class="i2-page i2-p2"><i></i><i></i></div>
+              <div class="i2-page i2-p3"><i></i><i></i></div>
+              <div class="i2-spine"></div>
+              <div class="i2-ribbon"></div>
+            </div>
+          </div>
+          <span class="i2-title">IDT <b>Academy</b></span>
+          <span class="i2-tagline">Learn Beyond Limits</span>
+          <div class="i2-loadbar"><span></span></div>
+          <p class="i2-status">Turning pages... <b id="i2num">0</b>%</p>
+        </div>
+      </div>
+      <style>
+        .idt-loader-2{position:fixed;inset:0;z-index:99999;background:#05060f;display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;transition:opacity .6s ease,visibility .6s ease;overflow:hidden;user-select:none}
+        .idt-loader-2.idt-hide{opacity:0;visibility:hidden;pointer-events:none}
+        .i2-bg{position:absolute;inset:0;overflow:hidden}
+        .i2-blob{position:absolute;border-radius:50%;filter:blur(75px);opacity:.5}
+        .i2-b1{width:420px;height:420px;left:-130px;top:-130px;background:#7c3aed;animation:i2drift1 14s ease-in-out infinite}
+        .i2-b2{width:380px;height:380px;right:-110px;top:18%;background:#0ea5e9;animation:i2drift2 17s ease-in-out infinite}
+        .i2-b3{width:320px;height:320px;left:32%;bottom:-150px;background:#f59e0b;opacity:.3;animation:i2drift3 19s ease-in-out infinite}
+        @keyframes i2drift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(90px,70px) scale(1.18)}}
+        @keyframes i2drift2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-80px,60px) scale(1.12)}}
+        @keyframes i2drift3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(60px,-70px) scale(1.2)}}
+        .i2-glow{position:absolute;left:50%;top:50%;width:620px;height:620px;transform:translate(-50%,-50%);border-radius:50%;background:conic-gradient(from 0deg,transparent,rgba(124,92,255,.22),transparent 30%,rgba(34,211,238,.18),transparent 60%,rgba(251,191,36,.16),transparent);filter:blur(55px);animation:i2spin 11s linear infinite}
+        .i2-grid{position:absolute;left:-60%;right:-60%;bottom:-8%;height:42%;background-image:linear-gradient(rgba(124,92,255,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(124,92,255,.16) 1px,transparent 1px);background-size:46px 46px;transform:perspective(420px) rotateX(60deg);transform-origin:bottom;animation:i2gridmove 3.4s linear infinite;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.9),transparent);mask-image:linear-gradient(to top,rgba(0,0,0,.9),transparent)}
+        @keyframes i2gridmove{to{background-position-y:46px}}
+        .i2-star{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;animation:i2twinkle 3.2s ease-in-out infinite}
+        .i2-s1{left:10%;top:16%}.i2-s2{left:82%;top:10%;animation-delay:.7s}.i2-s3{left:24%;top:78%;animation-delay:1.2s}
+        .i2-s4{left:70%;top:80%;animation-delay:1.8s}.i2-s5{left:45%;top:6%;animation-delay:.4s}.i2-s6{left:6%;top:48%;animation-delay:2.2s}
+        .i2-s7{left:92%;top:42%;animation-delay:1.5s}.i2-s8{left:58%;top:90%;animation-delay:.9s}.i2-s9{left:34%;top:24%;animation-delay:2.6s}
+        .i2-s10{left:66%;top:30%;animation-delay:.2s}.i2-s11{left:16%;top:60%;animation-delay:1.9s}.i2-s12{left:88%;top:66%;animation-delay:2.9s}
+        @keyframes i2twinkle{0%,100%{opacity:.15;transform:scale(.7)}50%{opacity:1;transform:scale(1.25)}}
+        .i2-wrap{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center}
+        .i2-bookwrap{position:relative;width:240px;height:240px;display:flex;align-items:center;justify-content:center}
+        .i2-orbit{position:absolute;left:50%;top:50%;width:226px;height:226px;margin:-113px 0 0 -113px;border:1px dashed rgba(167,139,250,.35);border-radius:50%;animation:i2spin 8s linear infinite;pointer-events:none}
+        .i2-orbit::before{content:"";position:absolute;top:-4px;left:50%;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#fbbf24;box-shadow:0 0 14px #fbbf24}
+        @keyframes i2spin{to{transform:rotate(360deg)}}
+        .i2-book{position:relative;width:180px;height:126px;perspective:800px;animation:i2float 3.6s ease-in-out infinite;filter:drop-shadow(0 24px 40px rgba(124,92,255,.3))}
+        @keyframes i2float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+        .i2-cover{position:absolute;top:0;width:50%;height:100%;background:linear-gradient(180deg,#8b5cf6,#6d28d9);box-shadow:0 14px 30px rgba(0,0,0,.35)}
+        .i2-cl{left:0;border-radius:6px 2px 2px 6px;transform-origin:right center;animation:i2sway 3.6s ease-in-out infinite;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#a78bfa 0%,#8b5cf6 45%,#6d28d9 100%)}
+        .i2-cr{right:0;border-radius:2px 6px 6px 2px;transform-origin:left center;background:linear-gradient(145deg,#7c3aed 0%,#6d28d9 50%,#4c1d95 100%);animation:i2sway 3.6s ease-in-out infinite reverse;display:flex;align-items:center;justify-content:center}
+        @keyframes i2sway{0%,100%{transform:rotateY(0)}50%{transform:rotateY(16deg)}}
+        .i2-coverlogo{width:48px;height:48px;object-fit:contain;background:#fff;border-radius:50%;padding:7px;box-shadow:0 6px 18px rgba(0,0,0,.4),0 0 0 2px rgba(255,255,255,.25)}
+        .i2-crlogo{width:42px;height:42px;opacity:.85}
+        .i2-page{position:absolute;top:5px;left:50%;width:46%;height:92%;background:linear-gradient(180deg,#f8fafc,#e2e8f0);border-radius:2px 6px 6px 2px;transform-origin:left center;box-shadow:0 0 16px rgba(0,0,0,.3);display:flex;flex-direction:column;padding-top:8px}
+        .i2-page i{display:block;height:2px;border-radius:2px;background:#cbd5e1;margin:5px 10px}
+        .i2-page i:nth-child(2){width:78%;background:#c4b5fd}
+        .i2-page i:nth-child(3){width:60%}
+        .i2-page i:nth-child(4){width:86%;background:#a5f3fc}
+        .i2-p1{z-index:3;animation:i2flip 3.6s ease-in-out infinite}
+        .i2-p2{z-index:2;animation:i2flip 3.6s ease-in-out 1.2s infinite}
+        .i2-p3{z-index:1;animation:i2flip 3.6s ease-in-out 2.4s infinite}
+        @keyframes i2flip{0%{transform:rotateY(0)}40%{transform:rotateY(-160deg)}70%,100%{transform:rotateY(0)}}
+        .i2-spine{position:absolute;left:50%;top:0;bottom:0;width:9px;margin-left:-4.5px;background:linear-gradient(90deg,rgba(0,0,0,.45),rgba(0,0,0,.05) 50%,rgba(0,0,0,.45));border-radius:4px;z-index:4}
+        .i2-ribbon{position:absolute;left:50%;bottom:-24px;width:13px;height:24px;margin-left:-6.5px;background:linear-gradient(180deg,#fbbf24,#d97706);border-radius:0 0 7px 7px;transform-origin:top center;z-index:5;animation:i2dangle 3.6s ease-in-out infinite;box-shadow:0 6px 14px rgba(217,119,6,.45)}
+        @keyframes i2dangle{0%,100%{transform:rotate(0)}50%{transform:rotate(12deg)}}
+        .i2-title{margin-top:18px;font-size:27px;font-weight:800;letter-spacing:5px;text-transform:uppercase;background:linear-gradient(90deg,#f8fafc 0%,#a78bfa 30%,#22d3ee 55%,#fbbf24 80%,#f8fafc 100%);background-size:220% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;animation:i2shine 4s linear infinite}
+        .i2-title b{font-weight:900}
+        @keyframes i2shine{to{background-position:220% center}}
+        .i2-tagline{margin-top:9px;font-size:11px;letter-spacing:7px;color:#8b93c7;text-transform:uppercase}
+        .i2-loadbar{width:230px;height:4px;border-radius:4px;background:rgba(255,255,255,.09);margin-top:24px;overflow:hidden}
+        .i2-loadbar span{display:block;height:100%;width:100%;border-radius:4px;background:linear-gradient(90deg,#7c3aed,#22d3ee,#fbbf24);transform-origin:left;animation:i2fill 2.8s ease-in-out forwards}
+        @keyframes i2fill{0%{transform:scaleX(0)}100%{transform:scaleX(1)}}
+        .i2-status{margin-top:13px;font-size:12px;letter-spacing:3px;color:#94a3b8;text-transform:uppercase;animation:i2fade 2.4s ease-in-out infinite}
+        .i2-status b{color:#fbbf24}
+        @keyframes i2fade{0%,100%{opacity:.45}50%{opacity:1}}
+      </style>
+    `;
+    document.body.insertAdjacentHTML('beforeend', loaderHTML);
+  }
+  var n = document.getElementById('i2num');
+  var c = 0;
+  if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
+  window.idtLoaderInterval = setInterval(function(){
+    c += 5;
+    if(n) n.textContent = (c >= 100 ? 100 : c);
+    if(c >= 100) clearInterval(window.idtLoaderInterval);
+  }, 30);
+}
+
+function hideLoading() {
+  var l = document.getElementById('idt-loader-2');
+  if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
+  if (l) l.classList.add('idt-hide');
+}
+
+const $ = (id) => document.getElementById(id);
+let toastWrap = null;
+
+const PASS_MARK = 3;
+const RETRY_REGULAR_MS = 42 * 60 * 60 * 1000;
+const RETRY_DIPLOMA_MS = 7 * 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const REGULAR_WATCH_SECONDS = 90;
+const ASSESS_BATCH_SIZE = 3;
+const STATUS_POLL_MS = 4000;
+const QUIZ_SECONDS = 180;
+
+let user = null;
+let profileData = null;
 let userData = null;
-let topics = [];
-let currentTopicIndex = 0;
-let ads = [];
-let adIndex = 0;
-let adInterval = null;
-let payTimerInterval = null;
-let payExpiresAt = null;
-let statusCheckInterval = null;
-let examQuestions = [];
-let currentExamQ = 0;
-let examAnswers = [];
-let examTimerInterval = null;
-let examTimeLeft = 7200;
-let examStarted = false;
-let isMobile = false;
-let camStream = null;
-let aiContext = [];
-let aiActiveLang = 'english+hausa';
-let netPaused = false;
-let netDeadline = null;
-let netCountdownInterval = null;
-let screenSwitchCount = 0;
+let updateData = null;
+let courseList = [];
+let courseInfoMap = {};
+let topicsMap = {};
+let activeCourseId = '';
+let currentTopics = [];
+let currentTopicIdx = 0;
+let currentTopic = null;
+let watchedMap = {};
+let readingHistory = {};
+let chatHistories = {};
+let passedBatches = {};
+let lastAssessFail = {};
+let preferredLang = 'English';
+let adList = [];
+let adIdx = 0;
+let adTimer = null;
+let sessionSeconds = 0;
+let sessionTimer = null;
+let pendingNextIdx = -1;
+let quizState = null;
+let paymentState = null;
+let diplomaMode = false;
+let videoWatchTimer = null;
+let videoWatched = false;
+let isProcessingNext = false;
+let isDiplomaReg = false;
+let regDate = null;
+let allCourses = [];
+let statusPollTimer = null;
 
 function escapeHtml(str) {
-  return String(str == null ? '' : str).replace(/[&<>"']/g, function(ch) {
-    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
-  });
+  return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
 }
 
-function checkDevice() {
-  isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+function getAcademyId() {
+  try {
+    if (userData) {
+      const a = userData.academy_id || userData.academyId || userData.academyID || '';
+      if (a && String(a).trim() && String(a).trim().toUpperCase() !== 'N/A' && String(a).trim().toLowerCase() !== 'null' && String(a).trim().toLowerCase() !== 'undefined') {
+        return String(a).trim();
+      }
+    }
+    if (user && user.id) return String(user.id);
+    const raw = localStorage.getItem('idt_user');
+    if (raw) {
+      const u = JSON.parse(raw);
+      if (u && u.id) return String(u.id);
+    }
+  } catch (_) {}
+  return '------';
 }
 
-function showToast(msg, type, dur) {
-  if (!type) type = 'success';
-  if (!dur) dur = 4000;
-  if (!el.toastContainer) return;
-  const icons = { success: 'fas fa-check-circle', error: 'fas fa-circle-exclamation', warning: 'fas fa-triangle-exclamation', info: 'fas fa-circle-info' };
-  const t = document.createElement('div');
-  t.className = 'toast ' + type;
-  t.innerHTML = '<span class="toast-icon"><i class="' + (icons[type] || icons.success) + '"></i></span><span class="toast-text">' + escapeHtml(msg) + '</span><button class="toast-close"><i class="fas fa-xmark"></i></button>';
-  el.toastContainer.appendChild(t);
-  t.querySelector('.toast-close').onclick = function() { removeToast(t); };
-  setTimeout(function() { removeToast(t); }, dur);
+function ensureToastWrap() {
+  if (!$('toastWrap')) {
+    const w = document.createElement('div');
+    w.id = 'toastWrap';
+    w.className = 'toast-wrap';
+    document.body.appendChild(w);
+  }
+  toastWrap = $('toastWrap');
 }
 
-function removeToast(t) {
-  if (t.classList.contains('removing')) return;
-  t.classList.add('removing');
-  setTimeout(function() { if (t.parentNode) t.parentNode.removeChild(t); }, 300);
+function removeToast(el) {
+  el.classList.add('out');
+  setTimeout(() => el.remove(), 320);
 }
 
-function showLoading(show) {
-  if (!el.loading) return;
-  if (show) { el.loading.classList.remove('fade-out'); el.loading.style.display = 'flex'; }
-  else { el.loading.classList.add('fade-out'); setTimeout(function() { el.loading.style.display = 'none'; }, 500); }
+function showToast(type, title, message, raw) {
+  if (!toastWrap) ensureToastWrap();
+  const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  const rawHtml = raw ? '<small class="toast-raw"><i class="fa-solid fa-bug"></i> ' + escapeHtml(raw) + '</small>' : '';
+  el.innerHTML = '<i class="fa-solid ' + icons[type] + '"></i>' +
+    '<div class="toast-body"><b>' + escapeHtml(title) + '</b><p>' + escapeHtml(message) + '</p>' + rawHtml + '</div>' +
+    '<button class="toast-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>';
+  el.querySelector('.toast-x').addEventListener('click', () => removeToast(el));
+  toastWrap.appendChild(el);
+  if (type === 'success') {
+    setTimeout(() => removeToast(el), 3600);
+  }
+  return el;
+}
+
+function miniLoad(text) {
+  const t = $('miniLoaderText');
+  const l = $('miniLoader');
+  if (t) t.textContent = text || 'Please wait...';
+  if (l) l.classList.add('open');
+}
+
+function miniHide() {
+  const l = $('miniLoader');
+  if (l) l.classList.remove('open');
 }
 
 async function copyText(txt) {
@@ -217,1574 +296,2451 @@ async function copyText(txt) {
   }
 }
 
-function getLocalUser() {
-  try { return JSON.parse(localStorage.getItem('idt_user')); } catch(e) { return null; }
+function formatMoney(n) {
+  return '₦' + Number(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function setLocalUser(u) {
-  localStorage.setItem('idt_user', JSON.stringify(u));
+function getYouTubeId(url) {
+  const u = String(url || '').trim();
+  let m = u.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+  if (m) return m[1];
+  m = u.match(/[?&]v=([A-Za-z0-9_-]{6,})/);
+  return m ? m[1] : '';
 }
 
-async function readApiError(res) {
-  try {
-    const data = await res.json();
-    if (data && (data.error || data.message)) return String(data.error || data.message);
-    if (data && data.msg) return String(data.msg);
-    return null;
-  } catch (e) {
-    return null;
+function isDirectVideo(url) {
+  return /\.(mp4|webm|ogg|ogv|mov)(\?.*)?$/i.test(String(url || ''));
+}
+
+function buildReferralLink() {
+  const code = (userData && userData.referral_code) || '';
+  return 'https://www.idtacademy.com.ng/index/ref/' + code;
+}
+
+function getPreferredLang() {
+  return (updateData && updateData.preferred_lang) || preferredLang;
+}
+
+function setPreferredLang(lang) {
+  preferredLang = lang;
+  if (updateData) updateData.preferred_lang = lang;
+  saveUpdate({ preferred_lang: lang });
+}
+
+function weeksSince(isoDate) {
+  if (!isoDate) return 0;
+  const d = new Date(isoDate);
+  if (isNaN(d.getTime())) return 0;
+  return Math.floor((Date.now() - d.getTime()) / WEEK_MS);
+}
+
+function isDiploma(courseId) {
+  const info = courseInfoMap[courseId] || {};
+  return String(info.category || '') === '4';
+}
+
+function isValidCourseId(v) {
+  const s = String(v || '').trim();
+  return Boolean(s) && s.toUpperCase() !== 'N/A' && s.toLowerCase() !== 'null' && s.toLowerCase() !== 'undefined';
+}
+
+function collectCourses(ud) {
+  const arr = [];
+  const main = {
+    course_id: ud.course_id || '',
+    course_name: ud.course_name || '',
+    course_number: ud.course_number || '',
+    course_price: Number(ud.course_price || ud.price || 0),
+    status: ud.status || 'pending'
+  };
+  if (isValidCourseId(main.course_id) && main.course_name && main.course_price) arr.push(main);
+  for (let n = 2; n <= 20; n++) {
+    const cid = ud[n + 'course_id'];
+    if (!isValidCourseId(cid)) continue;
+    arr.push({
+      course_id: String(cid).trim(),
+      course_name: ud[n + 'course_name'] || '',
+      course_number: ud[n + 'course_number'] || '000',
+      course_price: Number(ud[n + 'course_price'] || 0),
+      status: ud[n + 'course_status'] || 'active'
+    });
   }
+  const seen = {};
+  return arr.filter((c) => {
+    if (!c.course_id || seen[c.course_id]) return false;
+    seen[c.course_id] = true;
+    return true;
+  });
 }
 
-async function fetchUserProfile(userId) {
+function isCourseMissing(ud) {
+  const cid = String((ud && ud.course_id) || '').trim();
+  const cname = String((ud && ud.course_name) || '').trim().toUpperCase();
+  const cprice = Number((ud && (ud.course_price || ud.price)) || 0);
+  if (!cid || cid.toUpperCase() === 'N/A' || cid === 'null' || cid === 'undefined') return true;
+  if (!cname || cname === 'N/A' || cname === 'NULL' || cname === 'UNDEFINED') return true;
+  if (!cprice) return true;
+  return false;
+}
+
+async function loadUpdateTable() {
   try {
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('update')
       .select('*')
-      .eq('id', userId)
-      .single();
+      .eq('id', user.id)
+      .limit(1);
     if (error) throw error;
-    return data;
-  } catch (err) {
-    console.error('fetchUserProfile error:', err);
-    return null;
-  }
-}
-
-function activateDashboardView() {
-  if (el.paymentOverlay) el.paymentOverlay.classList.remove('active');
-  if (el.courseSelectOverlay) el.courseSelectOverlay.classList.remove('active');
-  if (el.payGetOverlay) el.payGetOverlay.classList.remove('active');
-  if (el.dashboardContent) el.dashboardContent.classList.remove('hidden');
-}
-
-async function checkPaymentStatus(userId) {
-  try {
-    const { data: profile, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error || !profile) return false;
-
-    const ud = profile.user_data || {};
-
-    if (ud.payment_no === 'yes') {
-      const stored = getLocalUser() || {};
-      stored.payment_no = 'yes';
-      stored.status = 'active';
-      setLocalUser(stored);
-      currentUser = stored;
-
-      activateDashboardView();
-      stopPaymentPolling();
-
-      showToast('Congratulations! Payment confirmed. Welcome to your dashboard.', 'success', 6000);
-
-      initDashboard();
-      return true;
-    }
-
-    return false;
-  } catch (err) {
-    console.error('Error checking payment status:', err);
-    return false;
-  }
-}
-
-function stopPaymentPolling() {
-  if (statusCheckInterval) {
-    clearInterval(statusCheckInterval);
-    statusCheckInterval = null;
-  }
-  if (payTimerInterval) {
-    clearInterval(payTimerInterval);
-    payTimerInterval = null;
-  }
-}
-
-function showPayError(message) {
-  let banner = document.getElementById('payErrorBanner');
-  if (!banner) {
-    banner = document.createElement('div');
-    banner.id = 'payErrorBanner';
-    banner.style.cssText = 'margin:12px 0;padding:12px 14px;border-radius:12px;background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.3);color:#f43f5e;font-size:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap';
-    if (el.payAccountNumber && el.payAccountNumber.parentNode) {
-      el.payAccountNumber.parentNode.insertBefore(banner, el.payAccountNumber.parentNode.firstChild);
-    } else if (el.paymentOverlay) {
-      el.paymentOverlay.appendChild(banner);
+    const row = (data && data[0]) || null;
+    if (row && row.uset_update) {
+      updateData = row.uset_update;
     } else {
-      return;
+      updateData = {};
     }
-  }
-  banner.innerHTML = '<i class="fas fa-triangle-exclamation"></i> <span style="flex:1">' + escapeHtml(message) + '</span> <button id="payErrorRetry" style="background:#f43f5e;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer">Try Again</button>';
-  banner.style.display = 'flex';
-  const retryBtn = document.getElementById('payErrorRetry');
-  if (retryBtn) {
-    retryBtn.addEventListener('click', function() {
-      banner.style.display = 'none';
-      requestPaymentDetails();
-    });
-  }
-}
-
-function showPayGetError(message) {
-  if (!el.payGetError) {
-    showToast(message, 'error', 6000);
-    return;
-  }
-  el.payGetError.innerHTML = '<i class="fas fa-triangle-exclamation"></i> ' + escapeHtml(message);
-  el.payGetError.style.display = 'flex';
-}
-
-function hidePayGetError() {
-  if (el.payGetError) el.payGetError.style.display = 'none';
-}
-
-function hidePayError() {
-  const banner = document.getElementById('payErrorBanner');
-  if (banner) banner.style.display = 'none';
-}
-
-function setupCopyButton() {
-  if (document.getElementById('payCopyBtn')) return;
-  const host = el.payAccountNumber;
-  if (!host || !host.parentNode) return;
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.id = 'payCopyBtn';
-  btn.setAttribute('aria-label', 'Copy account number');
-  btn.style.cssText = 'background:rgba(124,58,237,.12);color:#7c3aed;border:none;border-radius:8px;width:34px;height:34px;margin-left:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:14px;vertical-align:middle;transition:background .2s';
-  btn.innerHTML = '<i class="fas fa-copy"></i>';
-  btn.addEventListener('click', async function() {
-    const acc = (el.payAccountNumber.textContent || '').trim();
-    if (!acc || acc === '---') {
-      showToast('Account number is not ready yet. Please wait or refresh the payment details.', 'warning');
-      return;
-    }
-    try {
-      await copyText(acc);
-      btn.innerHTML = '<i class="fas fa-check"></i>';
-      btn.style.background = 'rgba(16,185,129,.15)';
-      btn.style.color = '#10b981';
-      showToast('Account number copied: ' + acc, 'success');
-      setTimeout(function() {
-        btn.innerHTML = '<i class="fas fa-copy"></i>';
-        btn.style.background = 'rgba(124,58,237,.12)';
-        btn.style.color = '#7c3aed';
-      }, 2000);
-    } catch (err) {
-      showToast('Could not copy. Please copy the number manually.', 'error');
-    }
-  });
-  host.insertAdjacentElement('afterend', btn);
-}
-
-function beginPaymentPolling() {
-  if (statusCheckInterval) clearInterval(statusCheckInterval);
-
-  const startTime = Date.now();
-  const thirtyMinutesMs = 30 * 60 * 1000;
-
-  statusCheckInterval = setInterval(function() {
-    const elapsedTime = Date.now() - startTime;
-
-    if (elapsedTime >= thirtyMinutesMs) {
-      stopPaymentPolling();
-      showToast('Payment window session timed out. Please refresh or try again.', 'warning');
-      return;
-    }
-
-    const u = getLocalUser();
-    if (u && u.id) {
-      checkPaymentStatus(u.id).then(function(done) {
-        if (done) {
-          stopPaymentPolling();
-        }
-      });
-    }
-  }, 5000);
-}
-
-function startPaymentFlow() {
-  if (el.paymentOverlay) el.paymentOverlay.classList.add('active');
-  requestPaymentDetails();
-  beginPaymentPolling();
-}
-
-
-
-async function requestPaymentDetails() {
-  const u = getLocalUser();
-  if (!u) return;
-
-  hidePayError();
-
-  try {
-    const res = await fetch('/api/paystack', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: u.id,
-        email: u.email,
-        price: 3500
-      })
-    });
-
-    let data = null;
-    try {
-      data = await res.json();
-    } catch (e) {
-      data = null;
-    }
-
-    if (!res.ok || !data || !data.success) {
-      const apiMsg = data && (data.error || data.message) ? (data.error || data.message) : null;
-      const errMsg = apiMsg
-        ? apiMsg
-        : 'Payment service returned an error (HTTP ' + res.status + '). Please try again.';
-      showPayError('Failed to initialize payment: ' + errMsg);
-      showToast('Error: ' + errMsg, 'error', 6000);
-      return;
-    }
-
-    if (data.account_number && data.account_number.trim() !== '') {
-      if (el.payAccountNumber) el.payAccountNumber.textContent = data.account_number;
-      if (el.payAccountName) el.payAccountName.textContent = data.account_name || '';
-      if (el.payBankName) el.payBankName.textContent = data.bank_name || '';
-      if (el.payAmount) el.payAmount.textContent = '₦' + Number(3500).toLocaleString();
-
-      setupCopyButton();
-      hidePayError();
-    } else if (data.authorization_url) {
-      window.location.href = data.authorization_url;
-      return;
-    } else {
-      showPayGetError('Unable to generate bank transfer details. Please try again later.');
-      return;
-    }
-
-    if (data.expires_at) {
-      payExpiresAt = new Date(data.expires_at).getTime();
-    } else {
-      payExpiresAt = Date.now() + (30 * 60 * 1000);
-    }
-    startPayTimer();
-
-    showToast('Payment details generated successfully. Please proceed with your transfer.', 'info');
-
+    watchedMap = updateData.watched || {};
+    readingHistory = updateData.reading_history || {};
+    chatHistories = updateData.chat_history || {};
+    passedBatches = updateData.passed_batches || {};
+    lastAssessFail = updateData.last_assess_fail || {};
+    preferredLang = updateData.preferred_lang || 'English';
   } catch (err) {
-    console.error('Network Error:', err);
-    showPayError('Network connection error. Please verify your internet connection and click "Try Again".');
-    showToast('Network error while connecting to payment service.', 'error');
+    updateData = {};
+    watchedMap = {};
+    readingHistory = {};
+    chatHistories = {};
+    passedBatches = {};
+    lastAssessFail = {};
   }
 }
 
-
-
-function renderPayGet(u) {
-  if (el.payGetCourseName) el.payGetCourseName.textContent = u.jambCourseName || 'JAMB Preparation Course';
-  if (el.payGetSubjects) {
-    const subs = Array.isArray(u.jambCourseSubjects) ? u.jambCourseSubjects : [];
-    el.payGetSubjects.textContent = subs.length > 0 ? subs.join(' • ') : 'English + 3 subjects';
-  }
-  if (el.payGetAmount) el.payGetAmount.textContent = '₦' + (Number(u.jambCoursePrice) || 3500).toLocaleString();
-  hidePayGetError();
-  el.payGetOverlay.classList.add('active');
-}
-
-function renderDeptGrid(u) {
-  if (!el.deptGrid) return;
-  el.deptGrid.innerHTML = '';
-  const currentId = u && (u.jambCourseId || '');
-  departments.forEach(function(d) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'dept-card' + (d.id === currentId ? ' selected' : '');
-    btn.innerHTML = '<div class="dept-name">' + escapeHtml(d.name) + '</div><div class="dept-subjects">' + d.subjects.map(function(s) { return escapeHtml(s); }).join(' • ') + '</div>';
-    btn.addEventListener('click', function() { selectDepartment(d, btn); });
-    el.deptGrid.appendChild(btn);
-  });
-}
-
-function showCourseSelect() {
-  const u = getLocalUser();
-  if (!u) return;
-  renderDeptGrid(u);
-  el.courseSelectOverlay.classList.add('active');
-}
-
-async function selectDepartment(dept, btn) {
-  const u = getLocalUser();
-  if (!u) return;
-
-  if (el.deptLoading) el.deptLoading.classList.remove('hidden');
-  hidePayGetError();
-
+async function saveUpdate(patch) {
   try {
-    const res = await fetch('/api/jambData', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: u.id,
-        department_id: dept.id
-      })
-    });
-
-    let data = null;
-    try {
-      data = await res.json();
-    } catch (e) {
-      data = null;
-    }
-
-    if (!res.ok || !data || !data.success) {
-      const apiMsg = data && (data.error || data.message) ? (data.error || data.message) : null;
-      const errMsg = apiMsg
-        ? apiMsg
-        : 'Could not update your course (HTTP ' + res.status + '). Please try again.';
-      showToast(errMsg, 'error', 6000);
-      return;
-    }
-
-    const updated = Object.assign({}, u, {
-      jambCourseId: data.jambCourseId,
-      jambCourseName: data.jambCourseName,
-      jambCourseSubjects: data.jambCourseSubjects,
-      jambCoursePrice: data.jambCoursePrice
-    });
-    setLocalUser(updated);
-    currentUser = updated;
-    userData = updated;
-
-    showToast(data.message || 'Your course has been updated successfully.', 'success');
-    el.courseSelectOverlay.classList.remove('active');
-    renderPayGet(updated);
-
+    if (!updateData) updateData = {};
+    Object.assign(updateData, patch);
+    const { error } = await supabase
+      .from('update')
+      .upsert({ id: user.id, uset_update: updateData }, { onConflict: 'id' });
+    if (error) throw error;
   } catch (err) {
-    console.error('jambData error:', err);
-    showToast('Network connection error. Please check your internet and try again.', 'error', 6000);
-  } finally {
-    if (el.deptLoading) el.deptLoading.classList.add('hidden');
+    showToast('error', 'Save Failed', 'Could not save your progress.', err.message || String(err));
   }
 }
 
-el.changeCourseBtn.addEventListener('click', showCourseSelect);
-
-
-
-
-el.payNowBtn.addEventListener('click', async function() {
-  const u = getLocalUser();
-  if (!u) return;
-
-  this.disabled = true;
-  if (el.payNowLoading) el.payNowLoading.classList.remove('hidden');
-  hidePayGetError();
-
-  try {
-    const res = await fetch('/api/paystack', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: u.id,
-        email: u.email,
-        price: 3500
-      })
-    });
-
-    let data = null;
-    try {
-      data = await res.json();
-    } catch (e) {
-      data = null;
-    }
-
-    if (!res.ok || !data || !data.success) {
-      const apiMsg = data && (data.error || data.message) ? (data.error || data.message) : null;
-      const errMsg = apiMsg
-        ? apiMsg
-        : 'Payment service returned an error (HTTP ' + res.status + '). Please try again.';
-      showPayGetError(errMsg);
-      showToast('Error: ' + errMsg, 'error', 6000);
-      return;
-    }
-
-    if (data.authorization_url) {
-      showToast('Redirecting you to complete your payment...', 'info');
-      window.location.href = data.authorization_url;
-      return;
-    }
-
-    if (data.account_number && data.account_number.trim() !== '') {
-      if (el.payAccountNumber) el.payAccountNumber.textContent = data.account_number;
-      if (el.payAccountName) el.payAccountName.textContent = data.account_name || '';
-      if (el.payBankName) el.payBankName.textContent = data.bank_name || '';
-      if (el.payAmount) el.payAmount.textContent = '₦' + Number(3500).toLocaleString();
-      setupCopyButton();
-      el.payGetOverlay.classList.remove('active');
-      el.paymentOverlay.classList.add('active');
-      payExpiresAt = data.expires_at ? new Date(data.expires_at).getTime() : Date.now() + (30 * 60 * 1000);
-      startPayTimer();
-      beginPaymentPolling();
-      showToast('Payment details generated. Please transfer to the account below.', 'info', 6000);
-      return;
-    }
-
-    showPayGetError('Unable to generate payment details. Please try again later.');
-
-  } catch (err) {
-    console.error('Pay Now network error:', err);
-    showPayGetError('Network connection error. Please verify your internet connection and try again.');
-    showToast('Network error while connecting to payment service.', 'error');
-  } finally {
-    this.disabled = false;
-    if (el.payNowLoading) el.payNowLoading.classList.add('hidden');
+async function refreshProfile() {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', user.id)
+    .limit(1);
+  if (error) throw error;
+  if (!data || !data[0]) throw new Error('Profile not found');
+  profileData = data[0];
+  userData = data[0].user_data || {};
+  if (!userData || typeof userData !== 'object') userData = {};
+  if (!userData.academy_id && !userData.academyId) {
+    userData.academy_id = String(user.id);
   }
-});
+}
 
+async function saveUserData() {
+  if (!profileData || !userData) return;
+  const { error } = await supabase
+    .from('user_profiles')
+    .update({ user_data: userData })
+    .eq('id', user.id);
+  if (error) throw error;
+}
 
+async function fetchStatusOnce() {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('user_data')
+    .eq('id', user.id)
+    .limit(1);
+  if (error) throw error;
+  if (!data || !data[0]) return 'pending';
+  const ud = data[0].user_data || {};
+  return String(ud.status || 'pending');
+}
 
-function startPayTimer() {
-  if (payTimerInterval) clearInterval(payTimerInterval);
-  payTimerInterval = setInterval(function() {
-    if (!payExpiresAt) return;
-    const now = Date.now();
-    const diff = payExpiresAt - now;
-    if (diff <= 0) {
-      el.payTimerCount.classList.add('hidden');
-      el.payTimerExpired.classList.remove('hidden');
-      clearInterval(payTimerInterval);
-      return;
-    }
-    const mins = Math.floor(diff / 60000);
-    const secs = Math.floor((diff % 60000) / 1000);
-    el.payTimerCount.textContent = String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
+function markWatched(topicIdx) {
+  if (!activeCourseId) return;
+  const arr = watchedMap[activeCourseId] || [];
+  if (arr.indexOf(topicIdx) === -1) {
+    arr.push(topicIdx);
+    watchedMap[activeCourseId] = arr;
+    saveUpdate({ watched: watchedMap });
+  }
+  videoWatched = true;
+  renderProgress();
+  const st = $('videoStatus');
+  if (st) {
+    st.classList.add('watched');
+    const txt = $('videoStatusText');
+    if (txt) txt.textContent = 'Video watched ✓';
+  }
+}
+
+function isWatched(topicIdx) {
+  const arr = watchedMap[activeCourseId] || [];
+  return arr.indexOf(topicIdx) !== -1;
+}
+
+function renderSessionClock() {
+  const m = Math.floor(sessionSeconds / 60);
+  const s = sessionSeconds % 60;
+  const el = $('sessionTime');
+  if (el) el.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function startSessionClock() {
+  sessionSeconds = 0;
+  if (sessionTimer) clearInterval(sessionTimer);
+  sessionTimer = setInterval(() => {
+    sessionSeconds++;
+    renderSessionClock();
   }, 1000);
 }
 
-el.payRefreshBtn.addEventListener('click', function() {
-  el.payTimerCount.classList.remove('hidden');
-  el.payTimerExpired.classList.add('hidden');
-  requestPaymentDetails();
-  showToast('Payment details refreshed.', 'success');
-});
-
-function applyNewCourseFields(ud) {
-  return {
-    jambCourseId: ud.jambCourseId || '',
-    jambCourseName: ud.jambCourseName || '',
-    jambCourseSubjects: Array.isArray(ud.jambCourseSubjects) ? ud.jambCourseSubjects : [],
-    jambCoursePrice: ud.jambCoursePrice || 3500
-  };
+function renderUserIdBadge() {
+  const n = $('userIdName');
+  const c = $('userIdCode');
+  if (n) n.textContent = (userData && userData.full_name) || 'Student';
+  if (c) c.textContent = getAcademyId();
 }
 
-async function checkAndInitUser() {
-  const u = getLocalUser();
-  if (!u) {
-    window.location.href = 'jamb.html';
-    return;
-  }
-
-  const profile = await fetchUserProfile(u.id);
-  const ud = (profile && profile.user_data) ? profile.user_data : u;
-
-  if (ud.payment_no === 'yes') {
-    activateDashboardView();
-    initDashboard();
-  } else {
-    if (el.dashboardContent) el.dashboardContent.classList.add('hidden');
-    const stored = Object.assign({}, u, applyNewCourseFields(ud), { payment_no: ud.payment_no || 'no', status: ud.status || 'pending' });
-    setLocalUser(stored);
-    currentUser = stored;
-    userData = stored;
-    stopPaymentPolling();
-    renderPayGet(stored);
+function renderMenu() {
+  const bonus = Number((userData && userData.referral_bonus) || 0);
+  const name = $('smUserName');
+  const b = $('smBonus');
+  const extra = $('smReferralExtra');
+  const ref = $('smReferral');
+  const link = buildReferralLink();
+  if (name) name.textContent = (userData && userData.full_name) || 'Student';
+  if (b) b.textContent = bonus.toFixed(2);
+  if (extra) extra.textContent = formatMoney(bonus);
+  if (ref && user) ref.href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent((userData && userData.referral_code) || '');
+  const prl = $('pendingReferLink');
+  if (prl) {
+    prl.textContent = link;
+    prl.title = link;
   }
 }
 
-
-
-async function initDashboard() {
-  const u = getLocalUser();
-  if (!u) { window.location.href = 'jamb.html'; return; }
-  userData = u;
-  currentUser = u;
-  el.dashUserName.textContent = u.full_name || 'Student';
-  el.dashUserDept.textContent = u.jambCourseName || 'JAMB Student';
-  el.welcomeName.textContent = u.full_name || 'Student';
-  el.referralEarn.textContent = '₦' + (Number(u.referral_bonus) || 0).toFixed(2);
-  await fetchTopics();
-  renderLearning();
-  fetchAds();
+function renderUserGreet() {
+  const n = $('userFullName');
+  const c = $('userCourseName');
+  if (n) n.textContent = (userData && userData.full_name) || 'Student';
+  if (c) c.textContent = 'Course: ' + ((courseInfoMap[activeCourseId] || {}).course_name || (userData && userData.course_name) || 'Loading...');
 }
 
-async function fetchTopics() {
-  try {
-    const { data, error } = await supabase
-      .from('jamb')
-      .select('jamb_topic')
-      .eq('id', 'jamb_topics')
-      .maybeSingle();
-    if (error) throw error;
-    let all = [];
-    if (data && data.jamb_topic) {
-      if (Array.isArray(data.jamb_topic)) {
-        all = data.jamb_topic;
-      } else if (data.jamb_topic && Array.isArray(data.jamb_topic.topics)) {
-        all = data.jamb_topic.topics;
-      }
-    }
-    topics = all.filter(function(t) { return t && typeof t === 'object'; });
-    topics.sort(function(a,b) { return (Number(a.number) || 0) - (Number(b.number) || 0); });
-  } catch (err) {
-    console.error('fetchTopics error:', err);
-    topics = [];
-  }
-}
-
-function getFinalTopic() {
-  for (let i = topics.length - 1; i >= 0; i--) {
-    if (topics[i] && topics[i].final === 'yes') return topics[i];
-  }
-  return topics.length > 0 ? topics[topics.length - 1] : null;
-}
-
-function isExamUnlocked(progress) {
-  if (!topics || topics.length === 0) return false;
-  const completed = (progress && progress.completed) ? progress.completed : [];
-  if (completed.length < topics.length) return false;
-  const finalTopic = getFinalTopic();
-  if (!finalTopic) return false;
-  return completed.indexOf(finalTopic.id) !== -1;
-}
-
-async function fetchAds() {
+async function loadAd() {
   try {
     const { data, error } = await supabase
       .from('ad_for')
       .select('*');
     if (error) throw error;
-    ads = data || [];
-    renderAds();
+    adList = (data || []).filter((r) => r.ad_image && r.ad_link);
+    const box = $('adBox');
+    if (!box) return;
+    if (adList.length === 0) {
+      box.classList.add('hidden');
+      return;
+    }
+    box.classList.remove('hidden');
+    showAdSlide(0);
+    if (adTimer) clearInterval(adTimer);
+    adTimer = setInterval(() => {
+      adIdx = (adIdx + 1) % adList.length;
+      showAdSlide(adIdx);
+    }, 10000);
   } catch (err) {
-    console.error('fetchAds error:', err);
-    ads = [];
+    const box = $('adBox');
+    if (box) box.classList.add('hidden');
   }
 }
 
-function renderAds() {
-  el.adSlider.innerHTML = '';
-  el.adDots.innerHTML = '';
-  if (!ads || ads.length === 0) {
-    el.adSlider.innerHTML = '<div class="ad-empty"><i class="fas fa-bullhorn" style="margin-right:8px"></i> No announcements</div>';
-    return;
-  }
-  ads.forEach(function(ad, i) {
-    const dot = document.createElement('span');
-    dot.className = 'dot' + (i === 0 ? ' active' : '');
-    dot.dataset.index = i;
-    dot.addEventListener('click', function() { showAd(i); });
-    el.adDots.appendChild(dot);
-  });
-  adIndex = 0;
-  showAd(0);
-  if (adInterval) clearInterval(adInterval);
-  if (ads.length > 1) {
-    adInterval = setInterval(function() {
-      adIndex = (adIndex + 1) % ads.length;
-      showAd(adIndex);
-    }, 6000);
-  }
+function showAdSlide(i) {
+  const img = $('adImage');
+  const row = adList[i];
+  if (!row || !img) return;
+  window._adtLink = row.ad_link;
+  img.classList.add('fade');
+  setTimeout(() => {
+    img.src = row.ad_image;
+    img.onload = () => img.classList.remove('fade');
+  }, 500);
 }
 
-function showAd(index) {
-  const ad = ads[index];
-  if (!ad) return;
-  adIndex = index;
-  const imgSrc = ad.ad_image || '';
-  const link = ad.ad_link || '';
-  if (imgSrc) {
-    el.adSlider.innerHTML = '<img src="' + escapeHtml(imgSrc) + '" alt="Ad" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=\\\'ad-empty\\\'><i class=\\\'fas fa-bullhorn\\\' style=\\\'margin-right:8px\\\'></i> Ad</div>\'">' +
-      (link ? '<a href="' + escapeHtml(link) + '" target="_blank" rel="noopener" class="ad-link-overlay"><span><i class="fas fa-external-link-alt"></i> Learn More</span></a>' : '');
-  } else {
-    const title = (ad.ad_smat && ad.ad_smat.title) || 'Advertisement';
-    el.adSlider.innerHTML = '<div class="ad-empty"><i class="fas fa-bullhorn" style="margin-right:8px"></i> ' + escapeHtml(title) + '</div>';
-  }
-  $$('.dot', el.adDots).forEach(function(d, i) {
-    d.className = 'dot' + (i === index ? ' active' : '');
-  });
-}
-
-function getStoredProgress() {
+async function loadCourseInfos() {
   try {
-    const data = JSON.parse(localStorage.getItem('idt_progress_' + (currentUser && currentUser.id ? currentUser.id : '')));
-    if (!data || typeof data !== 'object') return { current: 0, completed: [] };
-    if (!Array.isArray(data.completed)) data.completed = [];
-    if (typeof data.current !== 'number') data.current = 0;
-    return data;
-  } catch(e) { return { current: 0, completed: [] }; }
-}
-
-function saveProgress(progress) {
-  localStorage.setItem('idt_progress_' + (currentUser && currentUser.id ? currentUser.id : ''), JSON.stringify(progress));
-}
-
-function renderLearning() {
-  if (!topics || topics.length === 0) {
-    el.tvContent.innerHTML = '<p style="text-align:center;color:var(--muted);padding:30px">No topics available yet. Check back later.</p>';
-    el.topicViewer.style.display = 'none';
-    el.allComplete.style.display = 'none';
-    if (el.progressFill) el.progressFill.style.width = '0%';
-    if (el.progressText) el.progressText.textContent = '0%';
-    if (el.progressPercent) el.progressPercent.textContent = '0%';
-    if (el.topicCount) el.topicCount.textContent = '0/0';
-    if (el.totalTopicNum) el.totalTopicNum.textContent = '0';
-    return;
+    const { data, error } = await supabase
+      .from('courses')
+      .select('*');
+    if (error) throw error;
+    allCourses = data || [];
+    allCourses.forEach((row) => {
+      courseInfoMap[row.id] = row.course_data || {};
+    });
+  } catch (err) {
+    showToast('error', 'Error', 'Could not load course details.', err.message || String(err));
   }
-  const progress = getStoredProgress();
-  const completedCount = progress.completed ? progress.completed.length : 0;
-  const totalCount = topics.length;
-  const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-  el.progressFill.style.width = pct + '%';
-  el.progressText.textContent = pct + '%';
-  el.progressPercent.textContent = pct + '%';
-  el.topicCount.textContent = completedCount + '/' + totalCount;
-  el.totalTopicNum.textContent = totalCount;
-
-  if (completedCount >= totalCount && isExamUnlocked(progress)) {
-    el.topicViewer.style.display = 'none';
-    el.allComplete.style.display = 'block';
-    return;
-  }
-
-  el.topicViewer.style.display = 'block';
-  el.allComplete.style.display = 'none';
-
-  let targetIdx = progress.current;
-  if (targetIdx >= totalCount) targetIdx = totalCount - 1;
-  if (targetIdx < 0) targetIdx = 0;
-  currentTopicIndex = targetIdx;
-  showTopic(currentTopicIndex);
-}
-
-function showTopic(index) {
-  if (!topics || index < 0 || index >= topics.length) return;
-  const topic = topics[index];
-  currentTopicIndex = index;
-  const total = topics.length;
-
-  el.tvNum.textContent = 'Topic ' + (index + 1) + ' of ' + total;
-  el.tvTitle.textContent = topic.title || 'Untitled';
-  el.currentTopicNum.textContent = index + 1;
-
-  const videoId = extractYouTubeId(topic.video_link);
-  if (videoId) {
-    el.tvVideoIframe.src = 'https://www.youtube.com/embed/' + videoId + '?rel=0&modestbranding=1';
-    el.tvVideo.style.display = 'block';
-  } else if (topic.video_link) {
-    el.tvVideoIframe.src = topic.video_link;
-    el.tvVideo.style.display = 'block';
-  } else {
-    el.tvVideo.style.display = 'none';
-  }
-
-  el.tvContent.innerHTML = topic.text || '<p>No content available for this topic.</p>';
-
-  el.tvBackBtn.disabled = index <= 0;
-  el.tvNextBtn.disabled = index >= total - 1;
-
-  const progress = getStoredProgress();
-  if (!progress.completed) progress.completed = [];
-  if (progress.completed.indexOf(topic.id) === -1) {
-    progress.completed.push(topic.id);
-    if (index + 1 > progress.current) progress.current = index + 1;
-    saveProgress(progress);
-    const completedCount = progress.completed.length;
-    const pct = Math.round((completedCount / total) * 100);
-    el.progressFill.style.width = pct + '%';
-    el.progressText.textContent = pct + '%';
-    el.progressPercent.textContent = pct + '%';
-    el.topicCount.textContent = completedCount + '/' + total;
-    if (completedCount >= total && isExamUnlocked(progress)) {
-      el.topicViewer.style.display = 'none';
-      el.allComplete.style.display = 'block';
-    }
+  const missing = courseList.map((c) => c.course_id).filter((id) => id && !courseInfoMap[id]);
+  if (missing.length) {
+    try {
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*')
+        .in('id', missing);
+      if (!error) {
+        (data || []).forEach((row) => {
+          courseInfoMap[row.id] = row.course_data || {};
+        });
+      }
+    } catch (err) {}
   }
 }
 
-function extractYouTubeId(url) {
-  if (!url) return null;
-  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-  return m ? m[1] : null;
-}
-
-el.tvBackBtn.addEventListener('click', function() {
-  if (currentTopicIndex > 0) showTopic(currentTopicIndex - 1);
-});
-
-el.tvNextBtn.addEventListener('click', function() {
-  const progress = getStoredProgress();
-  if (currentTopicIndex < topics.length - 1) {
-    showTopic(currentTopicIndex + 1);
-  } else {
-    if (progress.completed && progress.completed.length >= topics.length && isExamUnlocked(progress)) {
-      el.topicViewer.style.display = 'none';
-      el.allComplete.style.display = 'block';
-    }
-  }
-});
-
-el.finalExamBtn.addEventListener('click', function() {
-  openExamLock();
-});
-
-async function openExamLock() {
-  const u = getLocalUser();
-  if (!u) return;
-  const progress = getStoredProgress();
-  if (!isExamUnlocked(progress)) {
-    showToast('You must finish reading all topics, including the final topic, before the exam is unlocked.', 'warning', 6000);
-    return;
-  }
-  const lastFailed = localStorage.getItem('idt_exam_failed_' + u.id);
-  el.cooldownDisplay.classList.add('hidden');
-  el.startExamBtn.disabled = false;
-  el.startExamBtn.innerHTML = '<i class="fas fa-play"></i> Start Exam Now';
-  if (lastFailed) {
-    const failTime = parseInt(lastFailed, 10);
-    const now = Date.now();
-    const diff = failTime + 86400000 - now;
-    if (diff > 0) {
-      el.startExamBtn.disabled = true;
-      el.cooldownDisplay.classList.remove('hidden');
-      updateCooldownTimer(diff);
-      const ci = setInterval(function() {
-        const rem = failTime + 86400000 - Date.now();
-        if (rem <= 0) {
-          clearInterval(ci);
-          el.cooldownDisplay.classList.add('hidden');
-          el.startExamBtn.disabled = false;
-          el.startExamBtn.innerHTML = '<i class="fas fa-play"></i> Start Exam Now';
-          localStorage.removeItem('idt_exam_failed_' + u.id);
-        } else {
-          updateCooldownTimer(rem);
-        }
-      }, 1000);
+async function loadTopicsFor(courseId) {
+  try {
+    const { data, error } = await supabase
+      .from('all_couse_post')
+      .select('*')
+      .eq('id', courseId)
+      .limit(1);
+    if (error) throw error;
+    const row = (data && data[0]) || null;
+    if (row && row.all_course && Array.isArray(row.all_course.topics)) {
+      const sorted = row.all_course.topics.slice().sort((a, b) => {
+        const na = Number(a.topic_number != null ? a.topic_number : 0);
+        const nb = Number(b.topic_number != null ? b.topic_number : 0);
+        return na - nb;
+      });
+      topicsMap[courseId] = sorted;
     } else {
-      localStorage.removeItem('idt_exam_failed_' + u.id);
+      topicsMap[courseId] = [];
     }
+  } catch (err) {
+    topicsMap[courseId] = [];
   }
-  el.examLockOverlay.classList.add('active');
 }
 
-function updateCooldownTimer(ms) {
-  const h = Math.floor(ms / 3600000);
-  const m = Math.floor((ms % 3600000) / 60000);
-  const s = Math.floor(ms % 60000 / 1000);
-  el.cooldownTimer.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+function pickDefaultCourse() {
+  if (courseList.length === 1) return courseList[0].course_id;
+  const unfinished = courseList.find((c) => {
+    const lv = String(userData.level_completed || '');
+    const topicCount = (topicsMap[c.course_id] || []).length;
+    if (lv === 'final') return false;
+    const batch = readingHistory[c.course_id];
+    if (typeof batch === 'number' && topicCount > 0 && batch >= topicCount - 1) return false;
+    return true;
+  });
+  return unfinished ? unfinished.course_id : '';
 }
 
-el.startExamBtn.addEventListener('click', async function() {
-  if (this.disabled) return;
-  const progress = getStoredProgress();
-  if (!isExamUnlocked(progress)) {
-    el.examLockOverlay.classList.remove('active');
-    showToast('You must complete all topics first.', 'warning');
+function categoryLabel(cat) {
+  const cats = {
+    '1': 'Technology & Computing',
+    '2': 'Vocational & Agricultural Skills',
+    '3': 'Health & Community Wellness',
+    '4': '2-Year Diploma Program'
+  };
+  return cats[String(cat || '')] || 'Other Courses';
+}
+
+function renderCoursePush() {
+  const body = $('pnBody');
+  if (!body) return;
+  if (!allCourses.length) {
+    body.innerHTML = '<div class="pn-empty"><i class="fa-solid fa-circle-info"></i> No courses are available right now. Please check back later.</div>';
     return;
   }
+  const groups = {};
+  allCourses.forEach((row) => {
+    const cd = row.course_data || {};
+    const cat = categoryLabel(cd.category);
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push({ id: row.id, cd: cd });
+  });
+  let html = '';
+  Object.keys(groups).forEach((cat) => {
+    html += '<div class="pn-cat"><i class="fa-solid fa-layer-group"></i> ' + escapeHtml(cat) + '</div>';
+    html += '<div class="pn-row">';
+    groups[cat].forEach((item) => {
+      const img = item.cd.image_url || 'https://i.imgur.com/oyqM5oF.png';
+      const price = Number(item.cd.price || item.cd.course_price || 0);
+      html += '<div class="pn-course" data-cid="' + escapeHtml(item.id) + '">' +
+        '<img src="' + escapeHtml(img) + '" alt="' + escapeHtml(item.cd.course_name || 'Course') + '" loading="lazy">' +
+        '<div class="pnc-in">' +
+        '<b>' + escapeHtml(item.cd.course_name || 'Course') + '</b>' +
+        '<small><i class="fa-solid fa-hashtag"></i> ' + escapeHtml(item.cd.course_number || '000') + '</small>' +
+        '<span class="pnc-price"><i class="fa-solid fa-naira-sign"></i> ' + formatMoney(price) + '</span>' +
+        '</div></div>';
+    });
+    html += '</div>';
+  });
+  body.innerHTML = html;
+  body.querySelectorAll('.pn-course').forEach((card) => {
+    card.addEventListener('click', () => chooseCourse(card.dataset.cid));
+  });
+}
 
-  const originalHtml = this.innerHTML;
-  this.disabled = true;
-  this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
+function renderMyCourses() {
+  const body = $('pnBody');
+  if (!body) return false;
+  if (courseList.length === 0) return false;
+  let html = '<div class="pn-cat"><i class="fa-solid fa-graduation-cap"></i> My Courses</div>';
+  html += '<div class="pn-row">';
+  courseList.forEach((c) => {
+    const info = courseInfoMap[c.course_id] || {};
+    const img = info.image_url || 'https://i.imgur.com/oyqM5oF.png';
+    const isActive = c.course_id === activeCourseId;
+    const lv = String(userData.level_completed || '');
+    const done = lv === 'final' && isActive;
+    html += '<div class="pn-course" data-mcid="' + escapeHtml(c.course_id) + '">' +
+      '<img src="' + escapeHtml(img) + '" alt="' + escapeHtml(c.course_name || 'Course') + '" loading="lazy">' +
+      '<div class="pnc-in">' +
+      '<b>' + escapeHtml(c.course_name || 'Course') + '</b>' +
+      '<small><i class="fa-solid fa-hashtag"></i> ' + escapeHtml(c.course_number || '000') + '</small>' +
+      '<span class="pnc-price">' + (done ? '<i class="fa-solid fa-circle-check"></i> Completed' : (isActive ? '<i class="fa-solid fa-book-open"></i> Studying' : '<i class="fa-solid fa-book"></i> Tap to open')) + '</span>' +
+      '</div></div>';
+  });
+  html += '</div>';
+  body.innerHTML = html;
+  body.querySelectorAll('.pn-course[data-mcid]').forEach((card) => {
+    card.addEventListener('click', async () => {
+      const cid = card.dataset.mcid;
+      closeCoursePush();
+      if (cid === activeCourseId && currentTopics.length) {
+        const app = $('app');
+        if (app) app.classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      miniLoad('Opening your course...');
+      if (!topicsMap[cid]) await loadTopicsFor(cid);
+      await selectCourse(cid);
+      const app = $('app');
+      if (app) app.classList.remove('hidden');
+      miniHide();
+    });
+  });
+  return true;
+}
 
-  showLoading(true);
-  const camOk = await requireCamera();
-  showLoading(false);
+function openCoursePush() {
+  renderCoursePush();
+  const p = $('coursePush');
+  if (p) p.classList.add('open');
+}
 
-  if (!camOk) {
-    this.disabled = false;
-    this.innerHTML = originalHtml;
-    showToast('Camera access is required before starting the exam. Please enable your camera and try again.', 'error', 6000);
+function openMyCourses() {
+  const opened = renderMyCourses();
+  if (!opened) {
+    openCoursePush();
     return;
   }
+  const p = $('coursePush');
+  if (p) p.classList.add('open');
+}
 
-  const ok = await generateExamQuestions();
+function closeCoursePush() {
+  const p = $('coursePush');
+  if (p) p.classList.remove('open');
+}
 
-  this.disabled = false;
-  this.innerHTML = originalHtml;
-
-  if (!ok) {
-    stopCamera();
-    el.examLockOverlay.classList.add('active');
-    return;
+async function chooseCourse(courseId) {
+  if (!courseId) return;
+  const clickedCard = document.querySelector('.pn-course[data-cid="' + courseId.replace(/"/g, '\\"') + '"]');
+  if (clickedCard) {
+    if (clickedCard.dataset.busy === '1') return;
+    clickedCard.dataset.busy = '1';
+    const oldHtml = clickedCard.innerHTML;
+    clickedCard.style.opacity = '0.6';
+    clickedCard.style.pointerEvents = 'none';
+    clickedCard.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:40px 10px"><span style="width:26px;height:26px;border-radius:50%;border:3px solid rgba(124,58,237,.2);border-top-color:#7c3aed;display:inline-block;animation:pnSpin .8s linear infinite"></span><small style="font-size:10.5px;font-weight:800;color:#6d28d9">Loading...</small></div><style>@keyframes pnSpin{to{transform:rotate(360deg)}}</style>';
+    clickedCard._oldHtml = oldHtml;
   }
-
-  el.examLockOverlay.classList.remove('active');
-  startExam();
-});
-
-async function generateExamQuestions() {
-  const u = getLocalUser();
-  if (!u) return false;
-
   try {
-    const res = await fetch('/api/jambai', {
+    const info = courseInfoMap[courseId] || {};
+    let courseName = info.course_name || '';
+    let courseNumber = info.course_number || '000';
+    let price = Number(info.price || info.course_price || 0);
+    if (!courseName || !price) {
+      try {
+        const { data, error } = await supabase
+          .from('courses')
+          .select('*')
+          .eq('id', courseId)
+          .limit(1);
+        if (!error && data && data[0]) {
+          const cd = data[0].course_data || {};
+          courseInfoMap[courseId] = cd;
+          courseName = cd.course_name || courseName;
+          courseNumber = cd.course_number || courseNumber;
+          price = Number(cd.price || cd.course_price || price);
+        }
+      } catch (err) {}
+    }
+    if (!courseName || !price) {
+      throw new Error('Course details not found for this course');
+    }
+    miniLoad('Saving your course...');
+    const res = await fetch('/api/chengeCourse', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'generate_exam',
-        user_id: u.id,
-        jambCourseId: u.jambCourseId || '',
-        jambCourseName: u.jambCourseName || '',
-        jambCourseSubjects: u.jambCourseSubjects || [],
-        full_name: u.full_name || ''
+        user_id: user.id,
+        course_id: courseId,
+        course_name: courseName,
+        course_number: courseNumber,
+        course_price: price
       })
     });
-
-    if (res.status !== 200) {
-      const apiMsg = await readApiError(res);
-      const errMsg = apiMsg
-        ? apiMsg
-        : 'The exam server returned an unexpected response (HTTP ' + res.status + '). Please try again.';
-      showToast('Could not start exam: ' + errMsg, 'error', 7000);
-      return false;
+    const data = await res.json().catch(() => ({}));
+    miniHide();
+    if (!res.ok || data.success !== true) {
+      throw new Error(data.message || 'Could not save your course. Please try again.');
     }
-
-    const data = await res.json();
-
-    if (!data.success || !data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
-      const apiMsg = data && (data.error || data.message) ? (data.error || data.message) : null;
-      const errMsg = apiMsg
-        ? apiMsg
-        : 'The exam server did not return any questions. Please try again.';
-      showToast('Could not start exam: ' + errMsg, 'error', 7000);
-      return false;
-    }
-
-    examQuestions = data.questions;
-    return true;
-
+    if (!userData) userData = {};
+    userData.course_id = courseId;
+    userData.course_name = courseName;
+    userData.course_number = courseNumber;
+    userData.course_price = price;
+    userData.status = 'pending';
+    const safe = JSON.parse(localStorage.getItem('idt_user') || '{}');
+    safe.course_id = userData.course_id;
+    safe.course_name = userData.course_name;
+    safe.course_number = userData.course_number;
+    safe.course_price = userData.course_price;
+    localStorage.setItem('idt_user', JSON.stringify(safe));
+    courseList = collectCourses(userData);
+    renderPendingGate();
+    closeCoursePush();
+    const gate = $('pendingGate');
+    if (gate) gate.classList.add('open');
+    showToast('success', 'Course Selected ✓', 'You selected ' + courseName + ' for ' + formatMoney(price) + '. Tap Pay Now to complete your payment.');
   } catch (err) {
-    console.error('generateExamQuestions error:', err);
-    showToast('Network connection error while preparing the exam. Please check your internet and try again.', 'error', 7000);
-    return false;
+    showToast('error', 'Selection Failed', err.message || 'Could not select this course. Please try again.', err.message || String(err));
+  } finally {
+    if (clickedCard) {
+      delete clickedCard.dataset.busy;
+      clickedCard.style.opacity = '';
+      clickedCard.style.pointerEvents = '';
+      if (clickedCard._oldHtml) {
+        clickedCard.innerHTML = clickedCard._oldHtml;
+        delete clickedCard._oldHtml;
+      }
+    }
   }
 }
 
-async function requireCamera() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
-    camStream = stream;
-    el.camVideo.srcObject = stream;
-    return true;
-  } catch (err) {
-    console.log('Camera not available or permission denied:', err.message);
-    return false;
+function renderPendingGate() {
+  const course = getPrimaryCourse();
+  const sn = $('pendingStudentName');
+  const cn = $('pendingCourseName');
+  const cnum = $('pendingCourseNumber');
+  const pr = $('pendingPrice');
+  if (sn) sn.textContent = (userData && userData.full_name) || 'Student';
+  if (cn) cn.textContent = course.course_name || 'Selected Course';
+  if (cnum) cnum.textContent = course.course_number || '000';
+  if (pr) pr.textContent = formatMoney(course.course_price || 0);
+  const info = courseInfoMap[course.course_id] || {};
+  const img = $('pendingCourseImg');
+  if (info.image_url && img) {
+    img.src = info.image_url;
   }
 }
 
-function startExam() {
-  if (!examQuestions || examQuestions.length === 0) {
-    showToast('No questions were loaded. Please try again.', 'error');
+function renderCourseSwitch() {
+  const wrap = $('courseSwitch');
+  if (!wrap) return;
+  if (courseList.length <= 1) {
+    wrap.classList.add('hidden');
+    wrap.innerHTML = '';
     return;
   }
-  examAnswers = new Array(examQuestions.length).fill(null);
-  currentExamQ = 0;
-  examTimeLeft = 7200;
-  examStarted = true;
-  screenSwitchCount = 0;
-
-  const subjects = [...new Set(examQuestions.map(function(q) { return q.subject; }))];
-  el.examSubjects.innerHTML = subjects.map(function(s) {
-    return '<button class="es-btn' + (s === examQuestions[0].subject ? ' active' : '') + '" data-subject="' + escapeHtml(s) + '">' + escapeHtml(s) + '</button>';
-  }).join('');
-
-  renderExamQuestion(0);
-  renderExamGrid();
-
-  el.examScreen.classList.add('active');
-  el.cameraOverlay.classList.add('active');
-  el.examScreen.classList.add('cam-active');
-  enableExamProtection();
-
-  startExamTimer();
-
-  document.addEventListener('keydown', examKeyHandler);
+  wrap.classList.remove('hidden');
+  let html = '';
+  courseList.forEach((c) => {
+    const lv = String(userData.level_completed || '');
+    const done = lv === 'final';
+    const isActive = c.course_id === activeCourseId;
+    html += '<button class="cs-chip' + (isActive ? ' active' : '') + '" data-cid="' + escapeHtml(c.course_id) + '">' +
+      '<i class="fa-solid fa-graduation-cap"></i> ' + escapeHtml(c.course_name) +
+      (done && isActive ? ' <span class="cs-done"><i class="fa-solid fa-circle-check"></i></span>' : '') +
+      '</button>';
+  });
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('.cs-chip').forEach((chip) => {
+    chip.addEventListener('click', async () => {
+      const cid = chip.dataset.cid;
+      if (cid === activeCourseId) return;
+      await selectCourse(cid);
+    });
+  });
 }
 
-function startExamTimer() {
-  if (examTimerInterval) clearInterval(examTimerInterval);
-  examTimerInterval = setInterval(function() {
-    examTimeLeft--;
-    if (examTimeLeft <= 0) {
-      clearInterval(examTimerInterval);
-      examTimerInterval = null;
-      submitExam(true);
-      return;
+async function selectCourse(courseId) {
+  activeCourseId = courseId;
+  renderCourseSwitch();
+  if (!topicsMap[courseId]) await loadTopicsFor(courseId);
+  currentTopics = topicsMap[courseId] || [];
+  diplomaMode = isDiploma(courseId);
+  regDate = userData.date_registered || null;
+  const savedIdx = typeof readingHistory[courseId] === 'number' ? readingHistory[courseId] : 0;
+  currentTopicIdx = Math.min(Math.max(0, savedIdx), Math.max(0, currentTopics.length - 1));
+  const lv = String(userData.level_completed || '');
+  if (lv === 'final' && currentTopics.length) {
+    currentTopicIdx = currentTopics.length - 1;
+  }
+  const topicCard = $('topicCard');
+  const emptyState = $('emptyState');
+  renderUserGreet();
+  if (currentTopics.length === 0) {
+    if (topicCard) topicCard.classList.add('hidden');
+    if (emptyState) emptyState.classList.remove('hidden');
+    renderProgress();
+    return;
+  }
+  if (emptyState) emptyState.classList.add('hidden');
+  if (topicCard) topicCard.classList.remove('hidden');
+  renderProgress();
+  renderTopic();
+  showToast('success', 'Course Loaded', 'Welcome to ' + ((courseInfoMap[courseId] || {}).course_name || 'your course') + '. Happy learning!');
+}
+
+function renderProgress() {
+  const total = currentTopics.length;
+  const arr = watchedMap[activeCourseId] || [];
+  let completed = arr.length;
+  const lv = String((userData && userData.level_completed) || '');
+  if (lv === 'final') completed = total;
+  if (typeof readingHistory[activeCourseId] === 'number') {
+    completed = Math.max(completed, Math.min(readingHistory[activeCourseId], total));
+  }
+  const pct = total ? Math.round((completed / total) * 100) : 0;
+  const pc = $('progressCount');
+  const pp = $('progressPct');
+  const pf = $('progressFill');
+  if (pc) pc.textContent = completed + '/' + total;
+  if (pp) pp.textContent = pct + '%';
+  if (pf) pf.style.width = pct + '%';
+  const badge = $('levelBadge');
+  if (badge) {
+    if (lv === 'final') {
+      badge.className = 'level-badge final';
+      badge.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Final Level Completed';
+    } else {
+      badge.className = 'level-badge studying';
+      badge.innerHTML = '<i class="fa-solid fa-book-open"></i> Studying • Topic ' + (currentTopicIdx + 1) + '/' + total;
     }
-    const h = Math.floor(examTimeLeft / 3600);
-    const m = Math.floor((examTimeLeft % 3600) / 60);
-    const s = examTimeLeft % 60;
-    el.examTimerDisplay.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-  }, 1000);
-}
-
-function stopExamTimer() {
-  if (examTimerInterval) {
-    clearInterval(examTimerInterval);
-    examTimerInterval = null;
+  }
+  const banner = $('completeBanner');
+  if (banner) {
+    if (lv === 'final') {
+      banner.classList.remove('hidden');
+    } else {
+      banner.classList.add('hidden');
+    }
   }
 }
 
-function examKeyHandler(e) {
-  if (netPaused) return;
-  const key = e.key.toUpperCase();
-  if (key === 'A' || key === 'B' || key === 'C' || key === 'D') {
-    const idx = key.charCodeAt(0) - 65;
-    selectExamOption(idx);
-  } else if (key === 'N') {
-    goExamNext();
-  } else if (key === 'P') {
-    goExamPrev();
-  } else if (key === 'S') {
-    if (confirm('Submit exam? You cannot change answers after submission.')) submitExam();
+function renderDiplomaLock() {
+  const lock = $('videoLock');
+  if (!lock) return false;
+  const idx = currentTopicIdx;
+  const weeks = regDate ? weeksSince(regDate) : 0;
+  if (idx > weeks) {
+    const unlockAt = new Date((regDate ? new Date(regDate).getTime() : Date.now()) + (idx) * WEEK_MS);
+    const diff = unlockAt.getTime() - Date.now();
+    const d = Math.floor(diff / (24 * 60 * 60 * 1000));
+    const h = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+    const m = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+    lock.classList.remove('hidden');
+    const t = $('videoLockTitle');
+    const msg = $('videoLockMsg');
+    if (t) t.textContent = 'This Topic Unlocks Later';
+    if (msg) msg.textContent = 'Diploma lessons open one per week to help you learn step by step. Unlocks in ' + d + 'd ' + h + 'h ' + m + 'm.';
+    return true;
   }
-}
-
-function renderExamQuestion(index) {
-  const q = examQuestions[index];
-  if (!q) return;
-  currentExamQ = index;
-  const num = index + 1;
-  const total = examQuestions.length;
-  const selected = examAnswers[index];
-
-  el.examQNum.textContent = 'Question ' + num + ' of ' + total + ' | ' + q.subject;
-  el.examQText.textContent = q.text;
-  el.examOptions.innerHTML = '';
-  q.options.forEach(function(opt, oi) {
-    const div = document.createElement('div');
-    div.className = 'exam-option' + (selected === oi ? ' selected' : '');
-    div.innerHTML = '<span class="opt-letter">' + String.fromCharCode(65 + oi) + '</span><span class="opt-text">' + escapeHtml(opt) + '</span>';
-    div.addEventListener('click', function() { selectExamOption(oi); });
-    el.examOptions.appendChild(div);
-  });
-
-  el.camQNum.textContent = 'Question ' + num + ' of ' + total + ' | ' + q.subject;
-  el.camQText.textContent = q.text;
-  el.camOptions.innerHTML = '';
-  q.options.forEach(function(opt, oi) {
-    const div = document.createElement('div');
-    div.className = 'exam-option' + (selected === oi ? ' selected' : '');
-    div.innerHTML = '<span class="opt-letter">' + String.fromCharCode(65 + oi) + '</span><span class="opt-text">' + escapeHtml(opt) + '</span>';
-    div.addEventListener('click', function() { selectExamOption(oi); });
-    el.camOptions.appendChild(div);
-  });
-
-  renderExamGrid();
-  $$('.es-btn', el.examSubjects).forEach(function(b) {
-    b.classList.toggle('active', b.dataset.subject === q.subject);
-  });
-}
-
-function selectExamOption(optIndex) {
-  if (!examStarted || netPaused) return;
-  examAnswers[currentExamQ] = optIndex;
-  renderExamQuestion(currentExamQ);
-}
-
-function goExamPrev() {
-  if (netPaused) return;
-  if (currentExamQ > 0) renderExamQuestion(currentExamQ - 1);
-}
-
-function goExamNext() {
-  if (netPaused) return;
-  if (currentExamQ < examQuestions.length - 1) renderExamQuestion(currentExamQ + 1);
-}
-
-el.examPrevBtn.addEventListener('click', goExamPrev);
-el.examNextBtn.addEventListener('click', goExamNext);
-el.camPrevBtn.addEventListener('click', goExamPrev);
-el.camNextBtn.addEventListener('click', goExamNext);
-
-function renderExamGrid() {
-  el.examQGrid.innerHTML = '';
-  examQuestions.forEach(function(q, i) {
-    const btn = document.createElement('button');
-    btn.className = 'q-num-btn';
-    if (i === currentExamQ) btn.classList.add('current');
-    if (examAnswers[i] !== null && examAnswers[i] !== undefined) btn.classList.add('answered');
-    btn.textContent = i + 1;
-    btn.addEventListener('click', function() { if (!netPaused) renderExamQuestion(i); });
-    el.examQGrid.appendChild(btn);
-  });
-}
-
-function preventCopy(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  showToast('Copying exam content is not allowed.', 'warning', 2500);
+  lock.classList.add('hidden');
   return false;
 }
 
-function enableExamProtection() {
-  document.body.classList.add('exam-no-copy');
-  document.addEventListener('copy', preventCopy, true);
-  document.addEventListener('cut', preventCopy, true);
-  document.addEventListener('contextmenu', preventCopy, true);
-  document.addEventListener('selectstart', preventCopy, true);
-}
-
-function disableExamProtection() {
-  document.body.classList.remove('exam-no-copy');
-  document.removeEventListener('copy', preventCopy, true);
-  document.removeEventListener('cut', preventCopy, true);
-  document.removeEventListener('contextmenu', preventCopy, true);
-  document.removeEventListener('selectstart', preventCopy, true);
-}
-
-function handleScreenSwitchAttempt() {
-  if (!examStarted || netPaused) return;
-  screenSwitchCount++;
-  showToast('Warning: Do not switch screens or leave the exam window! (' + screenSwitchCount + ')', 'warning', 5000);
-  if (el.examWarning && screenSwitchCount >= 3) {
-    el.examWarning.innerHTML = '<i class="fas fa-triangle-exclamation"></i> Suspicious activity detected (' + screenSwitchCount + ' screen switches). Your activity is being monitored.';
-    el.examWarning.classList.remove('hidden');
-  }
-}
-
-function pauseExamForNetwork() {
-  if (!examStarted || netPaused) return;
-  netPaused = true;
-  stopExamTimer();
-
-  netDeadline = Date.now() + 120000;
-  el.netPauseOverlay.classList.add('active');
-  el.netPauseTimer.classList.remove('hidden');
-  el.netPauseLocked.classList.add('hidden');
-  el.netPauseContinue.classList.add('hidden');
-  showToast('Network connection lost. You have 2 minutes to reconnect.', 'warning', 6000);
-
-  if (netCountdownInterval) clearInterval(netCountdownInterval);
-  netCountdownInterval = setInterval(function() {
-    const rem = netDeadline - Date.now();
-    if (rem <= 0) {
-      clearInterval(netCountdownInterval);
-      netCountdownInterval = null;
-      lockExamForNetwork();
-      return;
-    }
-    const m = Math.floor(rem / 60000);
-    const s = Math.floor((rem % 60000) / 1000);
-    el.netPauseTimer.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-  }, 250);
-}
-
-function lockExamForNetwork() {
-  el.netPauseTimer.classList.add('hidden');
-  el.netPauseLocked.classList.remove('hidden');
-  el.netPauseContinue.classList.remove('hidden');
-  el.netPauseTimeLeft.textContent = el.examTimerDisplay.textContent;
-}
-
-function resumeExamFromNetwork() {
-  if (netCountdownInterval) {
-    clearInterval(netCountdownInterval);
-    netCountdownInterval = null;
-  }
-  netPaused = false;
-  el.netPauseOverlay.classList.remove('active');
-  el.netPauseTimer.classList.remove('hidden');
-  el.netPauseLocked.classList.add('hidden');
-  el.netPauseContinue.classList.add('hidden');
-  if (examStarted) {
-    startExamTimer();
-    showToast('Connection restored. Continuing from where you stopped.', 'success');
-  }
-}
-
-el.netPauseContinue.addEventListener('click', function() {
-  resumeExamFromNetwork();
-});
-
-window.addEventListener('online', function() {
-  if (netPaused && netDeadline && Date.now() < netDeadline) {
-    resumeExamFromNetwork();
-  }
-});
-
-window.addEventListener('offline', function() {
-  pauseExamForNetwork();
-});
-
-async function submitExam(auto) {
-  if (!auto && !confirm('Are you sure you want to submit? You cannot change your answers after submission.')) return;
-  examStarted = false;
-  stopExamTimer();
-  document.removeEventListener('keydown', examKeyHandler);
-  disableExamProtection();
-  stopCamera();
-  el.examScreen.classList.remove('active');
-  el.netPauseOverlay.classList.remove('active');
-  if (netCountdownInterval) {
-    clearInterval(netCountdownInterval);
-    netCountdownInterval = null;
-  }
-  netPaused = false;
-
-  showLoading(true);
-  const u = getLocalUser();
-  try {
-    const res = await fetch('/api/jambai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'mark_exam',
-        user_id: u ? u.id : '',
-        full_name: u ? u.full_name : '',
-        email: u ? u.email : '',
-        jambCourseId: u ? (u.jambCourseId || '') : '',
-        jambCourseName: u ? (u.jambCourseName || '') : '',
-        questions: examQuestions,
-        answers: examAnswers,
-        screen_switches: screenSwitchCount
-      })
-    });
-
-    if (res.status !== 200) {
-      const apiMsg = await readApiError(res);
-      const errMsg = apiMsg ? apiMsg : 'HTTP ' + res.status;
-      showLoading(false);
-      showToast('Marking service issue (' + errMsg + '). Your exam was marked locally.', 'warning', 6000);
-      const fallback = markLocally();
-      showExamResults(fallback);
-      saveExamToHistory(fallback);
-      return;
-    }
-
-    const data = await res.json();
-    showLoading(false);
-    if (data.success) {
-      showExamResults(data);
-      saveExamToHistory(data);
+function renderTopic() {
+  if (!currentTopics.length) return;
+  currentTopic = currentTopics[currentTopicIdx];
+  const total = currentTopics.length;
+  const isFinalTopic = currentTopic.is_final === true || currentTopicIdx === total - 1;
+  const num = $('topicNumber');
+  const numL = $('topicNumLabel');
+  const totalL = $('topicTotalLabel');
+  const name = $('topicName');
+  if (num) num.textContent = currentTopicIdx + 1;
+  if (numL) numL.textContent = currentTopicIdx + 1;
+  if (totalL) totalL.textContent = total;
+  if (name) name.textContent = currentTopic.topic_name || ('Topic ' + (currentTopicIdx + 1));
+  const badge = $('topicBadge');
+  if (badge) {
+    if (isFinalTopic) {
+      badge.className = 'th-badge final';
+      badge.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Final Topic';
     } else {
-      const apiMsg = data && (data.error || data.message) ? (data.error || data.message) : 'Unknown server error';
-      showToast('Marking service issue (' + apiMsg + '). Your exam was marked locally.', 'warning', 6000);
-      const fallback = markLocally();
-      showExamResults(fallback);
-      saveExamToHistory(fallback);
+      badge.className = 'th-badge';
+      badge.innerHTML = '';
     }
+  }
+  const txt = $('topicText');
+  if (txt) txt.textContent = currentTopic.topic_text || '';
+  if (num) num.classList.toggle('final-num', isFinalTopic);
+  renderVideo();
+  const watched = isWatched(currentTopicIdx);
+  videoWatched = watched;
+  const st = $('videoStatus');
+  const stTxt = $('videoStatusText');
+  if (st && stTxt) {
+    if (watched) {
+      st.classList.add('watched');
+      stTxt.textContent = 'Video watched ✓';
+    } else {
+      st.classList.remove('watched');
+      stTxt.textContent = currentTopic.video_url ? 'Video not watched yet' : 'No video for this topic';
+    }
+  }
+  const btnNext = $('btnNextTopic');
+  if (btnNext) {
+    if (isFinalTopic) {
+      btnNext.textContent = 'Finish Course';
+      btnNext.classList.add('finish');
+    } else {
+      btnNext.textContent = 'Next';
+      btnNext.classList.remove('finish');
+    }
+    if (diplomaMode && currentTopicIdx > weeksSince(regDate)) {
+      btnNext.disabled = true;
+    } else {
+      btnNext.disabled = false;
+    }
+  }
+  const btnPrev = $('btnPrevTopic');
+  if (btnPrev) btnPrev.disabled = currentTopicIdx === 0;
+  renderProgress();
+}
+
+function renderVideo() {
+  const wrap = $('videoWrap');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (videoWatchTimer) clearInterval(videoWatchTimer);
+  videoWatchTimer = null;
+  if (diplomaMode) {
+    const locked = renderDiplomaLock();
+    if (locked) return;
+  }
+  const url = (currentTopic && currentTopic.video_url) || '';
+  const lock = $('videoLock');
+  if (lock) lock.classList.add('hidden');
+  if (!url) {
+    const ph = document.createElement('div');
+    ph.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#94a3b8;background:#0b0d1a;text-align:center;padding:20px';
+    ph.innerHTML = '<i class="fa-solid fa-book-open" style="font-size:30px;color:#7c3aed"></i><span style="font-size:12.5px">No video for this topic. Read the lesson notes below.</span>';
+    wrap.appendChild(ph);
+    return;
+  }
+  const yt = getYouTubeId(url);
+  if (yt) {
+    const iframe = document.createElement('iframe');
+    iframe.src = 'https://www.youtube.com/embed/' + yt + '?rel=0&modestbranding=1&playsinline=1&controls=1&fs=1&color=white&iv_load_policy=3';
+    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+    iframe.allowFullscreen = true;
+    iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+    wrap.appendChild(iframe);
+    startVideoDwellTimer();
+  } else if (isDirectVideo(url)) {
+    const vid = document.createElement('video');
+    vid.src = url;
+    vid.controls = true;
+    vid.playsInline = true;
+    vid.preload = 'metadata';
+    wrap.appendChild(vid);
+    attachVideoWatcher(vid);
+  } else {
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.allow = 'autoplay; fullscreen; encrypted-media';
+    iframe.allowFullscreen = true;
+    wrap.appendChild(iframe);
+    startVideoDwellTimer();
+  }
+}
+
+function startVideoDwellTimer() {
+  if (videoWatched) return;
+  let secs = 0;
+  videoWatchTimer = setInterval(() => {
+    secs++;
+    if (secs >= REGULAR_WATCH_SECONDS && !isWatched(currentTopicIdx)) {
+      markWatched(currentTopicIdx);
+      clearInterval(videoWatchTimer);
+      videoWatchTimer = null;
+      showToast('success', 'Video Watched ✓', 'You watched this video. You can now continue.');
+    }
+  }, 1000);
+}
+
+function attachVideoWatcher(vid) {
+  if (videoWatched) return;
+  vid.addEventListener('timeupdate', () => {
+    if (!vid.duration || !isFinite(vid.duration)) return;
+    const pct = vid.currentTime / vid.duration;
+    if (pct >= 0.8 && !isWatched(currentTopicIdx)) {
+      markWatched(currentTopicIdx);
+    }
+  });
+  vid.addEventListener('ended', () => {
+    if (!isWatched(currentTopicIdx)) markWatched(currentTopicIdx);
+  });
+}
+
+async function goToTopic(idx) {
+  if (idx < 0 || idx >= currentTopics.length) return;
+  currentTopicIdx = idx;
+  readingHistory[activeCourseId] = idx;
+  saveUpdate({ reading_history: readingHistory });
+  renderTopic();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function topicNeedsWatch(idx) {
+  const t = currentTopics[idx];
+  return Boolean(t && t.video_url);
+}
+
+function openUnderstandModal() {
+  const m = $('understandModal');
+  if (m) m.classList.add('open');
+}
+
+function closeUnderstandModal() {
+  const m = $('understandModal');
+  if (m) m.classList.remove('open');
+}
+
+async function advanceTopic() {
+  if (isProcessingNext) return;
+  if (!currentTopics.length) return;
+  const nextIdx = currentTopicIdx + 1;
+  if (nextIdx >= currentTopics.length) {
+    await finishCourse();
+    return;
+  }
+  if (topicNeedsWatch(currentTopicIdx) && !isWatched(currentTopicIdx)) {
+    showToast('info', 'Watch The Video First', 'Please watch the full video for this topic before moving on. This helps you understand better.', '');
+    return;
+  }
+  if (diplomaMode) {
+    const weeks = weeksSince(regDate);
+    if (nextIdx > weeks) {
+      showToast('info', 'Lesson Locked', 'Diploma lessons unlock one per week. Please wait for the next lesson to open.', '');
+      return;
+    }
+  }
+  openUnderstandModal();
+  pendingNextIdx = nextIdx;
+}
+
+async function finishCourse() {
+  const total = currentTopics.length;
+  const lv = String(userData.level_completed || '');
+  if (lv !== 'final') {
+    userData.level_completed = 'final';
+    userData.date_complet = new Date().toISOString();
+    try {
+      await saveUserData();
+      const safe = JSON.parse(localStorage.getItem('idt_user') || '{}');
+      safe.level_completed = 'final';
+      localStorage.setItem('idt_user', JSON.stringify(safe));
+    } catch (err) {
+      showToast('error', 'Save Failed', 'Could not save your completion.', err.message || String(err));
+    }
+  }
+  renderProgress();
+  const msg = 'You have completed all ' + total + ' topics in ' + ((courseInfoMap[activeCourseId] || {}).course_name || 'this course') + '. You are now ready for the final exam to earn your certificate.';
+  const m = $('completionMsg');
+  if (m) m.textContent = msg;
+  const modal = $('completionModal');
+  if (modal) modal.classList.add('open');
+}
+
+async function handleReady() {
+  closeUnderstandModal();
+  if (pendingNextIdx < 0) return;
+  const idx = pendingNextIdx;
+  pendingNextIdx = -1;
+  const batch = idx;
+  if (batch % ASSESS_BATCH_SIZE === 0 && batch < currentTopics.length) {
+    const key = activeCourseId + '_' + batch;
+    if ((passedBatches[key] || []).indexOf(batch) !== -1) {
+      await goToTopic(idx);
+      return;
+    }
+    const failTs = lastAssessFail[key];
+    if (failTs) {
+      const waitMs = diplomaMode ? RETRY_DIPLOMA_MS : RETRY_REGULAR_MS;
+      const remain = failTs + waitMs - Date.now();
+      if (remain > 0) {
+        showToast('info', 'Assessment Locked', 'You can retry this assessment in ' + formatDuration(remain) + '. Keep reading and come back.', '');
+        await goToTopic(idx);
+        return;
+      }
+    }
+    openAssessment(batch);
+    return;
+  }
+  await goToTopic(idx);
+}
+
+function formatDuration(ms) {
+  const h = Math.floor(ms / (60 * 60 * 1000));
+  const m = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
+  if (h > 0) return h + 'h ' + m + 'm';
+  return m + ' minutes';
+}
+
+async function openAssessment(batch) {
+  const startIdx = batch - ASSESS_BATCH_SIZE;
+  const batchTopics = currentTopics.slice(Math.max(0, startIdx), batch);
+  const list = $('assessTopicsList');
+  if (list) {
+    list.innerHTML = batchTopics.map((t) =>
+      '<div class="ai-topic"><i class="fa-solid fa-circle-check"></i> Topic ' + (t.topic_number || '') + ': ' + escapeHtml(t.topic_name || '') + '</div>'
+    ).join('');
+  }
+  const title = $('assessTitle');
+  if (title) title.textContent = 'Assessment • Topics ' + (startIdx + 1) + ' - ' + batch;
+  const key = activeCourseId + '_' + batch;
+  const failTs = lastAssessFail[key];
+  const btn = $('btnStartAssessment');
+  if (failTs) {
+    const waitMs = diplomaMode ? RETRY_DIPLOMA_MS : RETRY_REGULAR_MS;
+    const remain = failTs + waitMs - Date.now();
+    if (remain > 0 && btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Retry In ' + formatDuration(remain);
+      showToast('info', 'Assessment Locked', 'You can retry in ' + formatDuration(remain) + '. Read the topics again and come back.', '');
+    }
+  } else if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-play"></i> Start Assessment';
+  }
+  const intro = $('assessIntro');
+  const quiz = $('assessQuiz');
+  const result = $('assessResult');
+  const overlay = $('assessmentOverlay');
+  if (intro) intro.classList.remove('hidden');
+  if (quiz) quiz.classList.add('hidden');
+  if (result) result.classList.add('hidden');
+  if (overlay) overlay.classList.add('open');
+  window._assessBatch = batch;
+}
+
+async function startAssessmentFlow() {
+  const batch = window._assessBatch || 0;
+  const startIdx = Math.max(0, batch - ASSESS_BATCH_SIZE);
+  const batchTopics = currentTopics.slice(startIdx, batch).map((t) => ({
+    topic_number: t.topic_number,
+    topic_name: t.topic_name,
+    topic_text: String(t.topic_text || '').slice(0, 1800)
+  }));
+  if (batchTopics.length === 0) {
+    showToast('error', 'No Topics', 'No topics found for this assessment.', '');
+    return;
+  }
+  miniLoad('Creating your assessment...');
+  try {
+    const res = await getAssessment({
+      user_id: user.id,
+      academy_id: getAcademyId(),
+      course_id: activeCourseId,
+      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
+      topics: batchTopics
+    });
+    const questions = res.questions || [];
+    if (!questions.length) throw new Error('No questions returned');
+    quizState = {
+      questions: questions,
+      answers: questions.map(() => ''),
+      currentQ: 0,
+      secondsLeft: QUIZ_SECONDS,
+      timer: null,
+      flags: 0,
+      stream: null,
+      assessmentId: res.assessment_id || ('as_' + Date.now()),
+      batch: batch,
+      submitted: false
+    };
+    const camOk = await startCamera();
+    if (!camOk) return;
+    const intro = $('assessIntro');
+    const result = $('assessResult');
+    const quiz = $('assessQuiz');
+    if (intro) intro.classList.add('hidden');
+    if (result) result.classList.add('hidden');
+    if (quiz) quiz.classList.remove('hidden');
+    renderQuestion();
+    startQuizTimer();
+    attachAntiCheat();
+    miniHide();
   } catch (err) {
-    console.error('submitExam error:', err);
-    showLoading(false);
-    showToast('Network error while submitting. Your exam was marked locally.', 'warning', 6000);
-    const fallback = markLocally();
-    showExamResults(fallback);
-    saveExamToHistory(fallback);
+    miniHide();
+    showToast('error', 'Assessment Failed', 'Could not create the assessment. Please try again.', err.message || String(err));
   }
 }
 
-function markLocally() {
-  let correct = 0;
-  const details = [];
-  examQuestions.forEach(function(q, i) {
-    const userAns = examAnswers[i];
-    const isCorrect = userAns === q.correct;
-    if (isCorrect) correct++;
-    details.push({
-      number: i + 1,
-      subject: q.subject,
-      question: q.text,
-      options: q.options,
-      correct: q.correct,
-      user_answer: userAns,
-      is_correct: isCorrect
-    });
-  });
-  const total = examQuestions.length;
-  const rawScore = correct * (400 / total);
-  const finalScore = Math.round(rawScore);
-  const passed = finalScore >= 200;
-  return {
-    success: true,
-    score: finalScore,
-    total: total,
-    correct: correct,
-    passed: passed,
-    details: details,
-    subjects: getSubjectScores(details)
-  };
-}
-
-function getSubjectScores(details) {
-  const map = {};
-  details.forEach(function(d) {
-    if (!map[d.subject]) map[d.subject] = { correct: 0, total: 0 };
-    map[d.subject].total++;
-    if (d.is_correct) map[d.subject].correct++;
-  });
-  return Object.keys(map).map(function(s) {
-    return { subject: s, correct: map[s].correct, total: map[s].total };
-  });
-}
-
-function showExamResults(data) {
-  const passed = data.passed;
-  const icon = passed ? 'pass' : 'fail';
-  const iconChar = passed ? 'fas fa-trophy' : 'fas fa-times-circle';
-  const statusText = passed ? 'Congratulations! You Passed!' : 'You did not pass this time.';
-  const statusMsg = passed
-    ? 'Well done! You scored above 200. Keep up the great work!'
-    : 'You scored below 200. Review your topics and try again after 24 hours.';
-
-  let subjectsHtml = '';
-  if (data.subjects) {
-    data.subjects.forEach(function(s) {
-      const subPct = s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0;
-      subjectsHtml += '<div class="rc-score-item"><div class="rsi-subject">' + escapeHtml(s.subject) + '</div><div class="rsi-score">' + subPct + '</div><div class="rsi-mark">' + s.correct + '/' + s.total + ' correct</div></div>';
-    });
-  }
-
-  let detailsHtml = '';
-  if (data.details) {
-    data.details.slice(0, 20).forEach(function(d) {
-      const corr = d.is_correct ? 'correct' : 'wrong';
-      const ic = d.is_correct ? 'fas fa-check' : 'fas fa-times';
-      const userLetter = d.user_answer !== null && d.user_answer !== undefined ? String.fromCharCode(65 + d.user_answer) : 'N/A';
-      const correctLetter = String.fromCharCode(65 + d.correct);
-      detailsHtml += '<div class="rc-q-item"><div class="rq-icon ' + corr + '"><i class="' + ic + '"></i></div><div class="rq-detail"><div class="rq-question">Q' + d.number + ': ' + escapeHtml(String(d.question || '').substring(0, 80)) + (String(d.question || '').length > 80 ? '...' : '') + '</div><div class="rq-answer">Your answer: <span class="user-ans' + (d.is_correct ? '' : ' wrong') + '">' + userLetter + '</span> | Correct: <span class="correct-ans">' + correctLetter + '</span> | ' + escapeHtml(d.subject) + '</div></div></div>';
-    });
-    if (data.details.length > 20) {
-      detailsHtml += '<div style="text-align:center;padding:10px;color:var(--muted);font-size:13px">Showing 20 of ' + data.details.length + ' questions</div>';
+async function startCamera() {
+  const video = $('quizCam');
+  const lock = $('quizCamLock');
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('Camera not supported on this device');
     }
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } }, audio: false });
+    if (quizState) quizState.stream = stream;
+    if (video) video.srcObject = stream;
+    if (video) await video.play().catch(() => {});
+    if (lock) lock.classList.add('hidden');
+    return true;
+  } catch (err) {
+    miniHide();
+    showToast('error', 'Camera Required', 'Please allow camera access to take this assessment.', err.message || String(err));
+    const msg = $('quizCamLockMsg');
+    if (msg) msg.textContent = 'Camera access is required so we can verify you take the assessment honestly. Please allow camera and try again.';
+    return false;
   }
-
-  el.resultsCard.innerHTML = '<div class="rc-header"><div class="rc-icon ' + icon + '"><i class="' + iconChar + '"></i></div><h2>' + statusText + '</h2><p>' + statusMsg + '</p></div><div class="rc-body"><div class="rc-total"><div class="rt-label">Your Score</div><div class="rt-score">' + data.score + '/400</div><div class="rt-status ' + icon + '">' + (passed ? 'PASS' : 'FAIL') + '</div></div><div class="rc-score-grid">' + subjectsHtml + '</div><h4 style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--ink)">Question Review</h4><div class="rc-questions">' + detailsHtml + '</div></div><div class="rc-footer"><button class="btn-rc-pdf" id="downloadPdfBtn"><i class="fas fa-file-pdf"></i> Download PDF</button><button class="btn-rc-ai" id="aiReviewBtn"><i class="fas fa-robot"></i> AI Review</button><button class="btn-rc-close" id="resultsCloseBtn"><i class="fas fa-xmark"></i> Close</button></div>';
-
-  el.resultsOverlay.classList.add('active');
-  document.body.style.overflow = 'hidden';
-
-  if (!passed) {
-    const u = getLocalUser();
-    if (u) localStorage.setItem('idt_exam_failed_' + u.id, String(Date.now()));
-  }
-
-  $('#downloadPdfBtn').addEventListener('click', function() { downloadResultsPdf(data); });
-  $('#aiReviewBtn').addEventListener('click', function() {
-    el.resultsOverlay.classList.remove('active');
-    document.body.style.overflow = '';
-    openAITutor('review', data);
-  });
-  $('#resultsCloseBtn').addEventListener('click', function() {
-    el.resultsOverlay.classList.remove('active');
-    document.body.style.overflow = '';
-    if (passed) showCertificate(data);
-  });
-}
-
-el.submitExamBtn.addEventListener('click', function() { submitExam(false); });
-
-function saveExamToHistory(data) {
-  const u = getLocalUser();
-  if (!u) return;
-  const history = JSON.parse(localStorage.getItem('idt_history_' + u.id) || '[]');
-  history.unshift({
-    date: new Date().toISOString(),
-    score: data.score,
-    total: data.total,
-    correct: data.correct,
-    passed: data.passed,
-    details: data.details,
-    subjects: data.subjects
-  });
-  if (history.length > 10) history.length = 10;
-  localStorage.setItem('idt_history_' + u.id, JSON.stringify(history));
-}
-
-function downloadResultsPdf(data) {
-  const u = getLocalUser();
-  const name = u ? u.full_name || 'Student' : 'Student';
-  const dept = u ? u.jambCourseName || '' : '';
-  const date = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
-
-  const div = document.createElement('div');
-  div.style.cssText = 'padding:30px;font-family:Poppins,sans-serif;max-width:800px;margin:0 auto';
-  div.innerHTML = '<div style="text-align:center;margin-bottom:20px;display:flex;justify-content:center;align-items:center;gap:12px"><img src="https://i.imgur.com/2DY6OD4.png" style="height:40px"><span style="width:2px;height:32px;background:#006838;opacity:.3"></span><img src="https://i.imgur.com/oyqM5oF.png" style="height:40px"></div><h1 style="text-align:center;font-size:18px;color:#006838;margin-bottom:4px">IDT Academy JAMB Mock Exam Result</h1><p style="text-align:center;color:#6d6a8a;font-size:13px;margin-bottom:20px">' + date + '</p><div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #ddd;font-size:14px"><span><strong>Name:</strong> ' + escapeHtml(name) + '</span><span><strong>Score:</strong> ' + data.score + '/400</span></div><div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #ddd;font-size:14px"><span><strong>Department:</strong> ' + escapeHtml(dept) + '</span><span><strong>Status:</strong> ' + (data.passed ? 'PASS' : 'FAIL') + '</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:20px 0">';
-  if (data.subjects) {
-    data.subjects.forEach(function(s) {
-      const pct = s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0;
-      div.innerHTML += '<div style="text-align:center;padding:10px;background:#f8f6ff;border-radius:8px"><div style="font-size:12px;font-weight:700;color:#6d6a8a;text-transform:uppercase">' + escapeHtml(s.subject) + '</div><div style="font-size:20px;font-weight:800;color:#1e1b4b">' + pct + '</div><div style="font-size:11px;color:#6d6a8a">' + s.correct + '/' + s.total + '</div></div>';
-    });
-  }
-  div.innerHTML += '</div><div style="text-align:center;padding:16px;background:linear-gradient(135deg,rgba(0,104,56,.06),rgba(124,58,237,.06));border-radius:12px;margin-bottom:20px"><div style="font-size:13px;color:#6d6a8a;font-weight:600;text-transform:uppercase">Total Score</div><div style="font-size:36px;font-weight:900;color:#1e1b4b">' + data.score + '/400</div><div style="font-size:15px;font-weight:700;color:' + (data.passed ? '#10b981' : '#f43f5e') + '">' + (data.passed ? 'PASS' : 'FAIL') + '</div></div>';
-  if (data.details) {
-    div.innerHTML += '<h3 style="font-size:14px;font-weight:700;margin-bottom:8px;color:#1e1b4b">Question Details</h3>';
-    data.details.slice(0, 30).forEach(function(d) {
-      const userLetter = d.user_answer !== null && d.user_answer !== undefined ? String.fromCharCode(65 + d.user_answer) : 'N/A';
-      const correctLetter = String.fromCharCode(65 + d.correct);
-      div.innerHTML += '<div style="padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;margin-bottom:6px;font-size:12px;display:flex;align-items:center;gap:8px"><span style="color:' + (d.is_correct ? '#10b981' : '#f43f5e') + '">' + (d.is_correct ? '&#10003;' : '&#10007;') + '</span><span><strong>Q' + d.number + ':</strong> ' + escapeHtml(String(d.question || '').substring(0, 60)) + '... | <span style="color:#6d6a8a">You: ' + userLetter + '</span> | <span style="color:#10b981">Correct: ' + correctLetter + '</span></span></div>';
-    });
-  }
-  div.innerHTML += '<div style="text-align:center;margin-top:20px;padding:12px;border-top:1px solid #e0e0e0;font-size:11px;color:#6d6a8a"><img src="https://i.imgur.com/oyqM5oF.png" style="height:30px;margin:0 auto 6px"><p>Powered by IDT Academy — JAMB Preparation Platform</p></div>';
-
-  const opt = { margin: [10, 10, 10, 10], filename: 'IDT_JAMB_Result_' + name.replace(/\s+/g, '_') + '.pdf', html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-  html2pdf().set(opt).from(div).save();
-}
-
-function showCertificate(data) {
-  if (!data.passed) return;
-  const u = getLocalUser();
-  if (!u) return;
-  const name = u.full_name || 'Student';
-  const dept = u.jambCourseName || 'JAMB Preparation';
-  const date = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
-
-  let subjectsHtml = '';
-  if (data.subjects) {
-    data.subjects.forEach(function(s) {
-      const pct = s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0;
-      subjectsHtml += '<div class="cs-item"><div class="cs-sub">' + escapeHtml(s.subject) + '</div><div class="cs-score">' + pct + '%</div></div>';
-    });
-  }
-
-  el.certificateContent.innerHTML = '<div class="certificate" id="certPdfArea"><div class="cert-border"><div class="cert-top"><img src="https://i.imgur.com/2DY6OD4.png" alt="IDT Academy"><div class="cert-sep"></div><img src="https://i.imgur.com/oyqM5oF.png" alt="JAMB"></div><h1>Certificate of Completion</h1><h2>IDT Academy JAMB Preparation</h2><div class="cert-name">' + escapeHtml(name) + '</div><div class="cert-dept">' + escapeHtml(dept) + '</div><div class="cert-scores">' + subjectsHtml + '</div><div class="cert-total">' + data.score + '/400</div><div class="cert-total-label">Total Score</div><div class="cert-footer"><p>This certifies that the above-named candidate has successfully completed the IDT Academy JAMB Preparation Program and demonstrated proficiency in the required subjects.</p><p><strong>Date issued:</strong> ' + date + '</p><img src="https://i.imgur.com/z8HOr4D.png" alt="Signature" style="height:36px;width:auto;margin:10px auto"><p style="font-size:11px;color:#6d6a8a;margin-top:8px">Powered by IDT Academy — JAMB Preparation Platform</p></div></div></div>';
-
-  el.certificateOverlay.classList.add('active');
-  document.body.style.overflow = 'hidden';
-
-  $('#certDownloadBtn').addEventListener('click', function() {
-    const opt = { margin: [10, 10, 10, 10], filename: 'IDT_JAMB_Certificate_' + name.replace(/\s+/g, '_') + '.pdf', html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-    html2pdf().set(opt).from($('#certPdfArea')).save();
-  });
-
-  $('#certCloseBtn').addEventListener('click', function() {
-    el.certificateOverlay.classList.remove('active');
-    document.body.style.overflow = '';
-  });
 }
 
 function stopCamera() {
-  if (camStream) {
-    camStream.getTracks().forEach(function(t) { t.stop(); });
-    camStream = null;
+  if (quizState && quizState.stream) {
+    quizState.stream.getTracks().forEach((t) => t.stop());
+    quizState.stream = null;
   }
-  el.cameraOverlay.classList.remove('active');
+  const video = $('quizCam');
+  if (video && video.srcObject) {
+    video.srcObject = null;
+  }
+  const lock = $('quizCamLock');
+  const msg = $('quizCamLockMsg');
+  if (lock) lock.classList.remove('hidden');
+  if (msg) msg.textContent = 'Camera stopped. You can close this assessment.';
 }
 
-el.backBtn.addEventListener('click', function() {
-  window.location.href = 'index.html';
-});
-
-el.referralBadge.addEventListener('click', function() {
-  window.location.href = 'referral.html';
-});
-
-el.referralPageBtn.addEventListener('click', function() {
-  window.location.href = 'referral.html';
-});
-
-el.logoutBtn.addEventListener('click', function() {
-  localStorage.removeItem('idt_user');
-  window.location.href = 'jamb.html';
-});
-
-el.tvQuestionBtn.addEventListener('click', function() {
-  const topic = topics[currentTopicIndex];
-  if (!topic) return;
-  openAITutor('question', null, topic);
-});
-
-el.tvExplainBtn.addEventListener('click', function() {
-  const topic = topics[currentTopicIndex];
-  if (!topic) return;
-  openAITutor('explain', null, topic);
-});
-
-function openAITutor(mode, examData, topic) {
-  el.aiModalOverlay.classList.add('active');
-  document.body.style.overflow = 'hidden';
-  el.aiChatArea.innerHTML = '';
-  aiContext = [];
-
-  let msg = '';
-  if (mode === 'review' && examData) {
-    msg = 'Hello! I am your IDT Academy AI tutor. I have reviewed your exam results. Would you like me to explain the questions you got wrong and help you improve? Please tell me which questions you want me to explain or ask me anything about your exam.';
-    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI. The user just completed a JAMB mock exam. Their score was ' + examData.score + '/400. They ' + (examData.passed ? 'passed' : 'failed') + '. Help them understand their mistakes and improve. Use the working language the user chooses.' });
-  } else if (mode === 'question' && topic) {
-    msg = 'Hello! I am your IDT Academy AI tutor. You can ask me any question about the topic "' + topic.title + '". I will explain it clearly in the language you prefer. What would you like to know?';
-    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI. The user is studying the topic: ' + topic.title + '. Topic content: ' + (topic.text || '') + '. Help them understand the topic, answer their questions, and provide clear explanations. Use the working language the user chooses.' });
-  } else if (mode === 'explain' && topic) {
-    msg = 'Hello! I am your IDT Academy AI tutor. I will explain the topic "' + topic.title + '" in more detail. I can use both English and your native language for better understanding. What specific part would you like me to explain?';
-    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI. The user wants a detailed explanation of the topic: ' + topic.title + '. Topic content: ' + (topic.text || '') + '. Explain thoroughly, give examples, and relate to JAMB exam questions. Use the working language the user chooses.' });
+function renderQuestion() {
+  if (!quizState) return;
+  const q = quizState.questions[quizState.currentQ];
+  if (!q) return;
+  const card = $('questionCard');
+  if (!card) return;
+  const totalQ = quizState.questions.length;
+  const isLast = quizState.currentQ === totalQ - 1;
+  const btnPrev = $('btnPrevQ');
+  const btnNext = $('btnNextQ');
+  const btnSubmit = $('btnSubmitQuiz');
+  if (btnPrev) btnPrev.disabled = quizState.currentQ === 0;
+  if (btnNext) btnNext.classList.toggle('hidden', isLast);
+  if (btnSubmit) btnSubmit.classList.toggle('hidden', !isLast);
+  let optionsHtml = '';
+  if (q.type === 'write' || !Array.isArray(q.options) || q.options.length === 0) {
+    const val = escapeHtml(quizState.answers[quizState.currentQ] || '');
+    optionsHtml = '<div class="q-write"><textarea placeholder="Type your answer here..." data-q="' + quizState.currentQ + '">' + val + '</textarea></div>';
   } else {
-    msg = 'Hello! I am your IDT Academy AI tutor. How can I help you with your JAMB preparation today?';
-    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI for IDT Academy. Help students prepare for JAMB exams. Answer questions, explain topics, and provide guidance. Use the working language the user chooses.' });
+    const letters = ['A', 'B', 'C', 'D', 'E'];
+    optionsHtml = '<div class="q-options">' + q.options.map((opt, i) => {
+      const selected = quizState.answers[quizState.currentQ] === String(i);
+      return '<button type="button" class="q-opt' + (selected ? ' selected' : '') + '" data-q="' + quizState.currentQ + '" data-opt="' + i + '">' +
+        '<span class="q-letter">' + letters[i] + '</span><span>' + escapeHtml(opt) + '</span></button>';
+    }).join('') + '</div>';
   }
-
-  addAIMessage('bot', msg);
-}
-
-function addAIMessage(type, text) {
-  const div = document.createElement('div');
-  div.className = 'ai-msg ' + type;
-  div.innerHTML = '<div class="ai-msg-label">' + (type === 'bot' ? 'AI Tutor' : 'You') + '</div><p>' + text.replace(/\n/g, '<br>') + '</p>';
-  el.aiChatArea.appendChild(div);
-  el.aiChatArea.scrollTop = el.aiChatArea.scrollHeight;
-}
-
-el.aiModalClose.addEventListener('click', function() {
-  el.aiModalOverlay.classList.remove('active');
-  document.body.style.overflow = '';
-});
-
-el.aiModalOverlay.addEventListener('click', function(e) {
-  if (e.target === el.aiModalOverlay) {
-    el.aiModalOverlay.classList.remove('active');
-    document.body.style.overflow = '';
-  }
-});
-
-$$('.ai-lang-select button', el.aiLangSelect).forEach(function(btn) {
-  btn.addEventListener('click', function() {
-    $$('.ai-lang-select button', el.aiLangSelect).forEach(function(b) { b.classList.remove('active'); });
-    this.classList.add('active');
-    if (this.id === 'aiOtherLang') {
-      const lang = prompt('Enter your preferred language (e.g. Fulfude, Tiv, Efik):');
-      if (lang) aiActiveLang = 'english+' + lang.trim().toLowerCase();
-      else aiActiveLang = 'english+hausa';
-    } else {
-      aiActiveLang = this.dataset.lang;
-    }
+  card.innerHTML =
+    '<div class="question-card">' +
+    '<span class="q-num"><i class="fa-solid fa-circle-question"></i> Question ' + (quizState.currentQ + 1) + ' of ' + totalQ + '</span>' +
+    '<div class="q-text">' + escapeHtml(q.question || '') + '</div>' +
+    optionsHtml +
+    '</div>';
+  card.querySelectorAll('.q-opt').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const qi = parseInt(btn.dataset.q, 10);
+      quizState.answers[qi] = btn.dataset.opt;
+      renderQuestion();
+    });
   });
-});
+  const ta = card.querySelector('textarea');
+  if (ta) {
+    ta.addEventListener('input', (e) => {
+      const qi = parseInt(e.target.dataset.q, 10);
+      quizState.answers[qi] = e.target.value;
+    });
+  }
+}
 
-el.aiSendBtn.addEventListener('click', sendAIMessage);
-el.aiInput.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') sendAIMessage();
-});
+function startQuizTimer() {
+  if (!quizState) return;
+  if (quizState.timer) clearInterval(quizState.timer);
+  quizState.timer = setInterval(() => {
+    if (!quizState) { clearInterval(window.__quizTimerRef); return; }
+    quizState.secondsLeft--;
+    const m = Math.floor(quizState.secondsLeft / 60);
+    const s = quizState.secondsLeft % 60;
+    const timerEl = $('quizTimer');
+    if (timerEl) {
+      const span = timerEl.querySelector('span');
+      if (span) span.textContent = m + ':' + String(s).padStart(2, '0');
+      if (quizState.secondsLeft <= 60) timerEl.classList.add('danger');
+    }
+    if (quizState.secondsLeft <= 0) {
+      clearInterval(quizState.timer);
+      submitQuiz(true);
+    }
+  }, 1000);
+  window.__quizTimerRef = quizState.timer;
+}
 
-async function sendAIMessage() {
-  const text = el.aiInput.value.trim();
-  if (!text) return;
-  addAIMessage('user', text);
-  el.aiInput.value = '';
-  el.aiSendBtn.disabled = true;
-  el.aiSendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+function attachAntiCheat() {
+  document.addEventListener('visibilitychange', antiCheatHandler);
+  document.addEventListener('copy', antiCheatCopy);
+  document.addEventListener('cut', antiCheatCopy);
+  document.addEventListener('contextmenu', antiCheatContext);
+  document.addEventListener('selectstart', antiCheatSelect);
+  window.addEventListener('blur', antiCheatBlur);
+  document.addEventListener('keydown', antiCheatKeys);
+}
 
+function detachAntiCheat() {
+  document.removeEventListener('visibilitychange', antiCheatHandler);
+  document.removeEventListener('copy', antiCheatCopy);
+  document.removeEventListener('cut', antiCheatCopy);
+  document.removeEventListener('contextmenu', antiCheatContext);
+  document.removeEventListener('selectstart', antiCheatSelect);
+  window.removeEventListener('blur', antiCheatBlur);
+  document.removeEventListener('keydown', antiCheatKeys);
+}
+
+function antiCheatKeys(e) {
+  if (!quizState) return;
+  const k = (e.key || '').toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && ['c', 'x', 'v', 'a', 'u', 's', 'p'].indexOf(k) !== -1) {
+    e.preventDefault();
+    flagAntiCheat('Copying is not allowed during the assessment.');
+    return;
+  }
+  if (k === 'printscreen') {
+    e.preventDefault();
+    flagAntiCheat('Screenshots are not allowed during the assessment.');
+  }
+}
+
+function antiCheatContext(e) {
+  if (!quizState) return;
+  e.preventDefault();
+  flagAntiCheat('Right click is disabled during the assessment.');
+}
+
+function antiCheatSelect(e) {
+  if (!quizState) return;
+  e.preventDefault();
+}
+
+function flagAntiCheat(msg) {
+  if (!quizState) return;
+  quizState.flags++;
+  if (quizState.flags >= 2) {
+    submitQuiz(true);
+  } else {
+    showToast('error', 'Warning!', msg + ' This is recorded.', 'Flag ' + quizState.flags + '/2');
+  }
+}
+
+function antiCheatHandler() {
+  if (document.hidden && quizState) {
+    flagAntiCheat('Do not leave the assessment page.');
+  }
+}
+
+function antiCheatCopy(e) {
+  if (!quizState) return;
+  e.preventDefault();
+  flagAntiCheat('Copying is not allowed during the assessment.');
+}
+
+function antiCheatBlur() {
+  if (quizState) {
+    flagAntiCheat('Stay on the assessment page.');
+  }
+}
+
+async function submitQuiz(timedOut) {
+  if (!quizState || quizState.submitted) return;
+  quizState.submitted = true;
+  if (quizState.timer) clearInterval(quizState.timer);
+  detachAntiCheat();
+  stopCamera();
+  const qs = quizState.questions.map((q, i) => ({
+    number: i + 1,
+    question: q.question,
+    options: q.options || [],
+    type: q.type || 'mcq',
+    user_answer: quizState.answers[i] || ''
+  }));
+  const timeSpent = Math.max(0, QUIZ_SECONDS - quizState.secondsLeft);
+  miniLoad('Grading your answers...');
   try {
-    aiContext.push({ role: 'user', content: text + ' (Please respond in ' + aiActiveLang + ' format: first in English, then in the selected language for key points)' });
-    const res = await fetch('/api/jambai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'chat',
-        messages: aiContext,
-        language: aiActiveLang,
-        user_id: currentUser ? currentUser.id : '',
-        full_name: currentUser ? currentUser.full_name : ''
-      })
+    const res = await gradeAssessment({
+      user_id: user.id,
+      academy_id: getAcademyId(),
+      course_id: activeCourseId,
+      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
+      assessment_id: quizState.assessmentId,
+      questions: qs,
+      time_spent: timeSpent,
+      preferred_lang: getPreferredLang(),
+      flagged: quizState.flags > 0,
+      timed_out: timedOut
+    });
+    const score = Number(res.score || 0);
+    const pct = Number(res.pct || Math.round((score / qs.length) * 100));
+    const passed = res.passed === true || score >= PASS_MARK;
+    const results = res.results || [];
+    window._lastResults = results;
+    window._lastScore = score;
+    window._lastPct = pct;
+    window._lastPassed = passed;
+    showResult(score, pct, passed, results, timedOut, res.message || '');
+    if (passed) {
+      const batch = quizState.batch;
+      const key = activeCourseId + '_' + batch;
+      const arr = passedBatches[key] || [];
+      if (arr.indexOf(batch) === -1) arr.push(batch);
+      passedBatches[key] = arr;
+      delete lastAssessFail[key];
+      await saveUpdate({ passed_batches: passedBatches, last_assess_fail: lastAssessFail });
+      const grades = Array.isArray(userData.assessment_grade) ? userData.assessment_grade : [];
+      grades.push({
+        assessment_id: quizState.assessmentId,
+        academy_id: getAcademyId(),
+        course_id: activeCourseId,
+        course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
+        score: score,
+        pct: pct,
+        passed: true,
+        date: new Date().toISOString(),
+        time_spent: timeSpent
+      });
+      userData.assessment_grade = grades;
+      try {
+        await saveUserData();
+      } catch (err) {}
+      confetti();
+    } else {
+      const batch = quizState.batch;
+      const key = activeCourseId + '_' + batch;
+      lastAssessFail[key] = Date.now();
+      await saveUpdate({ last_assess_fail: lastAssessFail });
+      const grades = Array.isArray(userData.assessment_grade) ? userData.assessment_grade : [];
+      grades.push({
+        assessment_id: quizState.assessmentId,
+        academy_id: getAcademyId(),
+        course_id: activeCourseId,
+        score: score,
+        pct: pct,
+        passed: false,
+        date: new Date().toISOString()
+      });
+      userData.assessment_grade = grades;
+      try {
+        await saveUserData();
+      } catch (err) {}
+      showToast('error', 'Keep Going!', 'You scored ' + score + '/' + qs.length + '. Read the topics again and retry in ' + (diplomaMode ? '1 week' : '42 hours') + '.');
+    }
+    miniHide();
+  } catch (err) {
+    miniHide();
+    showToast('error', 'Grading Failed', 'Could not grade your assessment. Please try again.', err.message || String(err));
+    quizState.submitted = false;
+  }
+}
+
+function showResult(score, pct, passed, results, timedOut, message) {
+  const quiz = $('assessQuiz');
+  const result = $('assessResult');
+  if (quiz) quiz.classList.add('hidden');
+  if (result) result.classList.remove('hidden');
+  const ring = $('scoreRing');
+  const deg = Math.round((pct / 100) * 360);
+  if (ring) ring.style.background = 'conic-gradient(' + (passed ? 'var(--green)' : 'var(--rose)') + ' ' + deg + 'deg, rgba(124,58,237,.1) ' + deg + 'deg)';
+  const pctEl = $('scorePct');
+  if (pctEl) pctEl.textContent = pct + '%';
+  const head = $('resultHead');
+  if (head) {
+    if (passed) {
+      head.textContent = 'Congratulations! 🎉';
+      head.className = 'result-head pass';
+    } else {
+      head.textContent = 'Almost There!';
+      head.className = 'result-head fail';
+    }
+  }
+  const sub = $('resultSub');
+  if (sub) {
+    sub.textContent = message || (passed ? 'You passed this assessment. Excellent work! You can continue learning.' : 'You scored below the pass mark (' + PASS_MARK + '/' + (quizState ? quizState.questions.length : 5) + '). Read the topics again and retry.');
+  }
+  const totalQ = (quizState && quizState.questions.length) || 5;
+  const summary = $('resultSummary');
+  if (summary) {
+    summary.innerHTML =
+      '<div class="rs-row"><span>Total Questions</span><b>' + totalQ + '</b></div>' +
+      '<div class="rs-row"><span>Correct Answers</span><b class="ok">' + (results.filter((r) => r.is_correct === true).length || score) + '</b></div>' +
+      '<div class="rs-row"><span>Wrong Answers</span><b class="bad">' + (results.filter((r) => r.is_correct === false).length || Math.max(0, totalQ - score)) + '</b></div>' +
+      '<div class="rs-row"><span>Pass Mark</span><b>' + PASS_MARK + ' / ' + totalQ + '</b></div>' +
+      '<div class="rs-row"><span>Time Used</span><b>' + Math.max(0, QUIZ_SECONDS - (quizState ? quizState.secondsLeft : 0)) + 's</b></div>';
+  }
+  let listHtml = '';
+  results.forEach((r, i) => {
+    const ok = r.is_correct === true;
+    const skipped = !r.user_answer;
+    const mark = ok ? '<span class="ri-mark correct">✓ Correct</span>' : (skipped ? '<span class="ri-mark skipped">Skipped</span>' : '<span class="ri-mark wrong">✖ Wrong</span>');
+    const userAns = r.user_answer || '(no answer)';
+    const correctAns = r.correct_answer != null ? r.correct_answer : '';
+    listHtml += '<div class="result-item">' +
+      '<div class="ri-head"><i class="fa-solid ' + (ok ? 'fa-circle-check' : (skipped ? 'fa-circle-minus' : 'fa-circle-xmark')) + '" style="color:' + (ok ? '#10b981' : (skipped ? '#94a3b8' : '#f43f5e')) + '"></i> Question ' + (i + 1) + mark + '</div>' +
+      '<div class="ri-q">' + escapeHtml(r.question || '') + '</div>' +
+      '<div class="ri-ans"><span class="' + (ok ? 'ok' : 'bad') + '">Your answer: ' + escapeHtml(userAns) + '</span>' +
+      (ok ? '' : '<br><span class="ok">Correct answer: ' + escapeHtml(correctAns) + '</span>') + '</div>' +
+      (r.explanation ? '<div class="ri-explain"><b><i class="fa-solid fa-lightbulb"></i> Explanation:</b> ' + escapeHtml(r.explanation) + '</div>' : '') +
+      '</div>';
+  });
+  const list = $('resultList');
+  if (list) list.innerHTML = listHtml || '<div class="result-item">No detailed breakdown available.</div>';
+  const btnGoExam = $('btnGoExam');
+  const btnCont = $('btnContinueStudy');
+  const atFinal = currentTopicIdx >= currentTopics.length - 1;
+  if (passed && atFinal && btnGoExam && btnCont) {
+    btnCont.classList.add('hidden');
+    btnGoExam.classList.remove('hidden');
+  } else if (btnGoExam && btnCont) {
+    btnCont.classList.remove('hidden');
+    btnGoExam.classList.add('hidden');
+  }
+  const btnPdf = $('btnDownloadPdf');
+  if (btnPdf && passed) btnPdf.classList.remove('hidden');
+  if (timedOut) {
+    showToast('error', 'Time Up', 'The ' + Math.round(QUIZ_SECONDS / 60) + ' minutes finished. Your answers were submitted automatically.', '');
+  }
+}
+
+function confetti() {
+  const c = document.createElement('canvas');
+  c.style.cssText = 'position:fixed;inset:0;z-index:99999;pointer-events:none';
+  c.width = window.innerWidth;
+  c.height = window.innerHeight;
+  document.body.appendChild(c);
+  const x = c.getContext('2d');
+  const colors = ['#7c3aed', '#06b6d4', '#f59e0b', '#10b981', '#f43f5e', '#a78bfa', '#fbbf24'];
+  const parts = [];
+  for (let i = 0; i < 160; i++) {
+    parts.push({
+      x: Math.random() * c.width,
+      y: -20 - Math.random() * c.height * 0.5,
+      w: 6 + Math.random() * 7,
+      h: 8 + Math.random() * 9,
+      vy: 2 + Math.random() * 3,
+      vx: -1.5 + Math.random() * 3,
+      color: colors[i % colors.length],
+      rot: Math.random() * Math.PI,
+      vr: -0.1 + Math.random() * 0.2
+    });
+  }
+  let frames = 0;
+  (function anim() {
+    x.clearRect(0, 0, c.width, c.height);
+    parts.forEach((p) => {
+      p.y += p.vy;
+      p.x += p.vx + Math.sin(p.rot) * 0.6;
+      p.rot += p.vr;
+      x.save();
+      x.translate(p.x, p.y);
+      x.rotate(p.rot);
+      x.fillStyle = p.color;
+      x.fillRect(-p.w / 2, p.h / 2 * -1, p.w, p.h);
+      x.restore();
+    });
+    frames++;
+    if (frames < 240) requestAnimationFrame(anim);
+    else c.remove();
+  })();
+}
+
+async function loadPdfLib() {
+  if (window.jspdf) return window.jspdf;
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return window.jspdf;
+}
+
+function imageToDataUrl(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth;
+        c.height = img.naturalHeight;
+        c.getContext('2d').drawImage(img, 0, 0);
+        resolve(c.toDataURL('image/png'));
+      } catch (e) {
+        resolve('');
+      }
+    };
+    img.onerror = () => resolve('');
+    img.src = url;
+  });
+}
+
+function pdfHeader(doc, w, title) {
+  doc.setFillColor(124, 58, 237);
+  doc.rect(0, 0, w, 34, 'F');
+  doc.setFillColor(6, 182, 212);
+  doc.rect(0, 34, w, 2.5, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text('IDT ACADEMY', 14, 14);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text('Intelligent Digital Technology Academy  •  www.idtacademy.com.ng', 14, 21);
+  doc.text('Learn Beyond Limits', 14, 27);
+  doc.setTextColor(30, 27, 75);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text(title, 14, 47);
+  doc.setDrawColor(124, 58, 237);
+  doc.setLineWidth(0.8);
+  doc.line(14, 51, w - 14, 51);
+}
+
+function pdfSignatures(doc, w, y, signChair, signCeo) {
+  if (y > 240) {
+    doc.addPage();
+    y = 30;
+  }
+  const rowY = y + 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(109, 106, 138);
+  doc.text('_______________________', 22, rowY);
+  doc.text('_______________________', w - 72, rowY);
+  if (signChair) doc.addImage(signChair, 'PNG', 22, rowY + 2, 26, 13);
+  if (signCeo) doc.addImage(signCeo, 'PNG', w - 72, rowY + 2, 26, 13);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(30, 27, 75);
+  doc.text('Haruna Lawali', 22, rowY + 19);
+  doc.text('Ubaida Aliyu', w - 72, rowY + 19);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(109, 106, 138);
+  doc.text('Chairman, Board of Trustees', 22, rowY + 24);
+  doc.text('CEO, IDT Academy', w - 72, rowY + 24);
+  doc.setTextColor(109, 106, 138);
+  doc.setFontSize(8);
+  doc.text('IDT Academy • Official Assessment Document • ' + new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }), w / 2, rowY + 34, { align: 'center' });
+}
+
+async function downloadResultPdf() {
+  miniLoad('Preparing your slips...');
+  try {
+    await loadPdfLib();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const w = doc.internal.pageSize.getWidth();
+    const h = doc.internal.pageSize.getHeight();
+    const results = window._lastResults || [];
+    const score = window._lastScore || 0;
+    const pct = window._lastPct || 0;
+    const passed = window._lastPassed || false;
+    const totalQ = results.length || (quizState && quizState.questions.length) || 5;
+    const courseName = (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '';
+    const studentName = (userData && userData.full_name) || '';
+    const academyId = getAcademyId();
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const logo = await imageToDataUrl('https://i.imgur.com/oyqM5oF.png');
+    const signChair = await imageToDataUrl('https://i.imgur.com/z8HOr4D.png');
+    const signCeo = await imageToDataUrl('https://i.imgur.com/leqHq9I.png');
+
+    if (logo) {
+      doc.setGState(new doc.GState({ opacity: 0.06 }));
+      doc.addImage(logo, 'PNG', (w - 150) / 2, (h - 150) / 2, 150, 150);
+      doc.setGState(new doc.GState({ opacity: 1 }));
+    }
+    pdfHeader(doc, w, 'ASSESSMENT SLIP');
+    let y = 62;
+    doc.setFillColor(245, 243, 255);
+    doc.roundedRect(14, y, w - 28, 26, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(30, 27, 75);
+    doc.text('Student: ' + studentName, 18, y + 7);
+    doc.text('Academy ID: ' + academyId, 18, y + 14);
+    doc.text('Course: ' + courseName, 18, y + 21);
+    doc.setTextColor(109, 40, 221);
+    doc.text('Date: ' + dateStr, w - 18, y + 7, { align: 'right' });
+    doc.text('Time Used: ' + Math.max(0, QUIZ_SECONDS - (quizState ? quizState.secondsLeft : QUIZ_SECONDS)) + 's', w - 18, y + 14, { align: 'right' });
+    y += 34;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(30, 27, 75);
+    doc.text('Questions & Answers', 16, y);
+    y += 7;
+    doc.setFontSize(9);
+    results.forEach((r, i) => {
+      if (y > 225) {
+        doc.addPage();
+        if (logo) {
+          doc.setGState(new doc.GState({ opacity: 0.06 }));
+          doc.addImage(logo, 'PNG', (w - 150) / 2, (h - 150) / 2, 150, 150);
+          doc.setGState(new doc.GState({ opacity: 1 }));
+        }
+        y = 30;
+      }
+      const ok = r.is_correct === true;
+      doc.setFillColor(ok ? 232 : 254, ok ? 245 : 226, ok ? 241 : 231);
+      doc.roundedRect(14, y - 4, w - 28, 5, 1.5, 1.5, 'F');
+      doc.setTextColor(ok ? 16 : 220, ok ? 185 : 38, ok ? 129 : 38);
+      doc.setFont('helvetica', 'bold');
+      doc.text((ok ? '✔' : '✖') + ' Q' + (i + 1), 17, y);
+      doc.setTextColor(30, 27, 75);
+      const qLines = doc.splitTextToSize(String(r.question || ''), w - 50);
+      doc.text(qLines, 30, y);
+      y += qLines.length * 4.5 + 2;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 58, 107);
+      const ansLines = doc.splitTextToSize('Your answer: ' + String(r.user_answer || '(no answer)'), w - 44);
+      doc.text(ansLines, 30, y);
+      y += ansLines.length * 4.2;
+      if (!ok && r.correct_answer != null) {
+        doc.setTextColor(16, 130, 100);
+        const cLines = doc.splitTextToSize('Correct answer: ' + String(r.correct_answer), w - 44);
+        doc.text(cLines, 30, y);
+        y += cLines.length * 4.2;
+      }
+      y += 4;
+    });
+    pdfSignatures(doc, w, y, signChair, signCeo);
+
+    doc.addPage();
+    if (logo) {
+      doc.setGState(new doc.GState({ opacity: 0.06 }));
+      doc.addImage(logo, 'PNG', (w - 150) / 2, (h - 150) / 2, 150, 150);
+      doc.setGState(new doc.GState({ opacity: 1 }));
+    }
+    pdfHeader(doc, w, 'PROFESSIONAL RESULT SLIP');
+    y = 66;
+    doc.setFillColor(passed ? 16 : 244, passed ? 185 : 63, passed ? 129 : 94);
+    doc.roundedRect(14, y, w - 28, 34, 4, 4, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(34);
+    doc.text(pct + '%', 22, y + 22);
+    doc.setFontSize(11);
+    doc.text(passed ? 'PASSED' : 'NOT PASSED', w - 22, y + 14, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('Score: ' + score + ' / ' + totalQ + '   •   Pass Mark: ' + PASS_MARK + ' / ' + totalQ + '   •   Grade: ' + (pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : pct >= 50 ? 'D' : 'F'), w - 22, y + 22, { align: 'right' });
+    doc.text('Assessment: ' + (quizState && quizState.assessmentId ? String(quizState.assessmentId) : '—'), w - 22, y + 29, { align: 'right' });
+    y += 44;
+    doc.setFillColor(245, 243, 255);
+    doc.roundedRect(14, y, w - 28, 30, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(30, 27, 75);
+    doc.text('Student Name: ' + studentName, 18, y + 8);
+    doc.text('Academy ID: ' + academyId, 18, y + 15);
+    doc.text('Course: ' + courseName, 18, y + 22);
+    doc.setTextColor(109, 40, 221);
+    doc.text('Date: ' + dateStr, w - 18, y + 8, { align: 'right' });
+    doc.text('Status: ' + (passed ? 'CONGRATULATIONS - PASSED' : 'NOT PASSED - KEEP LEARNING'), w - 18, y + 15, { align: 'right' });
+    doc.text('Signed & Verified by IDT Academy', w - 18, y + 22, { align: 'right' });
+    y += 40;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(30, 27, 75);
+    doc.text('Performance Summary', 16, y);
+    y += 7;
+    doc.setFontSize(9);
+    const correct = results.filter((r) => r.is_correct === true).length;
+    const wrong = results.filter((r) => r.is_correct === false).length;
+    const skipped = results.filter((r) => !r.user_answer).length;
+    const rows = [
+      ['Total Questions', String(totalQ)],
+      ['Correct Answers', String(correct)],
+      ['Wrong Answers', String(wrong)],
+      ['Skipped', String(skipped)],
+      ['Final Score', score + ' / ' + totalQ + ' (' + pct + '%)'],
+      ['Time Allowed', Math.round(QUIZ_SECONDS / 60) + ' minutes']
+    ];
+    rows.forEach((row, i) => {
+      if (i % 2 === 0) {
+        doc.setFillColor(248, 247, 255);
+        doc.rect(14, y - 4.5, w - 28, 7, 'F');
+      }
+      doc.setTextColor(60, 58, 107);
+      doc.setFont('helvetica', 'normal');
+      doc.text(row[0], 18, y);
+      doc.setTextColor(30, 27, 75);
+      doc.setFont('helvetica', 'bold');
+      doc.text(row[1], w - 18, y, { align: 'right' });
+      y += 7;
+    });
+    pdfSignatures(doc, w, y + 4, signChair, signCeo);
+
+    doc.save('IDT_Assessment_Slips_' + studentName.replace(/\s+/g, '_') + '.pdf');
+    miniHide();
+    showToast('success', 'PDF Downloaded', 'Your assessment slips have been downloaded. You can print them anytime.');
+  } catch (err) {
+    miniHide();
+    showToast('error', 'PDF Failed', 'Could not create the PDF.', err.message || String(err));
+  }
+}
+
+async function emailResult() {
+  if (!user || !userData) return;
+  miniLoad('Emailing your result...');
+  try {
+    await loadPdfLib();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const w = doc.internal.pageSize.getWidth();
+    const results = window._lastResults || [];
+    const score = window._lastScore || 0;
+    const pct = window._lastPct || 0;
+    const passed = window._lastPassed || false;
+    const courseName = (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '';
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const logo = await imageToDataUrl('https://i.imgur.com/oyqM5oF.png');
+    if (logo) doc.addImage(logo, 'PNG', (w - 20) / 2, 12, 20, 20);
+    doc.setTextColor(30, 27, 75);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.text('Intelligent Digital Technology Academy', w / 2, 40, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(109, 106, 138);
+    doc.text('www.idtacademy.com.ng', w / 2, 46, { align: 'center' });
+    doc.setDrawColor(124, 58, 237);
+    doc.line(14, 51, w - 14, 51);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(30, 27, 75);
+    doc.text('ASSESSMENT RESULT', w / 2, 60, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    let y = 70;
+    doc.text('Student: ' + ((userData && userData.full_name) || ''), 16, y);
+    doc.text('ID: ' + getAcademyId(), 120, y);
+    y += 7;
+    doc.text('Course: ' + courseName, 16, y);
+    y += 7;
+    doc.text('Score: ' + score + '/5 (' + pct + '%)  Status: ' + (passed ? 'PASSED' : 'NOT PASSED'), 16, y);
+    y += 6;
+    doc.setFontSize(9);
+    results.forEach((r, i) => {
+      if (y > 265) { doc.addPage(); y = 20; }
+      const ok = r.is_correct === true;
+      doc.text((ok ? '✓' : '✖') + ' Q' + (i + 1) + ': ' + String(r.question || '').slice(0, 50), 18, y);
+      y += 5;
+    });
+    const pdfBase64 = doc.output('datauristring');
+    const res = await sendResultEmail({
+      user_id: user.id,
+      academy_id: getAcademyId(),
+      email: userData.email || user.email,
+      full_name: (userData && userData.full_name) || '',
+      course_name: courseName,
+      score: score,
+      pct: pct,
+      passed: passed,
+      date: dateStr,
+      pdf_base64: pdfBase64
+    });
+    miniHide();
+    showToast('success', 'Email Sent!', 'Your result has been sent to ' + (userData.email || user.email) + '. Check your inbox (and spam folder).');
+  } catch (err) {
+    miniHide();
+    showToast('error', 'Email Failed', 'Could not send the email. Please try again.', err.message || String(err));
+  }
+}
+
+function markdownToHtml(md) {
+  let html = escapeHtml(String(md || ''));
+  html = html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  html = html.replace(/\*(.+?)\*/g, '<i>$1</i>');
+  html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+
+function addChatMessage(role, content) {
+  const msgs = $('chatMsgs');
+  if (!msgs) return null;
+  const div = document.createElement('div');
+  div.className = 'chat-bubble ' + role;
+  if (role === 'ai') {
+    div.innerHTML = '<div class="cb-meta"><i class="fa-solid fa-robot"></i> My IDT Academy Teacher</div>' + markdownToHtml(content);
+  } else {
+    div.textContent = content;
+  }
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function addTypingIndicator() {
+  const msgs = $('chatMsgs');
+  if (!msgs) return null;
+  const div = document.createElement('div');
+  div.className = 'chat-typing';
+  div.innerHTML = '<span></span><span></span><span></span>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function saveChatHistory() {
+  chatHistories[activeCourseId] = (chatHistories[activeCourseId] || []).slice(-12);
+  saveUpdate({ chat_history: chatHistories });
+}
+
+async function handleChatSubmit(e) {
+  e.preventDefault();
+  const input = $('chatInput');
+  const send = $('chatSend');
+  if (!input || !send) return;
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+  send.disabled = true;
+  addChatMessage('user', q);
+  const history = (chatHistories[activeCourseId] || []).slice(-8);
+  const typing = addTypingIndicator();
+  try {
+    const res = await askQuestion({
+      user_id: user.id,
+      academy_id: getAcademyId(),
+      course_id: activeCourseId,
+      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
+      topic_name: (currentTopic && currentTopic.topic_name) || '',
+      topic_text: String((currentTopic && currentTopic.topic_text) || '').slice(0, 2500),
+      question: q,
+      history: history,
+      preferred_lang: getPreferredLang()
+    });
+    const answer = res.answer || res.message || 'Sorry, I could not answer that. Please try again.';
+    if (typing) typing.remove();
+    addChatMessage('ai', answer);
+    history.push({ role: 'user', content: q.slice(0, 600) });
+    history.push({ role: 'assistant', content: answer.slice(0, 2000) });
+    chatHistories[activeCourseId] = history;
+    saveChatHistory();
+  } catch (err) {
+    if (typing) typing.remove();
+    addChatMessage('ai', 'I am having trouble connecting right now. Please try again in a moment. (' + (err.message || 'error') + ')');
+  }
+  send.disabled = false;
+  input.focus();
+}
+
+function openChat() {
+  const msgs = $('chatMsgs');
+  if (!msgs) return;
+  msgs.innerHTML = '';
+  addChatMessage('ai', 'Hello **' + escapeHtml((userData && userData.full_name) || 'student') + '**! 👋\n\nI am your **IDT Academy Teacher**. Ask me anything about the topic you are reading. You can ask in any language — Hausa, Yoruba, Igbo, French, Spanish, English and more.\n\nExample: *"Explain the difference between RAM and ROM with examples."*');
+  const hist = chatHistories[activeCourseId] || [];
+  hist.forEach((m) => {
+    if (m.role === 'user') addChatMessage('user', m.content);
+    if (m.role === 'assistant') addChatMessage('ai', m.content);
+  });
+  const overlay = $('chatOverlay');
+  if (overlay) overlay.classList.add('open');
+  setTimeout(() => {
+    const input = $('chatInput');
+    if (input) input.focus();
+  }, 300);
+}
+
+async function handleExplain(lang) {
+  if (!currentTopic) return;
+  const grid = $('langGrid');
+  const otherRow = $('otherLangRow');
+  const result = $('explainResult');
+  const note = $('explainNote');
+  if (grid) grid.classList.add('hidden');
+  if (otherRow) otherRow.classList.add('hidden');
+  if (result) {
+    result.classList.add('hidden');
+    result.innerHTML = '';
+  }
+  if (note) note.textContent = '';
+  miniLoad('Explaining in ' + lang + '...');
+  try {
+    const res = await explainText({
+      user_id: user.id,
+      academy_id: getAcademyId(),
+      course_id: activeCourseId,
+      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
+      topic_name: currentTopic.topic_name || '',
+      topic_text: String(currentTopic.topic_text || '').slice(0, 3000),
+      target_lang: lang
+    });
+    const explanation = res.explanation || res.message || 'No explanation returned.';
+    if (result) {
+      result.innerHTML = '<b style="display:block;color:#a78bfa;margin-bottom:8px"><i class="fa-solid fa-language"></i> Explanation in ' + escapeHtml(lang) + '</b>' + markdownToHtml(explanation);
+      result.classList.remove('hidden');
+    }
+    if (note) {
+      if (res.lang_detected || res.language) {
+        note.textContent = 'Explained in ' + res.language + '. You can ask more questions with "Ask Question".';
+      } else {
+        note.textContent = 'You can also ask questions about this explanation using "Ask Question".';
+      }
+    }
+    setPreferredLang(lang);
+    miniHide();
+    showToast('success', 'Explanation Ready', 'Here is the explanation in ' + lang + '.');
+  } catch (err) {
+    miniHide();
+    showToast('error', 'Explain Failed', 'Could not create the explanation. Please try again.', err.message || String(err));
+  }
+}
+
+function getPrimaryCourse() {
+  const fromData = {
+    course_id: (userData && userData.course_id) || '',
+    course_name: (userData && userData.course_name) || '',
+    course_number: (userData && userData.course_number) || '',
+    course_price: Number((userData && (userData.course_price || userData.price)) || 0)
+  };
+  if (fromData.course_id && fromData.course_price) return fromData;
+  const list = courseList[0] || {};
+  return {
+    course_id: list.course_id || '',
+    course_name: list.course_name || 'Selected Course',
+    course_number: list.course_number || '000',
+    course_price: Number(list.course_price || list.price || 0)
+  };
+}
+
+function startCountdown() {
+  if (!paymentState) return;
+  if (paymentState.timer) clearInterval(paymentState.timer);
+  paymentState.timer = setInterval(() => {
+    if (!paymentState) return;
+    const remain = paymentState.endTime - Date.now();
+    if (remain <= 0) {
+      clearInterval(paymentState.timer);
+      paymentState.timer = null;
+      const po = $('paymentOverlay');
+      const pg = $('pendingGate');
+      if (po) po.classList.remove('open');
+      if (pg) pg.classList.add('open');
+      showToast('error', 'Payment Expired', 'The payment window expired. Please tap Pay Now to create a new one.', '');
+      return;
+    }
+    const m = Math.floor(remain / 60000);
+    const s = Math.floor((remain % 60000) / 1000);
+    const el = $('payCountdown');
+    if (el) el.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }, 1000);
+}
+
+function stopStatusPolling() {
+  if (statusPollTimer) {
+    clearInterval(statusPollTimer);
+    statusPollTimer = null;
+  }
+}
+
+function startStatusPolling() {
+  stopStatusPolling();
+  statusPollTimer = setInterval(async () => {
+    try {
+      const status = await fetchStatusOnce();
+      if (String(status).toLowerCase() === 'active') {
+        stopStatusPolling();
+        if (paymentState) {
+          if (paymentState.timer) clearInterval(paymentState.timer);
+          paymentState.verified = true;
+        }
+        const po = $('paymentOverlay');
+        const pg = $('pendingGate');
+        if (po) po.classList.remove('open');
+        if (pg) pg.classList.remove('open');
+        stopAllPayLinks();
+        confetti();
+        showToast('success', 'Payment Confirmed! 🎉', 'Congratulations! Your payment was successful. Your dashboard is now unlocked.', '');
+        await loadDashboard();
+      }
+    } catch (err) {}
+  }, STATUS_POLL_MS);
+}
+
+function startVerifyPolling() {
+  let tries = 0;
+  const poll = setInterval(async () => {
+    tries++;
+    if (!paymentState || paymentState.verified || tries > 90) {
+      clearInterval(poll);
+      return;
+    }
+    try {
+      const res = await verifyPayment({ reference: paymentState.reference, user_id: user.id });
+      if (res.status === 'active' || res.paid === true) {
+        clearInterval(poll);
+        paymentState.verified = true;
+        if (paymentState.timer) clearInterval(paymentState.timer);
+        const po = $('paymentOverlay');
+        const pg = $('pendingGate');
+        if (po) po.classList.remove('open');
+        if (pg) pg.classList.remove('open');
+        stopStatusPolling();
+        stopAllPayLinks();
+        confetti();
+        showToast('success', 'Payment Confirmed! 🎉', 'Congratulations! Your payment was successful. Your dashboard is now unlocked.', '');
+        await loadDashboard();
+      }
+    } catch (err) {}
+  }, 20000);
+}
+
+function stopAllPayLinks() {
+  const box = $('payTransferLinkBox');
+  if (box) box.remove();
+}
+
+async function startPayment() {
+  const course = getPrimaryCourse();
+  const price = Number(course.course_price || 0);
+  if (!price) {
+    showToast('error', 'Payment Error', 'Course price not found. Please select a course first.', '');
+    openCoursePush();
+    return;
+  }
+  const payBtn = $('btnPayNow');
+  if (!payBtn) return;
+  const oldBtnHtml = payBtn.innerHTML;
+  payBtn.disabled = true;
+  payBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
+  miniLoad('Creating payment details...');
+  try {
+    const res = await createPayment({
+      user_id: user.id,
+      academy_id: getAcademyId(),
+      email: (userData && userData.email) || user.email,
+      full_name: (userData && userData.full_name) || '',
+      course_id: course.course_id,
+      course_name: course.course_name,
+      price: price
     });
 
-    if (res.status !== 200) {
-      const apiMsg = await readApiError(res);
-      const errMsg = apiMsg ? apiMsg : 'HTTP ' + res.status;
-      addAIMessage('bot', 'The AI tutor service reported a problem (' + errMsg + '). Please try again in a moment.');
+    const accountNumber = res.account_number || res.accountNumber || '';
+    const bankName = res.bank_name || res.bankName || '';
+    const authUrl = res.authorization_url || res.authorizationUrl || '';
+    const reference = res.reference || res.ref || '';
+    const amount = Number(res.amount || price || 0);
+    const minutes = Number(res.expires_in_minutes || 30) || 30;
+
+    paymentState = {
+      reference: reference,
+      authorizationUrl: authUrl,
+      endTime: Date.now() + minutes * 60 * 1000,
+      timer: null,
+      verified: false
+    };
+
+    const oldBox = $('payTransferLinkBox');
+    if (oldBox) oldBox.remove();
+
+    if (authUrl) {
+      const po = $('paymentOverlay');
+      if (po) po.classList.remove('open');
+      const pg = $('pendingGate');
+      if (pg) pg.classList.remove('open');
+      miniLoad('Opening Paystack...');
+      startCountdown();
+      startVerifyPolling();
+      startStatusPolling();
+      showToast('info', 'Payment Window Opened', 'Complete your payment in the Paystack window. Your dashboard unlocks automatically after payment.', '');
+      setTimeout(() => {
+        window.location.href = authUrl;
+      }, 800);
+      payBtn.disabled = false;
+      payBtn.innerHTML = oldBtnHtml;
       return;
     }
 
-    const data = await res.json();
-    if (data.success && data.response) {
-      addAIMessage('bot', data.response);
-      aiContext.push({ role: 'assistant', content: data.response });
-    } else {
-      const apiMsg = data && (data.error || data.message) ? (data.error || data.message) : 'Unknown service error';
-      addAIMessage('bot', 'The AI tutor service reported a problem (' + apiMsg + '). Please try again or rephrase your question.');
+    if (accountNumber) {
+      const amt = $('payAmount');
+      const accNum = $('payAccountNumber');
+      const accName = $('payAccountName');
+      const bank = $('payBankName');
+      const refEl = $('payReference');
+      if (amt) amt.textContent = formatMoney(amount);
+      if (accNum) accNum.textContent = accountNumber;
+      if (bank) bank.textContent = bankName;
+      if (refEl && refEl.childNodes[0]) {
+        refEl.childNodes[0].nodeValue = reference;
+        const small = refEl.querySelector('small');
+        if (small) small.textContent = 'Use this reference when making your transfer';
+      }
+      const btnAcc = $('btnCopyAccount');
+      const btnRef = $('btnCopyRef');
+      if (btnAcc) btnAcc.dataset.copy = accountNumber;
+      if (btnRef) btnRef.dataset.copy = reference;
+      const btnAccName = $('payAccountNameRow');
+      if (btnAccName) btnAccName.classList.add('hidden');
+      const btnAccBox = $('btnCopyAccount');
+      if (btnAccBox) btnAccBox.classList.remove('hidden');
+      const accNameRow = accName && accName.parentElement ? accName.parentElement : null;
+      if (accNameRow) accNameRow.classList.add('hidden');
+      const accNumRow = accNum && accNum.parentElement ? accNum.parentElement : null;
+      if (accNumRow) accNumRow.classList.remove('hidden');
+      const bankRow = bank && bank.parentElement ? bank.parentElement : null;
+      if (bankRow) bankRow.classList.remove('hidden');
+      const refRow = refEl && refEl.parentElement ? refEl.parentElement : null;
+      if (refRow) refRow.classList.remove('hidden');
+      const linkBox = document.createElement('div');
+      linkBox.id = 'payTransferLinkBox';
+      linkBox.style.cssText = 'margin:14px 0 4px;padding:14px 16px;border-radius:14px;background:rgba(124,58,237,.07);border:1.5px solid rgba(124,58,237,.25);text-align:center';
+      let inner = '<div style="font-size:12px;font-weight:800;color:#1e1b4b;margin-bottom:4px"><i class="fa-solid fa-building-columns"></i> Transfer to the temporary account below</div>';
+      if (bankName) inner += '<div style="font-size:11.5px;color:#6d6a8a;margin-bottom:10px">Bank: <b>' + escapeHtml(bankName) + '</b> • Expires in ' + minutes + ' minutes</div>';
+      inner += '<div style="font-size:20px;font-weight:900;letter-spacing:1.5px;color:#6d28d9">' + escapeHtml(accountNumber) + '</div>';
+      inner += '<p style="font-size:10.5px;color:#6d6a8a;margin-top:10px">Your dashboard unlocks automatically the moment your payment is confirmed.</p>';
+      linkBox.innerHTML = inner;
+      const overlayBody = $('paymentOverlay');
+      if (overlayBody) {
+        const overlayCard = overlayBody.querySelector('.ov-body') || overlayBody.querySelector('div') || overlayBody;
+        overlayCard.insertBefore(linkBox, overlayCard.firstChild);
+      }
+      const pg = $('pendingGate');
+      const po = $('paymentOverlay');
+      if (pg) pg.classList.remove('open');
+      if (po) po.classList.add('open');
+      startCountdown();
+      startVerifyPolling();
+      startStatusPolling();
+      miniHide();
+      payBtn.disabled = false;
+      payBtn.innerHTML = oldBtnHtml;
+      showToast('info', 'Payment Details Ready', 'Transfer the exact amount to the account shown. Your dashboard unlocks automatically after payment.', '');
+      return;
     }
+
+    throw new Error('No payment details returned from server');
   } catch (err) {
-    console.error('sendAIMessage error:', err);
-    addAIMessage('bot', 'There was a network error. Please check your connection and try again.');
-  } finally {
-    el.aiSendBtn.disabled = false;
-    el.aiSendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+    miniHide();
+    payBtn.disabled = false;
+    payBtn.innerHTML = oldBtnHtml;
+    showToast('error', 'Payment Failed', 'Could not create payment details. Please try again.', err.message || String(err));
   }
 }
 
-function initExamVisibilityGuards() {
-  document.addEventListener('visibilitychange', function() {
-    if (document.hidden && examStarted) {
-      handleScreenSwitchAttempt();
+async function loadDashboard() {
+  showLoading();
+  try {
+    await refreshProfile();
+    await loadUpdateTable();
+    courseList = collectCourses(userData);
+    await loadCourseInfos();
+    for (const c of courseList) {
+      await loadTopicsFor(c.course_id);
     }
-  });
-
-  window.addEventListener('blur', function() {
-    if (examStarted && !document.hidden) {
-      handleScreenSwitchAttempt();
+    renderUserIdBadge();
+    renderMenu();
+    renderUserGreet();
+    const status = String((userData && userData.status) || 'pending');
+    if (status !== 'active') {
+      renderPendingGate();
+      const gate = $('pendingGate');
+      if (gate) gate.classList.add('open');
+      if (isCourseMissing(userData)) {
+        openCoursePush();
+        const sub = $('pnSub');
+        if (sub) sub.textContent = 'Your account has no course yet. Pick a course below and complete your payment to start learning.';
+      }
+      hideLoading();
+      return;
     }
-  });
-
-  window.addEventListener('beforeunload', function(e) {
-    if (examStarted) {
-      e.preventDefault();
-      e.returnValue = '';
+    const gate = $('pendingGate');
+    if (gate) gate.classList.remove('open');
+    if (courseList.length === 0) {
+      hideLoading();
+      showToast('error', 'No Course Found', 'No course is linked to your account. Please contact support.', '');
+      return;
     }
-  });
+    if (courseList.length > 1) {
+      hideLoading();
+      const app = $('app');
+      if (app) app.classList.remove('hidden');
+      openMyCourses();
+      showToast('info', 'Choose Your Course', 'You have ' + courseList.length + ' courses. Tap the one you want to study.', '');
+      return;
+    }
+    const cid = pickDefaultCourse();
+    if (!cid) {
+      hideLoading();
+      showToast('error', 'No Course Found', 'No course is linked to your account. Please contact support.', '');
+      return;
+    }
+    await selectCourse(cid);
+    const app = $('app');
+    if (app) app.classList.remove('hidden');
+    startSessionClock();
+    loadAd();
+    hideLoading();
+    showToast('success', 'Welcome Back!', 'Happy learning ' + ((userData && userData.full_name) || '') + '! Keep going, you are doing great.');
+  } catch (err) {
+    hideLoading();
+    showToast('error', 'Dashboard Error', 'Could not load your dashboard.', err.message || String(err));
+  }
 }
 
-async function init() {
-  showLoading(true);
-  checkDevice();
-  const u = getLocalUser();
-  if (!u) {
-    showLoading(false);
-    window.location.href = 'jamb.html';
+function on(id, event, handler) {
+  const el = $(id);
+  if (!el) {
+    console.warn('[IDT] Missing element, binding skipped:', id);
     return;
   }
-
-  currentUser = u;
-  userData = u;
-
-  const profile = await fetchUserProfile(u.id);
-  if (profile && profile.user_data) {
-    const ud = profile.user_data;
-    const courseFields = applyNewCourseFields(ud);
-
-    if (ud.payment_no === 'yes') {
-      const stored = Object.assign({}, u, ud, courseFields, { status: 'active', payment_no: 'yes' });
-      setLocalUser(stored);
-      currentUser = stored;
-      userData = stored;
-      activateDashboardView();
-      await initDashboard();
-      showLoading(false);
-    } else {
-      const stored = Object.assign({}, u, ud, courseFields, { payment_no: ud.payment_no || 'no', status: ud.status || 'pending' });
-      setLocalUser(stored);
-      currentUser = stored;
-      userData = stored;
-      if (el.dashboardContent) el.dashboardContent.classList.add('hidden');
-      stopPaymentPolling();
-      renderPayGet(stored);
-      showLoading(false);
-    }
-  } else {
-    const stored = Object.assign({}, u, applyNewCourseFields(u));
-    setLocalUser(stored);
-    currentUser = stored;
-    userData = stored;
-    if (stored.payment_no === 'yes') {
-      activateDashboardView();
-      await initDashboard();
-    } else {
-      if (el.dashboardContent) el.dashboardContent.classList.add('hidden');
-      stopPaymentPolling();
-      renderPayGet(stored);
-    }
-    showLoading(false);
-  }
-
-  initExamVisibilityGuards();
+  el.addEventListener(event, handler);
 }
-document.addEventListener('DOMContentLoaded', init);
+
+function domReady(fn) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fn, { once: true });
+  } else {
+    fn();
+  }
+}
+
+domReady(() => {
+  ensureAppFreshness();
+  ensureToastWrap();
+  showLoading();
+
+  (async () => {
+    try {
+      const raw = localStorage.getItem('idt_user');
+      if (!raw) {
+        window.location.replace('register.html');
+        return;
+      }
+      user = JSON.parse(raw);
+      if (!user || !user.id) {
+        localStorage.removeItem('idt_user');
+        window.location.replace('register.html');
+        return;
+      }
+      await loadDashboard();
+    } catch (err) {
+      hideLoading();
+      showToast('error', 'Error', 'Something went wrong. Please login again.', err.message || String(err));
+      setTimeout(() => window.location.replace('register.html'), 2500);
+    }
+  })();
+
+  window.addEventListener('load', () => {
+    setTimeout(hideLoading, 600);
+  });
+
+  document.documentElement.classList.add('ready');
+
+  on('menuBtn', 'click', () => {
+    const m = $('sideMenu');
+    if (m) m.classList.add('open');
+  });
+
+  on('menuClose', 'click', () => {
+    const m = $('sideMenu');
+    if (m) m.classList.remove('open');
+  });
+
+  on('menuLogout', 'click', () => {
+    localStorage.removeItem('idt_user');
+    showToast('info', 'Logged Out', 'You have been logged out. Redirecting to login...');
+    setTimeout(() => window.location.replace('register.html'), 1200);
+  });
+
+  on('btnCopyUserId', 'click', async (e) => {
+    const btn = e.currentTarget;
+    const academyId = getAcademyId();
+    try {
+      await copyText(academyId);
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', 'Academy ID Copied!', 'Your ID: ' + academyId);
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    } catch (err) {
+      showToast('error', 'Copy Failed', 'Could not copy your ID.', err.message);
+    }
+  });
+
+  on('pnClose', 'click', closeCoursePush);
+
+  on('pnBody', 'click', () => {});
+
+  on('btnPayNow', 'click', startPayment);
+
+  on('paymentClose', 'click', () => {
+    const po = $('paymentOverlay');
+    if (po) po.classList.remove('open');
+    stopStatusPolling();
+  });
+
+  on('btnCopyAccount', 'click', async (e) => {
+    const btn = e.target.closest('.mini-copy') || e.currentTarget;
+    const val = btn.dataset.copy;
+    if (!val) return;
+    try {
+      await copyText(val);
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', 'Copied!', 'Account number copied to clipboard.');
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    } catch (err) {
+      showToast('error', 'Copy Failed', 'Could not copy.', err.message);
+    }
+  });
+
+  on('btnCopyRef', 'click', async (e) => {
+    const btn = e.target.closest('.mini-copy') || e.currentTarget;
+    const val = btn.dataset.copy;
+    if (!val) return;
+    try {
+      await copyText(val);
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', 'Copied!', 'Payment reference copied to clipboard.');
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    } catch (err) {
+      showToast('error', 'Copy Failed', 'Could not copy.', err.message);
+    }
+  });
+
+  on('btnCopyRefLink', 'click', async (e) => {
+    const btn = e.currentTarget;
+    try {
+      await copyText(buildReferralLink());
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', 'Referral Link Copied!', 'Share this link with your friends and earn ₦1,500 when they pay for any course.');
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    } catch (err) {
+      showToast('error', 'Copy Failed', 'Could not copy the link.', err.message);
+    }
+  });
+
+  on('btnOpenReferralPage', 'click', () => {
+    if (!user) return;
+    window.location.href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent((userData && userData.referral_code) || '');
+  });
+
+  document.querySelectorAll('.social-chip').forEach((chip) => {
+    chip.addEventListener('click', async () => {
+      const link = buildReferralLink();
+      const text = 'Join me at IDT Academy! Learn modern skills online. Use my referral link: ' + link;
+      if (chip.classList.contains('wa')) {
+        window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+        return;
+      }
+      if (chip.classList.contains('x')) {
+        window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
+        return;
+      }
+      if (chip.classList.contains('fb')) {
+        window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(link), '_blank');
+        return;
+      }
+      try {
+        await copyText(link);
+        showToast('success', 'Link Copied!', 'Share it on ' + chip.textContent.trim() + ' and earn ₦1,500 per referral.');
+      } catch (err) {
+        showToast('error', 'Copy Failed', 'Could not copy.', err.message);
+      }
+    });
+  });
+
+  on('userAvatar', 'click', openMyCourses);
+
+  on('pendingCourseBox', 'click', () => {
+    renderCoursePush();
+    const p = $('coursePush');
+    if (p) p.classList.add('open');
+  });
+
+  on('btnPrevTopic', 'click', () => {
+    if (currentTopicIdx > 0) goToTopic(currentTopicIdx - 1);
+  });
+
+  on('btnNextTopic', 'click', () => {
+    if (isProcessingNext) return;
+    advanceTopic();
+  });
+
+  on('btnNotReady', 'click', () => {
+    closeUnderstandModal();
+    pendingNextIdx = -1;
+    showToast('info', 'Good Choice', 'Take your time. Read the topic again and make sure you understand before moving on.');
+  });
+
+  on('btnReady', 'click', () => {
+    handleReady();
+  });
+
+  on('btnCopyText', 'click', async (e) => {
+    const btn = e.currentTarget;
+    try {
+      await copyText((currentTopic && currentTopic.topic_text) || '');
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', 'Text Copied!', 'The full topic text was copied to your clipboard.');
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    } catch (err) {
+      showToast('error', 'Copy Failed', 'Could not copy the text.', err.message);
+    }
+  });
+
+  on('btnAskQuestion', 'click', openChat);
+
+  on('chatClose', 'click', () => {
+    const o = $('chatOverlay');
+    if (o) o.classList.remove('open');
+  });
+
+  on('chatForm', 'submit', handleChatSubmit);
+
+  on('btnExplainLang', 'click', () => {
+    const otherRow = $('otherLangRow');
+    const grid = $('langGrid');
+    const result = $('explainResult');
+    const note = $('explainNote');
+    const overlay = $('explainOverlay');
+    if (otherRow) otherRow.classList.add('hidden');
+    if (grid) grid.classList.remove('hidden');
+    if (result) result.classList.add('hidden');
+    if (note) note.textContent = '';
+    if (overlay) overlay.classList.add('open');
+  });
+
+  on('explainClose', 'click', () => {
+    const o = $('explainOverlay');
+    if (o) o.classList.remove('open');
+  });
+
+  document.querySelectorAll('.lang-btn[data-lang]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      handleExplain(btn.dataset.lang);
+    });
+  });
+
+  on('langOtherBtn', 'click', () => {
+    const row = $('otherLangRow');
+    if (!row) return;
+    row.classList.toggle('hidden');
+    if (!row.classList.contains('hidden')) {
+      const input = $('otherLangInput');
+      if (input) input.focus();
+    }
+  });
+
+  on('btnSendOtherLang', 'click', () => {
+    const input = $('otherLangInput');
+    const lang = (input && input.value.trim()) || '';
+    if (!lang) {
+      showToast('error', 'Language Required', 'Please type the language you want.', '');
+      return;
+    }
+    handleExplain(lang);
+  });
+
+  on('assessClose', 'click', () => {
+    const o = $('assessmentOverlay');
+    if (o) o.classList.remove('open');
+    if (quizState && quizState.stream) {
+      stopCamera();
+    }
+    if (quizState && quizState.timer) clearInterval(quizState.timer);
+    detachAntiCheat();
+  });
+
+  on('btnStartAssessment', 'click', startAssessmentFlow);
+
+  on('btnPrevQ', 'click', () => {
+    if (quizState && quizState.currentQ > 0) {
+      quizState.currentQ--;
+      renderQuestion();
+    }
+  });
+
+  on('btnNextQ', 'click', () => {
+    if (!quizState) return;
+    const q = quizState.questions[quizState.currentQ];
+    if (q && q.type !== 'write' && Array.isArray(q.options) && q.options.length && quizState.answers[quizState.currentQ] === '') {
+      showToast('info', 'Choose An Answer', 'Please select an answer before continuing.', '');
+      return;
+    }
+    if (quizState.currentQ < quizState.questions.length - 1) {
+      quizState.currentQ++;
+      renderQuestion();
+    }
+  });
+
+  on('btnSubmitQuiz', 'click', () => {
+    submitQuiz(false);
+  });
+
+  on('btnDownloadPdf', 'click', downloadResultPdf);
+
+  on('btnEmailResult', 'click', emailResult);
+
+  on('btnContinueStudy', 'click', () => {
+    const o = $('assessmentOverlay');
+    if (o) o.classList.remove('open');
+    if (window._assessBatch > 0) {
+      const batch = window._assessBatch;
+      window._assessBatch = 0;
+      goToTopic(batch);
+    }
+  });
+
+  on('btnGoExam', 'click', () => {
+    const o = $('assessmentOverlay');
+    if (o) o.classList.remove('open');
+    window.location.href = 'exam.html?course_id=' + encodeURIComponent(activeCourseId) + '&user_id=' + encodeURIComponent(user.id);
+  });
+
+  on('btnGoExamModal', 'click', () => {
+    const m = $('completionModal');
+    if (m) m.classList.remove('open');
+    window.location.href = 'exam.html?course_id=' + encodeURIComponent(activeCourseId) + '&user_id=' + encodeURIComponent(user.id);
+  });
+
+  on('sideMenu', 'click', (e) => {
+    const sm = $('sideMenu');
+    if (e.target === sm) sm.classList.remove('open');
+  });
+
+  window.__idtDashboardLoaded = true;
+});
