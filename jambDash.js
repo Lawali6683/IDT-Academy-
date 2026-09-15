@@ -413,6 +413,8 @@ function startPaymentFlow() {
   beginPaymentPolling();
 }
 
+
+
 async function requestPaymentDetails() {
   const u = getLocalUser();
   if (!u) return;
@@ -426,7 +428,7 @@ async function requestPaymentDetails() {
       body: JSON.stringify({
         user_id: u.id,
         email: u.email,
-        price: Number(u.jambCoursePrice) || 3500
+        price: 3500
       })
     });
 
@@ -451,7 +453,7 @@ async function requestPaymentDetails() {
       if (el.payAccountNumber) el.payAccountNumber.textContent = data.account_number;
       if (el.payAccountName) el.payAccountName.textContent = data.account_name || '';
       if (el.payBankName) el.payBankName.textContent = data.bank_name || '';
-      if (el.payAmount) el.payAmount.textContent = '₦' + Number(data.amount || u.jambCoursePrice || 3500).toLocaleString();
+      if (el.payAmount) el.payAmount.textContent = '₦' + Number(3500).toLocaleString();
 
       setupCopyButton();
       hidePayError();
@@ -459,7 +461,7 @@ async function requestPaymentDetails() {
       window.location.href = data.authorization_url;
       return;
     } else {
-      showPayError('Unable to generate bank transfer details. Please try again later.');
+      showPayGetError('Unable to generate bank transfer details. Please try again later.');
       return;
     }
 
@@ -479,16 +481,55 @@ async function requestPaymentDetails() {
   }
 }
 
+
+
 function renderPayGet(u) {
-  if (el.payGetCourseName) el.payGetCourseName.textContent = u.jambCourseName || 'JAMB Preparation Course';
-  if (el.payGetSubjects) {
-    const subs = Array.isArray(u.jambCourseSubjects) ? u.jambCourseSubjects : [];
-    el.payGetSubjects.textContent = subs.length > 0 ? subs.join(' • ') : 'English + 3 subjects';
+  if (!el.payGetOverlay) return;
+
+  if (hasCourseData(u)) {
+    if (el.payGetCourseName) el.payGetCourseName.textContent = u.jambCourseName || 'JAMB Preparation Course';
+    if (el.payGetSubjects) {
+      const subs = Array.isArray(u.jambCourseSubjects) ? u.jambCourseSubjects : [];
+      el.payGetSubjects.textContent = subs.length > 0 ? subs.join(' • ') : 'English + 3 subjects';
+    }
+    if (el.payGetAmount) el.payGetAmount.textContent = '₦' + Number(3500).toLocaleString();
+    if (el.payNowBtn) {
+      el.payNowBtn.disabled = false;
+      el.payNowBtn.innerHTML = '<i class="fas fa-credit-card"></i> Pay Now';
+    }
+    if (el.changeCourseBtn) {
+      el.changeCourseBtn.innerHTML = '<i class="fas fa-repeat"></i> Change Course Department';
+    }
+    hidePayGetError();
+  } else {
+    if (el.payGetCourseName) el.payGetCourseName.textContent = 'Select Your Department';
+    if (el.payGetSubjects) el.payGetSubjects.textContent = 'You have not selected a course department yet. Please choose the department that matches your desired course.';
+    if (el.payGetAmount) el.payGetAmount.textContent = '₦' + Number(3500).toLocaleString();
+    if (el.payNowBtn) {
+      el.payNowBtn.disabled = true;
+      el.payNowBtn.innerHTML = '<i class="fas fa-lock"></i> Select Department to Enable Payment';
+    }
+    if (el.changeCourseBtn) {
+      el.changeCourseBtn.innerHTML = '<i class="fas fa-list"></i> Select Department Now';
+    }
+    showPayGetError('You must select your course department before you can pay. Please click "Select Department Now" and choose your department.');
   }
-  if (el.payGetAmount) el.payGetAmount.textContent = '₦' + (Number(u.jambCoursePrice) || 3500).toLocaleString();
-  hidePayGetError();
+
   el.payGetOverlay.classList.add('active');
 }
+
+function hasCourseData(u) {
+  if (!u) return false;
+  const id = String(u.jambCourseId || '').trim();
+  const name = String(u.jambCourseName || '').trim();
+  const subjects = Array.isArray(u.jambCourseSubjects) ? u.jambCourseSubjects : [];
+  const badValues = ['', 'a/n', 'an', 'n/a', 'na', 'null', 'undefined', 'none'];
+  if (badValues.indexOf(id.toLowerCase()) !== -1) return false;
+  if (badValues.indexOf(name.toLowerCase()) !== -1) return false;
+  if (subjects.length === 0) return false;
+  return true;
+}
+
 
 function renderDeptGrid(u) {
   if (!el.deptGrid) return;
@@ -510,6 +551,8 @@ function showCourseSelect() {
   renderDeptGrid(u);
   el.courseSelectOverlay.classList.add('active');
 }
+
+
 
 async function selectDepartment(dept, btn) {
   const u = getLocalUser();
@@ -548,13 +591,14 @@ async function selectDepartment(dept, btn) {
       jambCourseId: data.jambCourseId,
       jambCourseName: data.jambCourseName,
       jambCourseSubjects: data.jambCourseSubjects,
-      jambCoursePrice: data.jambCoursePrice
+      jambCoursePrice: 3500
     });
     setLocalUser(updated);
     currentUser = updated;
     userData = updated;
 
-    showToast(data.message || 'Your course has been updated successfully.', 'success');
+    showToast(data.message || 'Your department has been selected successfully. You can now pay ₦3,500.', 'success', 6000);
+
     el.courseSelectOverlay.classList.remove('active');
     renderPayGet(updated);
 
@@ -568,9 +612,19 @@ async function selectDepartment(dept, btn) {
 
 el.changeCourseBtn.addEventListener('click', showCourseSelect);
 
+
+
+
 el.payNowBtn.addEventListener('click', async function() {
   const u = getLocalUser();
   if (!u) return;
+
+  if (!hasCourseData(u)) {
+    showPayGetError('You must select your course department first. Please choose your department, then you can pay ₦3,500.');
+    showToast('Select your department first before paying.', 'warning', 6000);
+    showCourseSelect();
+    return;
+  }
 
   this.disabled = true;
   if (el.payNowLoading) el.payNowLoading.classList.remove('hidden');
@@ -583,7 +637,7 @@ el.payNowBtn.addEventListener('click', async function() {
       body: JSON.stringify({
         user_id: u.id,
         email: u.email,
-        price: Number(u.jambCoursePrice) || 3500
+        price: 3500
       })
     });
 
@@ -614,7 +668,7 @@ el.payNowBtn.addEventListener('click', async function() {
       if (el.payAccountNumber) el.payAccountNumber.textContent = data.account_number;
       if (el.payAccountName) el.payAccountName.textContent = data.account_name || '';
       if (el.payBankName) el.payBankName.textContent = data.bank_name || '';
-      if (el.payAmount) el.payAmount.textContent = '₦' + Number(data.amount || u.jambCoursePrice || 3500).toLocaleString();
+      if (el.payAmount) el.payAmount.textContent = '₦' + Number(3500).toLocaleString();
       setupCopyButton();
       el.payGetOverlay.classList.remove('active');
       el.paymentOverlay.classList.add('active');
@@ -634,8 +688,13 @@ el.payNowBtn.addEventListener('click', async function() {
   } finally {
     this.disabled = false;
     if (el.payNowLoading) el.payNowLoading.classList.add('hidden');
+    if (!hasCourseData(getLocalUser())) {
+      this.disabled = true;
+      this.innerHTML = '<i class="fas fa-lock"></i> Select Department to Enable Payment';
+    }
   }
 });
+
 
 function startPayTimer() {
   if (payTimerInterval) clearInterval(payTimerInterval);
@@ -690,10 +749,12 @@ async function checkAndInitUser() {
     setLocalUser(stored);
     currentUser = stored;
     userData = stored;
+    stopPaymentPolling();
     renderPayGet(stored);
-    beginPaymentPolling();
   }
 }
+
+
 
 async function initDashboard() {
   const u = getLocalUser();
@@ -1754,14 +1815,8 @@ async function init() {
       currentUser = stored;
       userData = stored;
       if (el.dashboardContent) el.dashboardContent.classList.add('hidden');
-      const paid = await checkPaymentStatus(u.id);
-      if (paid) {
-        activateDashboardView();
-        await initDashboard();
-      } else {
-        renderPayGet(stored);
-        beginPaymentPolling();
-      }
+      stopPaymentPolling();
+      renderPayGet(stored);
       showLoading(false);
     }
   } else {
@@ -1774,13 +1829,12 @@ async function init() {
       await initDashboard();
     } else {
       if (el.dashboardContent) el.dashboardContent.classList.add('hidden');
+      stopPaymentPolling();
       renderPayGet(stored);
-      beginPaymentPolling();
     }
     showLoading(false);
   }
 
   initExamVisibilityGuards();
 }
-
 document.addEventListener('DOMContentLoaded', init);
