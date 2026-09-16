@@ -652,12 +652,12 @@ async function loadTopicsFor(courseId) {
   }
 }
 
+
+
 function pickDefaultCourse() {
   if (courseList.length === 1) return courseList[0].course_id;
   const unfinished = courseList.find((c) => {
-    const lv = String(userData.level_completed || '');
     const topicCount = (topicsMap[c.course_id] || []).length;
-    if (lv === 'final') return false;
     const batch = readingHistory[c.course_id];
     if (typeof batch === 'number' && topicCount > 0 && batch >= topicCount - 1) return false;
     return true;
@@ -908,6 +908,8 @@ function renderCourseSwitch() {
   });
 }
 
+
+
 async function selectCourse(courseId) {
   activeCourseId = courseId;
   renderCourseSwitch();
@@ -917,10 +919,6 @@ async function selectCourse(courseId) {
   regDate = userData.date_registered || null;
   const savedIdx = typeof readingHistory[courseId] === 'number' ? readingHistory[courseId] : 0;
   currentTopicIdx = Math.min(Math.max(0, savedIdx), Math.max(0, currentTopics.length - 1));
-  const lv = String(userData.level_completed || '');
-  if (lv === 'final' && currentTopics.length) {
-    currentTopicIdx = currentTopics.length - 1;
-  }
   const topicCard = $('topicCard');
   const emptyState = $('emptyState');
   renderUserGreet();
@@ -937,14 +935,16 @@ async function selectCourse(courseId) {
   showToast('success', 'Course Loaded', 'Welcome to ' + ((courseInfoMap[courseId] || {}).course_name || 'your course') + '. Happy learning!');
 }
 
+
 function renderProgress() {
   const total = currentTopics.length;
   const arr = watchedMap[activeCourseId] || [];
   let completed = arr.length;
-  const lv = String((userData && userData.level_completed) || '');
-  if (lv === 'final') completed = total;
+  const finalTopicIdx = currentTopics.findIndex((t) => t.is_final === true);
+  const finishedFinal = finalTopicIdx !== -1 && isWatched(finalTopicIdx);
+  if (finishedFinal) completed = Math.max(completed, finalTopicIdx + 1);
   if (typeof readingHistory[activeCourseId] === 'number') {
-    completed = Math.max(completed, Math.min(readingHistory[activeCourseId], total));
+    completed = Math.max(completed, Math.min(readingHistory[activeCourseId] + 1, total));
   }
   const pct = total ? Math.round((completed / total) * 100) : 0;
   const pc = $('progressCount');
@@ -955,7 +955,7 @@ function renderProgress() {
   if (pf) pf.style.width = pct + '%';
   const badge = $('levelBadge');
   if (badge) {
-    if (lv === 'final') {
+    if (finishedFinal) {
       badge.className = 'level-badge final';
       badge.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> Final Level Completed';
     } else {
@@ -965,13 +965,15 @@ function renderProgress() {
   }
   const banner = $('completeBanner');
   if (banner) {
-    if (lv === 'final') {
+    if (finishedFinal) {
       banner.classList.remove('hidden');
     } else {
       banner.classList.add('hidden');
     }
   }
 }
+
+
 
 function renderDiplomaLock() {
   const lock = $('videoLock');
@@ -1071,18 +1073,19 @@ function renderTopic() {
   if (nextIsFinal) {
     waitMsg = document.createElement('div');
     waitMsg.id = 'waitNextWeekMsg';
-    waitMsg.style.cssText = 'margin:16px 0;padding:18px 16px;border-radius:14px;background:rgba(245,158,11,.08);border:1.5px solid rgba(245,158,11,.35);text-align:center';
+    waitMsg.style.cssText = 'margin:16px 18px;padding:18px 16px;border-radius:14px;background:rgba(245,158,11,.08);border:1.5px solid rgba(245,158,11,.35);text-align:center';
     waitMsg.innerHTML = '<i class="fa-solid fa-hourglass-half" style="font-size:26px;color:#f59e0b"></i>' +
       '<div style="font-size:15px;font-weight:800;color:#1e1b4b;margin-top:10px">Wait Next Week Topic</div>' +
       '<div style="font-size:12px;color:#6d6a8a;margin-top:6px">You have finished all the available topics for now. The final topic will open next week. Please check back later.</div>';
-    const btnNextEl = $('btnNextTopic');
-    if (btnNextEl && btnNextEl.parentElement) {
-      btnNextEl.parentElement.insertBefore(waitMsg, btnNextEl);
+    const navRow = document.querySelector('.topic-card .nav-row');
+    if (navRow && navRow.parentElement) {
+      navRow.parentElement.insertBefore(waitMsg, navRow);
     }
   }
+  const banner = $('completeBanner');
+  if (banner) banner.classList.add('hidden');
   renderProgress();
 }
-
 
 
 function renderVideo() {
@@ -1186,11 +1189,13 @@ function closeUnderstandModal() {
 
 
 
+
+
 async function advanceTopic() {
   if (isProcessingNext) return;
   if (!currentTopics.length) return;
   const nextIdx = currentTopicIdx + 1;
-  if (currentTopic.is_final === true) {
+  if (currentTopic && currentTopic.is_final === true) {
     await finishCourse();
     return;
   }
@@ -1217,7 +1222,6 @@ async function advanceTopic() {
   openUnderstandModal();
   pendingNextIdx = nextIdx;
 }
-
 
 async function finishCourse() {
   const total = currentTopics.length;
@@ -1272,7 +1276,6 @@ async function handleReady() {
   }
   await goToTopic(idx);
 }
-
 
 function formatDuration(ms) {
   const h = Math.floor(ms / (60 * 60 * 1000));
@@ -1642,6 +1645,10 @@ async function submitQuiz(timedOut) {
   }
 }
 
+
+
+
+
 function showResult(score, pct, passed, results, timedOut, message) {
   const quiz = $('assessQuiz');
   const result = $('assessResult');
@@ -1695,8 +1702,8 @@ function showResult(score, pct, passed, results, timedOut, message) {
   if (list) list.innerHTML = listHtml || '<div class="result-item">No detailed breakdown available.</div>';
   const btnGoExam = $('btnGoExam');
   const btnCont = $('btnContinueStudy');
-  const atFinal = currentTopicIdx >= currentTopics.length - 1;
-  if (passed && atFinal && btnGoExam && btnCont) {
+  const currentTopicIsFinal = Boolean(currentTopic && currentTopic.is_final === true);
+  if (passed && currentTopicIsFinal && btnGoExam && btnCont) {
     btnCont.classList.add('hidden');
     btnGoExam.classList.remove('hidden');
   } else if (btnGoExam && btnCont) {
@@ -1709,6 +1716,8 @@ function showResult(score, pct, passed, results, timedOut, message) {
     showToast('error', 'Time Up', 'The ' + Math.round(QUIZ_SECONDS / 60) + ' minutes finished. Your answers were submitted automatically.', '');
   }
 }
+
+
 
 function confetti() {
   const c = document.createElement('canvas');
