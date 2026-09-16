@@ -344,6 +344,16 @@ function isValidCourseId(v) {
   return Boolean(s) && s.toUpperCase() !== 'N/A' && s.toLowerCase() !== 'null' && s.toLowerCase() !== 'undefined';
 }
 
+function isCourseMissing(ud) {
+  const cid = String((ud && ud.course_id) || '').trim();
+  const cname = String((ud && ud.course_name) || '').trim().toUpperCase();
+  const cprice = Number((ud && (ud.course_price || ud.price)) || 0);
+  if (!cid || cid.toUpperCase() === 'N/A' || cid === 'null' || cid === 'undefined') return true;
+  if (!cname || cname === 'N/A' || cname === 'NULL' || cname === 'UNDEFINED') return true;
+  if (!cprice) return true;
+  return false;
+}
+
 function collectCourses(ud) {
   const arr = [];
   const main = {
@@ -357,12 +367,14 @@ function collectCourses(ud) {
   for (let n = 2; n <= 20; n++) {
     const cid = ud[n + 'course_id'];
     if (!isValidCourseId(cid)) continue;
+    const st = String(ud[n + 'course_status'] || 'active').toLowerCase();
+    if (st !== 'active') continue;
     arr.push({
       course_id: String(cid).trim(),
       course_name: ud[n + 'course_name'] || '',
       course_number: ud[n + 'course_number'] || '000',
       course_price: Number(ud[n + 'course_price'] || 0),
-      status: ud[n + 'course_status'] || 'active'
+      status: 'active'
     });
   }
   const seen = {};
@@ -373,14 +385,29 @@ function collectCourses(ud) {
   });
 }
 
-function isCourseMissing(ud) {
-  const cid = String((ud && ud.course_id) || '').trim();
-  const cname = String((ud && ud.course_name) || '').trim().toUpperCase();
-  const cprice = Number((ud && (ud.course_price || ud.price)) || 0);
-  if (!cid || cid.toUpperCase() === 'N/A' || cid === 'null' || cid === 'undefined') return true;
-  if (!cname || cname === 'N/A' || cname === 'NULL' || cname === 'UNDEFINED') return true;
-  if (!cprice) return true;
-  return false;
+function getPrimaryCourse() {
+  if (!userData || typeof userData !== 'object') {
+    return { course_id: '', course_name: '', course_number: '', course_price: 0, valid: false };
+  }
+  const cid = String(userData.course_id || '').trim();
+  const cname = String(userData.course_name || '').trim();
+  const cnum = String(userData.course_number || '').trim();
+  const cprice = Number(userData.course_price || userData.price || 0);
+  const validId = isValidCourseId(cid);
+  const validName = cname &&
+    cname.toUpperCase() !== 'N/A' &&
+    cname.toUpperCase() !== 'NULL' &&
+    cname.toUpperCase() !== 'UNDEFINED';
+  if (validId && validName && cprice > 0) {
+    return {
+      course_id: cid,
+      course_name: cname,
+      course_number: cnum || '000',
+      course_price: cprice,
+      valid: true
+    };
+  }
+  return { course_id: '', course_name: '', course_number: '', course_price: 0, valid: false };
 }
 
 async function loadUpdateTable() {
@@ -1989,7 +2016,7 @@ function markdownToHtml(md) {
   let html = escapeHtml(String(md || ''));
   html = html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
   html = html.replace(/\*(.+?)\*/g, '<i>$1</i>');
-  html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+  html = html.replace(/`(.+?)\`/g, '<code>$1</code>');
   html = html.replace(/\n/g, '<br>');
   return html;
 }
@@ -2127,40 +2154,6 @@ async function handleExplain(lang) {
   }
 }
 
-
-
-
-function getPrimaryCourse() {
-  const cid = String((userData && userData.course_id) || '').trim();
-  const cname = String((userData && userData.course_name) || '').trim();
-  const cnum = String((userData && userData.course_number) || '').trim();
-  const cprice = Number((userData && (userData.course_price || userData.price)) || 0);
-  const validId = cid &&
-    cid.toUpperCase() !== 'N/A' &&
-    cid.toLowerCase() !== 'null' &&
-    cid.toLowerCase() !== 'undefined';
-  const validName = cname &&
-    cname.toUpperCase() !== 'N/A' &&
-    cname.toUpperCase() !== 'NULL' &&
-    cname.toUpperCase() !== 'UNDEFINED';
-  if (validId && validName && cprice > 0) {
-    return {
-      course_id: cid,
-      course_name: cname,
-      course_number: cnum || '000',
-      course_price: cprice,
-      valid: true
-    };
-  }
-  return {
-    course_id: '',
-    course_name: '',
-    course_number: '',
-    course_price: 0,
-    valid: false
-  };
-}
-
 function startCountdown() {
   if (!paymentState) return;
   if (paymentState.timer) clearInterval(paymentState.timer);
@@ -2247,9 +2240,6 @@ function stopAllPayLinks() {
   const box = $('payTransferLinkBox');
   if (box) box.remove();
 }
-
-
-
 
 async function startPayment() {
   const course = getPrimaryCourse();
@@ -2376,10 +2366,6 @@ async function startPayment() {
   }
 }
 
-
-
-
-
 async function loadDashboard() {
   showLoading();
   try {
@@ -2395,6 +2381,15 @@ async function loadDashboard() {
     renderUserGreet();
     const status = String((userData && userData.status) || 'pending');
     if (status !== 'active') {
+      const primary = getPrimaryCourse();
+      if (!primary.valid) {
+        const safe = JSON.parse(localStorage.getItem('idt_user') || '{}');
+        delete safe.course_id;
+        delete safe.course_name;
+        delete safe.course_number;
+        delete safe.course_price;
+        localStorage.setItem('idt_user', JSON.stringify(safe));
+      }
       renderPendingGate();
       const gate = $('pendingGate');
       if (gate) gate.classList.add('open');
@@ -2408,20 +2403,23 @@ async function loadDashboard() {
     }
     const gate = $('pendingGate');
     if (gate) gate.classList.remove('open');
-    if (courseList.length === 0) {
+    const paidCourses = courseList.filter((c) => String(c.status || '').toLowerCase() === 'active' || c.course_id === String(userData.course_id || '').trim());
+    if (paidCourses.length === 0) {
       hideLoading();
-      showToast('error', 'No Course Found', 'No course is linked to your account. Please contact support.', '');
+      showToast('info', 'No Paid Course', 'No paid course was found on your account. Please select a course and complete your payment.', '');
+      openCoursePush();
       return;
     }
-    if (courseList.length > 1) {
+    if (paidCourses.length > 1) {
       hideLoading();
       const app = $('app');
       if (app) app.classList.remove('hidden');
+      courseList = paidCourses;
       openMyCourses();
-      showToast('info', 'Choose Your Course', 'You have ' + courseList.length + ' courses. Tap the one you want to study.', '');
+      showToast('info', 'Choose Your Course', 'You have ' + paidCourses.length + ' paid courses. Tap the one you want to study.', '');
       return;
     }
-    const cid = pickDefaultCourse();
+    const cid = paidCourses[0].course_id;
     if (!cid) {
       hideLoading();
       showToast('error', 'No Course Found', 'No course is linked to your account. Please contact support.', '');
@@ -2505,6 +2503,22 @@ domReady(() => {
     setTimeout(() => window.location.replace('register.html'), 1200);
   });
 
+  const smMyCourse = $('smMyCourse');
+  if (smMyCourse) {
+    smMyCourse.addEventListener('click', (e) => {
+      e.preventDefault();
+      const sm = $('sideMenu');
+      if (sm) sm.classList.remove('open');
+      if (courseList.length > 0) {
+        openMyCourses();
+      } else {
+        openCoursePush();
+        const sub = $('pnSub');
+        if (sub) sub.textContent = 'You have no course yet. Pick a course below to continue.';
+      }
+    });
+  }
+
   on('btnCopyUserId', 'click', async (e) => {
     const btn = e.currentTarget;
     const academyId = getAcademyId();
@@ -2561,7 +2575,7 @@ domReady(() => {
     }
   });
 
-  on('btnCopyRefLink', 'click', async (e) => {
+ on('btnCopyRefLink', 'click', async (e) => {
     const btn = e.currentTarget;
     try {
       await copyText(buildReferralLink());
