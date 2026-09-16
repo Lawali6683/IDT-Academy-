@@ -995,11 +995,19 @@ function renderDiplomaLock() {
   return false;
 }
 
+
+
+
+
+
+
 function renderTopic() {
   if (!currentTopics.length) return;
   currentTopic = currentTopics[currentTopicIdx];
   const total = currentTopics.length;
-  const isFinalTopic = currentTopic.is_final === true || currentTopicIdx === total - 1;
+  const isFinalTopic = currentTopic.is_final === true;
+  const hasNext = currentTopicIdx + 1 < total;
+  const nextIsFinal = hasNext && currentTopics[currentTopicIdx + 1].is_final === true;
   const num = $('topicNumber');
   const numL = $('topicNumLabel');
   const totalL = $('topicTotalLabel');
@@ -1040,20 +1048,42 @@ function renderTopic() {
     if (isFinalTopic) {
       btnNext.textContent = 'Finish Course';
       btnNext.classList.add('finish');
+      btnNext.disabled = false;
+      btnNext.classList.remove('hidden');
+    } else if (nextIsFinal) {
+      btnNext.classList.add('hidden');
+      btnNext.disabled = true;
     } else {
       btnNext.textContent = 'Next';
       btnNext.classList.remove('finish');
-    }
-    if (diplomaMode && currentTopicIdx > weeksSince(regDate)) {
-      btnNext.disabled = true;
-    } else {
-      btnNext.disabled = false;
+      btnNext.classList.remove('hidden');
+      if (diplomaMode && currentTopicIdx > weeksSince(regDate)) {
+        btnNext.disabled = true;
+      } else {
+        btnNext.disabled = false;
+      }
     }
   }
   const btnPrev = $('btnPrevTopic');
   if (btnPrev) btnPrev.disabled = currentTopicIdx === 0;
+  let waitMsg = document.getElementById('waitNextWeekMsg');
+  if (waitMsg) waitMsg.remove();
+  if (nextIsFinal) {
+    waitMsg = document.createElement('div');
+    waitMsg.id = 'waitNextWeekMsg';
+    waitMsg.style.cssText = 'margin:16px 0;padding:18px 16px;border-radius:14px;background:rgba(245,158,11,.08);border:1.5px solid rgba(245,158,11,.35);text-align:center';
+    waitMsg.innerHTML = '<i class="fa-solid fa-hourglass-half" style="font-size:26px;color:#f59e0b"></i>' +
+      '<div style="font-size:15px;font-weight:800;color:#1e1b4b;margin-top:10px">Wait Next Week Topic</div>' +
+      '<div style="font-size:12px;color:#6d6a8a;margin-top:6px">You have finished all the available topics for now. The final topic will open next week. Please check back later.</div>';
+    const btnNextEl = $('btnNextTopic');
+    if (btnNextEl && btnNextEl.parentElement) {
+      btnNextEl.parentElement.insertBefore(waitMsg, btnNextEl);
+    }
+  }
   renderProgress();
 }
+
+
 
 function renderVideo() {
   const wrap = $('videoWrap');
@@ -1154,12 +1184,23 @@ function closeUnderstandModal() {
   if (m) m.classList.remove('open');
 }
 
+
+
 async function advanceTopic() {
   if (isProcessingNext) return;
   if (!currentTopics.length) return;
   const nextIdx = currentTopicIdx + 1;
-  if (nextIdx >= currentTopics.length) {
+  if (currentTopic.is_final === true) {
     await finishCourse();
+    return;
+  }
+  if (nextIdx >= currentTopics.length) {
+    showToast('info', 'Wait Next Week Topic', 'You have finished all the available topics for now. The final topic will open next week. Please check back later.', '');
+    return;
+  }
+  if (currentTopics[nextIdx].is_final === true) {
+    renderTopic();
+    showToast('info', 'Wait Next Week Topic', 'You have finished all the available topics for now. The final topic will open next week. Please check back later.', '');
     return;
   }
   if (topicNeedsWatch(currentTopicIdx) && !isWatched(currentTopicIdx)) {
@@ -1176,6 +1217,7 @@ async function advanceTopic() {
   openUnderstandModal();
   pendingNextIdx = nextIdx;
 }
+
 
 async function finishCourse() {
   const total = currentTopics.length;
@@ -1200,13 +1242,16 @@ async function finishCourse() {
   if (modal) modal.classList.add('open');
 }
 
+
+
+
 async function handleReady() {
   closeUnderstandModal();
   if (pendingNextIdx < 0) return;
   const idx = pendingNextIdx;
   pendingNextIdx = -1;
   const batch = idx;
-  if (batch % ASSESS_BATCH_SIZE === 0 && batch < currentTopics.length) {
+  if (batch % ASSESS_BATCH_SIZE === 0 && batch < currentTopics.length && currentTopics[batch] && currentTopics[batch].is_final !== true) {
     const key = activeCourseId + '_' + batch;
     if ((passedBatches[key] || []).indexOf(batch) !== -1) {
       await goToTopic(idx);
@@ -1227,6 +1272,7 @@ async function handleReady() {
   }
   await goToTopic(idx);
 }
+
 
 function formatDuration(ms) {
   const h = Math.floor(ms / (60 * 60 * 1000));
@@ -2241,6 +2287,8 @@ function stopAllPayLinks() {
   if (box) box.remove();
 }
 
+
+
 async function startPayment() {
   const course = getPrimaryCourse();
   if (!course.valid || !course.course_price || !course.course_id) {
@@ -2251,6 +2299,13 @@ async function startPayment() {
     return;
   }
   const price = Number(course.course_price || 0);
+  if (price === 3500) {
+    showToast('error', 'Invalid Course Price', 'This course price is not valid for payment. Please select a course from the list below.', '');
+    openCoursePush();
+    const sub = $('pnSub');
+    if (sub) sub.textContent = 'Please select a valid course below to continue with your payment.';
+    return;
+  }
   const payBtn = $('btnPayNow');
   if (!payBtn) return;
   const oldBtnHtml = payBtn.innerHTML;
@@ -2365,6 +2420,9 @@ async function startPayment() {
     showToast('error', 'Payment Failed', 'Could not create payment details. Please try again.', err.message || String(err));
   }
 }
+
+
+
 
 async function loadDashboard() {
   showLoading();
