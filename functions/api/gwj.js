@@ -24,29 +24,64 @@ function json(obj, status) {
 async function gemini(env, systemText, userText, maxTokens) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 55000);
+  const started = Date.now();
   try {
     const payload = {
       systemInstruction: { parts: [{ text: systemText }] },
       contents: [{ role: 'user', parts: [{ text: userText }] }],
       generationConfig: { temperature: 0.4, maxOutputTokens: maxTokens || 8192 }
     };
-    const res = await fetch('https://generativelanguage.googleapis.com/v1/models/' + MODEL + ':generateContent?key=' + encodeURIComponent(env.GEMINI_API_KEY), {
+    const url = 'https://generativelanguage.googleapis.com/v1/models/' + MODEL + ':generateContent?key=' + encodeURIComponent(env.GEMINI_API_KEY);
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       signal: ctrl.signal
     });
-    const data = await res.json();
+    const rawText = await res.text();
+    let data = null;
+    try { data = JSON.parse(rawText); } catch { data = null; }
+
     if (!res.ok) {
-      const msg = data && data.error && data.error.message ? data.error.message : 'Gemini API error';
-      throw new Error(msg);
+      const err = new Error(
+        (data && data.error && data.error.message) ? data.error.message :
+        (rawText && rawText.length) ? rawText.slice(0, 2000) :
+        'Gemini API error HTTP ' + res.status
+      );
+      err.upstream = {
+        status: res.status,
+        statusText: res.statusText,
+        body: data || rawText
+      };
+      throw err;
     }
-    const text = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] ? data.candidates[0].content.parts[0].text : '';
+
+    const cand = data && data.candidates && data.candidates[0];
+    const text = cand && cand.content && cand.content.parts && cand.content.parts[0] ? cand.content.parts[0].text : '';
+
     if (!text) {
-      const reason = data && data.promptFeedback && data.promptFeedback.blockReason ? data.promptFeedback.blockReason : 'No response from model';
-      throw new Error(reason);
+      const err = new Error(
+        (data && data.promptFeedback && data.promptFeedback.blockReason) ? 'Blocked: ' + data.promptFeedback.blockReason :
+        'No response text from model'
+      );
+      err.upstream = {
+        status: res.status,
+        statusText: res.statusText,
+        finishReason: cand && cand.finishReason ? cand.finishReason : null,
+        body: data || rawText
+      };
+      throw err;
     }
-    return text;
+
+    return {
+      text,
+      debug: {
+        model: MODEL,
+        durationMs: Date.now() - started,
+        finishReason: cand && cand.finishReason ? cand.finishReason : null,
+        usageMetadata: data && data.usageMetadata ? data.usageMetadata : null
+      }
+    };
   } finally {
     clearTimeout(timer);
   }
@@ -60,7 +95,11 @@ export async function onRequest(context) {
   }
 
   if (!env || !env.GEMINI_API_KEY) {
-    return json({ error: { message: 'GEMINI_API_KEY ba a saita ba. A saka a Cloudflare Pages > Settings > Environment variables.' } }, 500);
+    return json({
+      ok: false,
+      error: { message: 'GEMINI_API_KEY ba a samu ba a cikin env', type: 'config' },
+      debug: { envKeys: env ? Object.keys(env) : [], hint: 'Cloudflare Pages > Settings > Environment variables > Production & Preview' }
+    }, 500);
   }
 
   let prompt = '';
@@ -73,26 +112,35 @@ export async function onRequest(context) {
       const body = await request.json();
       prompt = body.prompt || body.q || body.question || body.message || '';
     } catch {
-      return json({ error: { message: 'JSON body ba daidai ba. Aiko { "prompt": "tambayarka" }' } }, 400);
+      return json({ ok: false, error: { message: 'JSON body ba daidai ba. Aiko { "prompt": "tambayarka" }', type: 'bad_request' } }, 400);
     }
   } else {
-    return json({ error: { message: 'Method ba a goyan baya ba. Yi amfani da GET ko POST.' } }, 405);
+    return json({ ok: false, error: { message: 'Method ba a goyan baya ba. Yi amfani da GET ko POST.', type: 'bad_request' }, debug: { method: request.method } }, 405);
   }
 
   if (!prompt.trim()) {
-    return json({ error: { message: 'Tambaya babu kaya. Aiko da { "prompt": "..." }' } }, 400);
+    return json({ ok: false, error: { message: 'Tambaya babu kaya. Aiko da { "prompt": "..." }', type: 'bad_request' } }, 400);
   }
 
   try {
-    const answer = await gemini(env, 'Kai taimaki ne mai hikima. Amsa tambayoyi da kyau a hausar da turanci idan an bukata.', prompt, 8192);
-    return json({ ok: true, answer, model: MODEL });
+    const r = await gemini(env, 'Kai taimaki ne mai hikima. Amsa tambayoyi da kyau a hausar da turanci idan an bukata.', prompt, 8192);
+    return json({ ok: true, answer: r.text, debug: r.debug });
   } catch (e) {
     const isAbort = e.name === 'AbortError';
+    const status = isAbort ? 504 : (e.upstream && e.upstream.status ? e.upstream.status : 500);
     return json({
+      ok: false,
       error: {
+        type: isAbort ? 'timeout' : (e.upstream ? 'gemini_api' : 'internal'),
         message: isAbort ? 'Lokaci ya wuce (timeout 55s). Gwada sake.' : (e.message || 'Matsala ta ciki'),
-        type: isAbort ? 'timeout' : 'api_error'
+        status
+      },
+      debug: {
+        method: request.method,
+        durationMs: null,
+        upstream: e.upstream || null,
+        stack: e.stack ? e.stack.split('\n').slice(0, 5) : null
       }
-    }, 502);
+    }, isAbort ? 504 : 502);
   }
 }
