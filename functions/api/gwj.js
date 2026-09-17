@@ -1,110 +1,98 @@
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
-  'Access-Control-Max-Age': '86400'
-};
+export const config = { path: '/api/gwj' };
 
-async function fetchUserFromSupabase(env, userId) {
-  try {
-    if (!userId || !env.SUPABASE_SERVICE_ROLE_KEY) return null;
-    const res = await fetch(
-      'https://orhgklhfltsfdumrrhup.supabase.co/rest/v1/user_profiles?id=eq.' + encodeURIComponent(userId) + '&select=user_data',
-      {
-        headers: {
-          'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
-          'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-    if (!res.ok) return null;
-    const rows = await res.json();
-    if (!rows || !rows.length) return null;
-    return rows[0].user_data;
-  } catch (err) {
-    return null;
-  }
+const MODEL = 'gemini-2.0-flash';
+
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400'
+  };
 }
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS }
+function json(obj, status) {
+  return new Response(JSON.stringify(obj, null, 2), {
+    status: status || 200,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      ...corsHeaders()
+    }
   });
 }
 
-export async function onRequestOptions(context) {
-  return new Response(null, { status: 204, headers: CORS_HEADERS });
+async function gemini(env, systemText, userText, maxTokens) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 55000);
+  try {
+    const payload = {
+      systemInstruction: { parts: [{ text: systemText }] },
+      contents: [{ role: 'user', parts: [{ text: userText }] }],
+      generationConfig: { temperature: 0.4, maxOutputTokens: maxTokens || 8192 }
+    };
+    const res = await fetch('https://generativelanguage.googleapis.com/v1/models/' + MODEL + ':generateContent?key=' + encodeURIComponent(env.GEMINI_API_KEY), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const msg = data && data.error && data.error.message ? data.error.message : 'Gemini API error';
+      throw new Error(msg);
+    }
+    const text = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] ? data.candidates[0].content.parts[0].text : '';
+    if (!text) {
+      const reason = data && data.promptFeedback && data.promptFeedback.blockReason ? data.promptFeedback.blockReason : 'No response from model';
+      throw new Error(reason);
+    }
+    return text;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-export async function onRequestGet(context) {
-  return json({ status: 'ok', method: 'GET', message: 'API tana aiki. Aiko POST request da { question, userId }.' });
-}
-
-export async function onRequestPost(context) {
+export async function onRequest(context) {
   const { request, env } = context;
 
-  let body = null;
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders() });
+  }
+
+  if (!env || !env.GEMINI_API_KEY) {
+    return json({ error: { message: 'GEMINI_API_KEY ba a saita ba. A saka a Cloudflare Pages > Settings > Environment variables.' } }, 500);
+  }
+
+  let prompt = '';
+
+  if (request.method === 'GET') {
+    const u = new URL(request.url);
+    prompt = u.searchParams.get('prompt') || u.searchParams.get('q') || '';
+  } else if (request.method === 'POST') {
+    try {
+      const body = await request.json();
+      prompt = body.prompt || body.q || body.question || body.message || '';
+    } catch {
+      return json({ error: { message: 'JSON body ba daidai ba. Aiko { "prompt": "tambayarka" }' } }, 400);
+    }
+  } else {
+    return json({ error: { message: 'Method ba a goyan baya ba. Yi amfani da GET ko POST.' } }, 405);
+  }
+
+  if (!prompt.trim()) {
+    return json({ error: { message: 'Tambaya babu kaya. Aiko da { "prompt": "..." }' } }, 400);
+  }
+
   try {
-    body = await request.json();
-  } catch (err) {
-    return json({ status: 'error', error: 'Invalid JSON body: ' + err.message }, 400);
-  }
-
-  const question = body.question || body.message || body.prompt || '';
-  const userId = body.userId || body.user_id || '';
-
-  if (!question || !question.trim()) {
-    return json({ status: 'error', error: 'Field "question" yana bukata' }, 400);
-  }
-
-  let userData = null;
-  if (userId) {
-    userData = await fetchUserFromSupabase(env, userId);
-    if (!userData) {
-      return json({ status: 'error', error: 'Bai samu user ba ko ba a saita SUPABASE_SERVICE_ROLE_KEY ba', userId }, 401);
-    }
-  }
-
-  const apiKey = env.OPENAI_API_KEY || env.GROQ_API_KEY || env.AI_API_KEY;
-  if (!apiKey) {
-    return json({ status: 'error', error: 'Babu AI API key a env (OPENAI_API_KEY / GROQ_API_KEY / AI_API_KEY)' }, 500);
-  }
-
-  try {
-    const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + apiKey
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: 'Kai malamin AI ne na IDT Academy. Amsa a Hausa ko yaren da mai amfani ya yi amfani da shi, bayani bayyananne da taqaitacce.' },
-          ...(userData ? [{ role: 'system', content: 'Bayanin mai amfani: ' + JSON.stringify(userData) }] : []),
-          { role: 'user', content: question }
-        ]
-      })
-    });
-
-    const aiData = await aiRes.json();
-
-    if (!aiRes.ok) {
-      return json({ status: 'error', error: 'AI API error', ai_status: aiRes.status, ai_response: aiData }, aiRes.status);
-    }
-
-    const answer = aiData.choices && aiData.choices[0] && aiData.choices[0].message
-      ? aiData.choices[0].message.content
-      : null;
-
-    if (!answer) {
-      return json({ status: 'error', error: 'Ba a samu amsa daga AI ba', ai_response: aiData }, 502);
-    }
-
-    return json({ status: 'ok', answer, question, userId });
-  } catch (err) {
-    return json({ status: 'error', error: 'Server error: ' + err.message }, 500);
+    const answer = await gemini(env, 'Kai taimaki ne mai hikima. Amsa tambayoyi da kyau a hausar da turanci idan an bukata.', prompt, 8192);
+    return json({ ok: true, answer, model: MODEL });
+  } catch (e) {
+    const isAbort = e.name === 'AbortError';
+    return json({
+      error: {
+        message: isAbort ? 'Lokaci ya wuce (timeout 55s). Gwada sake.' : (e.message || 'Matsala ta ciki'),
+        type: isAbort ? 'timeout' : 'api_error'
+      }
+    }, 502);
   }
 }
