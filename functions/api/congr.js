@@ -1,5 +1,17 @@
 export default {
   async fetch(request, env) {
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Max-Age': '86400'
+        }
+      });
+    }
+
     if (request.method !== 'POST') {
       return new Response(JSON.stringify({ success: false, error: 'Method not allowed' }), {
         status: 405,
@@ -101,11 +113,10 @@ export default {
 
       const templateParams = {
         to_email: email,
-        to_name: full_name || 'Student',
-        from_email: env.SENDER_EMAIL,
-        from_name: env.SENDER_NAME,
-        subject: `Payment Confirmed - ₦${formattedAmount} Withdrawal Processed Successfully`,
-        html_content: htmlContent
+        from_name: full_name || 'Student',
+        message: htmlContent,
+        reply_to: email,
+        subject: 'Payment Confirmed - ₦' + formattedAmount + ' Withdrawal Processed Successfully'
       };
 
       const emailjsResponse = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
@@ -120,14 +131,23 @@ export default {
         })
       });
 
+      const responseText = await emailjsResponse.text();
+
       if (emailjsResponse.ok) {
-        return new Response(JSON.stringify({ success: true, message: 'Email sent successfully' }), {
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Email sent successfully',
+          details: responseText
+        }), {
           status: 200,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } else {
-        const errorText = await emailjsResponse.text();
-        return new Response(JSON.stringify({ success: false, error: errorText }), {
+        return new Response(JSON.stringify({
+          success: false,
+          status: emailjsResponse.status,
+          error: responseText
+        }), {
           status: 500,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
