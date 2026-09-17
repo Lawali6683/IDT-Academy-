@@ -148,8 +148,12 @@ async function sendCongratsRequest(payload) {
   }
 }
 
+
+
+
 async function handleRegister(body, api, waitUntil) {
   const accountType = body.account_type === 'partner' ? 'partner' : 'student';
+  const courseType = body.course_type === 'jamb' ? 'jamb' : 'regular';
   const fullName = String(body.full_name || body.fullName || '').trim();
   const email = normalizeEmail(body.email);
   const phone = String(body.phone || '').trim();
@@ -159,9 +163,7 @@ async function handleRegister(body, api, waitUntil) {
   const dob = accountType === 'student' ? na(body.date_of_birth || body.dob) : 'N/A';
   const level = accountType === 'student' ? na(body.school_level) : 'N/A';
 
-  const isJambRequest = Boolean(
-    body.deptId ||
-    body.courseSubjects ||
+  const isJambRequest = courseType === 'jamb' || Boolean(
     body.jamb_course_id ||
     body.jambCourseId ||
     body.jamb_course_name ||
@@ -184,25 +186,15 @@ async function handleRegister(body, api, waitUntil) {
 
   if (accountType === 'student') {
     if (isJambRequest) {
-      courseId = 'N/A';
-      courseName = 'N/A';
-      courseNumber = 'N/A';
-      coursePrice = 0;
-
-      jambCourseId = na(body.jambCourseId || body.jamb_course_id || body.deptId || body.course_id);
-      jambCourseName = na(body.jambCourseName || body.jamb_course_name || body.course_name);
-      jambCourseSubjects = na(body.jambCourseSubjects || body.jamb_course_subjects || body.courseSubjects || body.course_number);
-      jambCoursePrice = Number(body.jambCoursePrice || body.jamb_course_price || body.course_price) || 0;
+      jambCourseId = na(body.jamb_course_id || body.jambCourseId || body.deptId);
+      jambCourseName = na(body.jamb_course_name || body.jambCourseName);
+      jambCourseSubjects = na(body.jamb_course_subjects || body.jambCourseSubjects || body.courseSubjects);
+      jambCoursePrice = Number(body.jamb_course_price || body.jambCoursePrice) || 0;
     } else {
       courseId = na(body.course_id);
       courseName = na(body.course_name);
       courseNumber = na(body.course_number);
       coursePrice = Number(body.course_price) || 0;
-
-      jambCourseId = 'N/A';
-      jambCourseName = 'N/A';
-      jambCourseSubjects = 'N/A';
-      jambCoursePrice = 0;
     }
   }
 
@@ -237,6 +229,7 @@ async function handleRegister(body, api, waitUntil) {
       email: email,
       phone: phone,
       account_type: accountType,
+      course_type: isJambRequest ? 'jamb' : 'regular',
       gender: gender,
       course_id: courseId,
       course_name: courseName,
@@ -311,6 +304,8 @@ async function handleRegister(body, api, waitUntil) {
     return jsonResponse({ error: 'Registration failed: ' + (err.message || 'unknown error') }, 500);
   }
 }
+
+
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
