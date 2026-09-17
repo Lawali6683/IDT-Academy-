@@ -90,6 +90,9 @@ function buildHtmlEmail(studentName, courseName, score, totalQ, pct, passed, dat
         '<p style="text-align:center;margin:16px 0 0;font-size:12px;color:#6d6a8a">' +
           (passed ? 'Your certificate is ready. Log in to your dashboard to access it.' : 'Review your lessons and try the assessment again. Your dashboard tracks your progress.') +
         '</p>' +
+        '<div style="text-align:center">' +
+          '<a href="https://www.idtacademy.com.ng/dashboard" class="btn">Go To Dashboard</a>' +
+        '</div>' +
       '</div>' +
       '<div class="foot">' +
         'IDT Academy &bull; www.idtacademy.com.ng &bull; Learn Beyond Limits' +
@@ -103,7 +106,7 @@ export const onRequestPost = async function(context) {
   try {
     var body;
     try { body = await context.request.json(); } catch (err) { return json({ success: false, error: 'Invalid JSON' }, 400); }
-    var email = body.email || body.to_email || '';
+    var email = String(body.email || body.to_email || '').trim().toLowerCase();
     var studentName = body.full_name || body.to_name || 'Student';
     var courseName = body.course_name || 'Course';
     var score = Number(body.score || body.passed_questions || 0);
@@ -111,7 +114,10 @@ export const onRequestPost = async function(context) {
     var pct = Number(body.pct || Math.round((score / Math.max(1, totalQ)) * 100));
     var passed = body.passed === true || body.passed === 'true' || body.passed === 1;
     var dateStr = body.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-    if (!env.SENDER_EMAIL || !env.SERVICE_ID || !env.PUBLIC_KEY || !env.PRIVATE_KEY || !env.TEMPLATE_ID) {
+    if (!email) {
+      return json({ success: false, error: 'email is required' }, 400);
+    }
+    if (!env.SERVICE_ID || !env.PUBLIC_KEY || !env.PRIVATE_KEY || !env.TEMPLATE_ID) {
       return json({ success: false, error: 'Email service not fully configured. Check env vars.' }, 500);
     }
     var userData = await fetchUserFromSupabase(env, email, studentName);
@@ -124,17 +130,9 @@ export const onRequestPost = async function(context) {
       accessToken: env.PRIVATE_KEY,
       template_params: {
         to_email: email,
-        to_name: displayName,
         from_name: 'IDT Academy',
-        subject: 'Assessment Result - ' + displayName + ' (' + (passed ? 'PASSED' : 'NOT PASSED') + ')',
-        message_html: emailHtml,
-        message: 'Assessment result for ' + displayName + '\nCourse: ' + courseName + '\nScore: ' + score + '/' + totalQ + ' (' + pct + '%)\nStatus: ' + (passed ? 'PASSED' : 'NOT PASSED') + '\n\nView full result on your dashboard.',
-        score: String(score),
-        total: String(totalQ),
-        percentage: String(pct),
-        status: passed ? 'PASSED' : 'NOT PASSED',
-        course: courseName,
-        date: dateStr
+        message: emailHtml,
+        reply_to: email
       }
     };
     var emailRes = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
