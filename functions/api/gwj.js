@@ -1,6 +1,8 @@
 export const config = { path: '/api/gwj' };
 
-const MODEL = 'gemini-2.0-flash';
+function getModel(env) {
+  return (env && env.GEMINI_MODEL) ? env.GEMINI_MODEL : 'gemini-3.6-flash';
+}
 
 function corsHeaders() {
   return {
@@ -22,6 +24,7 @@ function json(obj, status) {
 }
 
 async function gemini(env, systemText, userText, maxTokens) {
+  const model = getModel(env);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 55000);
   const started = Date.now();
@@ -31,7 +34,7 @@ async function gemini(env, systemText, userText, maxTokens) {
       contents: [{ role: 'user', parts: [{ text: userText }] }],
       generationConfig: { temperature: 0.4, maxOutputTokens: maxTokens || 8192 }
     };
-    const url = 'https://generativelanguage.googleapis.com/v1/models/' + MODEL + ':generateContent?key=' + encodeURIComponent(env.GEMINI_API_KEY);
+    const url = 'https://generativelanguage.googleapis.com/v1/models/' + model + ':generateContent?key=' + encodeURIComponent(env.GEMINI_API_KEY);
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -76,7 +79,7 @@ async function gemini(env, systemText, userText, maxTokens) {
     return {
       text,
       debug: {
-        model: MODEL,
+        model,
         durationMs: Date.now() - started,
         finishReason: cand && cand.finishReason ? cand.finishReason : null,
         usageMetadata: data && data.usageMetadata ? data.usageMetadata : null
@@ -98,7 +101,7 @@ export async function onRequest(context) {
     return json({
       ok: false,
       error: { message: 'GEMINI_API_KEY ba a samu ba a cikin env', type: 'config' },
-      debug: { envKeys: env ? Object.keys(env) : [], hint: 'Cloudflare Pages > Settings > Environment variables > Production & Preview' }
+      debug: { envKeys: env ? Object.keys(env) : [], hint: 'Cloudflare Pages > Settings > Environment variables' }
     }, 500);
   }
 
@@ -115,7 +118,7 @@ export async function onRequest(context) {
       return json({ ok: false, error: { message: 'JSON body ba daidai ba. Aiko { "prompt": "tambayarka" }', type: 'bad_request' } }, 400);
     }
   } else {
-    return json({ ok: false, error: { message: 'Method ba a goyan baya ba. Yi amfani da GET ko POST.', type: 'bad_request' }, debug: { method: request.method } }, 405);
+    return json({ ok: false, error: { message: 'Method ba a goyan baya ba. Yi amfani da GET ko POST.', type: 'bad_request' } }, 405);
   }
 
   if (!prompt.trim()) {
@@ -127,17 +130,16 @@ export async function onRequest(context) {
     return json({ ok: true, answer: r.text, debug: r.debug });
   } catch (e) {
     const isAbort = e.name === 'AbortError';
-    const status = isAbort ? 504 : (e.upstream && e.upstream.status ? e.upstream.status : 500);
     return json({
       ok: false,
       error: {
         type: isAbort ? 'timeout' : (e.upstream ? 'gemini_api' : 'internal'),
         message: isAbort ? 'Lokaci ya wuce (timeout 55s). Gwada sake.' : (e.message || 'Matsala ta ciki'),
-        status
+        status: isAbort ? 504 : (e.upstream && e.upstream.status ? e.upstream.status : 500)
       },
       debug: {
         method: request.method,
-        durationMs: null,
+        model: getModel(env),
         upstream: e.upstream || null,
         stack: e.stack ? e.stack.split('\n').slice(0, 5) : null
       }
