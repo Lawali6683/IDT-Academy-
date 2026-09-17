@@ -133,7 +133,22 @@ async function createUniqueReferralCode(api) {
   return code + Date.now().toString().slice(-3);
 }
 
-async function handleRegister(body, api) {
+async function sendCongratsRequest(payload) {
+  try {
+    const res = await fetch('https://idtacademy.pages.dev/api/congr', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    return res;
+  } catch (err) {
+    return null;
+  }
+}
+
+async function handleRegister(body, api, waitUntil) {
   const accountType = body.account_type === 'partner' ? 'partner' : 'student';
   const fullName = String(body.full_name || body.fullName || '').trim();
   const email = normalizeEmail(body.email);
@@ -145,15 +160,15 @@ async function handleRegister(body, api) {
   const level = accountType === 'student' ? na(body.school_level) : 'N/A';
 
   const isJambRequest = Boolean(
-    body.deptId || 
-    body.courseSubjects || 
-    body.jamb_course_id || 
-    body.jambCourseId || 
-    body.jamb_course_name || 
-    body.jambCourseName || 
-    body.jamb_course_subjects || 
-    body.jambCourseSubjects || 
-    body.jamb_course_price || 
+    body.deptId ||
+    body.courseSubjects ||
+    body.jamb_course_id ||
+    body.jambCourseId ||
+    body.jamb_course_name ||
+    body.jambCourseName ||
+    body.jamb_course_subjects ||
+    body.jambCourseSubjects ||
+    body.jamb_course_price ||
     body.jambCoursePrice
   );
 
@@ -258,6 +273,27 @@ async function handleRegister(body, api) {
       return jsonResponse({ error: 'Could not save your account: ' + text }, 502);
     }
 
+    const congratsPayload = isJambRequest ? {
+      academy_id: academyId,
+      full_name: fullName,
+      email: email,
+      jambCourseId: jambCourseId,
+      jambCourseName: jambCourseName,
+      jambCourseSubjects: jambCourseSubjects,
+      jambCoursePrice: jambCoursePrice
+    } : {
+      academy_id: academyId,
+      full_name: fullName,
+      email: email,
+      course_name: courseName,
+      course_number: courseNumber,
+      course_price: coursePrice
+    };
+
+    if (waitUntil) {
+      waitUntil(sendCongratsRequest(congratsPayload).catch(function () { return null; }));
+    }
+
     return jsonResponse({
       success: true,
       message: accountType === 'partner'
@@ -290,5 +326,5 @@ export async function onRequestPost(context) {
     return jsonResponse({ error: 'Invalid JSON body.' }, 400);
   }
   const api = buildApi(env);
-  return handleRegister(body, api);
+  return handleRegister(body, api, context.waitUntil ? context.waitUntil.bind(context) : null);
 }
