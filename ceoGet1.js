@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase.js';
 
 const _k1 = 'aGFydW5h';
@@ -9,6 +8,8 @@ const _p2 = 'Nzc=';
 
 const TABLE = 'user_profiles';
 const ADMIN_DELETE_ENDPOINT = '/api/admin-delete-user';
+
+const MAX_SLOTS = 40;
 
 const FIELDS = [
     { key: 'id', label: 'User ID', readonly: true },
@@ -42,7 +43,7 @@ const FIELDS = [
 ];
 
 const SKIP_KEYS = ['referral_activity'];
-const NUMERIC_KEYS = ['referral_bonus', 'total_referrals', 'paid_referrals', 'total_withdrawn', 'course_price', 'course_id', 'course_number'];
+const NUMERIC_KEYS = ['referral_bonus', 'total_referrals', 'paid_referrals', 'total_withdrawn', 'course_price', 'course_number'];
 const DATE_KEYS = ['date_registered', 'created_at', 'date_of_birth'];
 const PAGE_SIZE = 50;
 
@@ -53,6 +54,34 @@ let editing = false;
 let visibleCount = PAGE_SIZE;
 
 const $ = (id) => document.getElementById(id);
+
+function isNumericKey(key) {
+    if (NUMERIC_KEYS.includes(key)) return true;
+    if (/^pay\d+$/.test(key)) return true;
+    if (/^\d+course_price$/.test(key)) return true;
+    return false;
+}
+
+function collectExtraCourses(ud) {
+    const out = [];
+    for (let i = 2; i <= MAX_SLOTS; i++) {
+        const cid = ud[i + 'course_id'];
+        if (cid === undefined || cid === null || String(cid).trim() === '') continue;
+        out.push({ key: String(i), id: cid, name: ud[i + 'course_name'], number: ud[i + 'course_number'], price: ud[i + 'course_price'] });
+    }
+    return out;
+}
+
+function collectPaymentSlots(ud) {
+    const out = [];
+    for (let i = 1; i <= MAX_SLOTS; i++) {
+        const flag = ud['course2payment' + i];
+        const paid = ud['pay' + i];
+        if (flag === undefined && paid === undefined) continue;
+        out.push({ slot: i, flag: flag === undefined ? '' : String(flag), paid: paid === undefined ? '' : paid });
+    }
+    return out;
+}
 
 function wipeSession() {
     try { localStorage.clear(); } catch (e) {}
@@ -104,6 +133,13 @@ function statusBadge(status) {
     if (s === 'active') return '<span class="badge active"><i class="fa-solid fa-circle"></i>Active</span>';
     if (s === 'pending') return '<span class="badge pending"><i class="fa-solid fa-circle"></i>Pending</span>';
     return '<span class="badge other"><i class="fa-solid fa-circle"></i>' + esc(status || 'N/A') + '</span>';
+}
+
+function slotBadge(flag) {
+    const s = String(flag || '').toLowerCase();
+    if (s === 'yes') return '<span class="badge active"><i class="fa-solid fa-circle"></i>yes</span>';
+    if (s === 'no') return '<span class="badge pending"><i class="fa-solid fa-circle"></i>no</span>';
+    return '<span class="badge other"><i class="fa-solid fa-circle"></i>' + esc(flag || 'N/A') + '</span>';
 }
 
 function ceoUnlock(pw) {
@@ -230,6 +266,96 @@ async function loadUsers() {
     toast('Loaded ' + allUsers.length + ' users.', 'success');
 }
 
+function appendExtraCoursesSection(grid, u, editable) {
+    const extras = collectExtraCourses(u);
+    if (!extras.length) return;
+
+    const head = document.createElement('div');
+    head.className = 'field full';
+    head.innerHTML = '<label style="font-weight:900;color:#7c3aed;"><i class="fa-solid fa-layer-group"></i> Extra Courses</label>';
+    grid.appendChild(head);
+
+    extras.forEach((c) => {
+        const defs = [
+            { key: c.key + 'course_id', label: c.key + 'course_id', value: c.id },
+            { key: c.key + 'course_name', label: c.key + 'course_name', value: c.name },
+            { key: c.key + 'course_number', label: c.key + 'course_number', value: c.number },
+            { key: c.key + 'course_price', label: c.key + 'course_price', value: c.price }
+        ];
+        defs.forEach((def) => {
+            const display = def.value == null ? '' : String(def.value);
+            const field = document.createElement('div');
+            field.className = 'field' + (editable ? ' editing' : '');
+            const label = document.createElement('label');
+            label.textContent = def.label;
+            field.appendChild(label);
+            if (editable) {
+                const input = document.createElement('input');
+                input.value = display;
+                input.dataset.key = def.key;
+                field.appendChild(input);
+            } else {
+                const val = document.createElement('div');
+                val.className = 'val';
+                val.textContent = display === '' ? 'N/A' : display;
+                field.appendChild(val);
+            }
+            grid.appendChild(field);
+        });
+    });
+}
+
+function appendPaymentSlotsSection(grid, u, editable) {
+    const slots = collectPaymentSlots(u);
+    if (!slots.length) return;
+
+    const head = document.createElement('div');
+    head.className = 'field full';
+    head.innerHTML = '<label style="font-weight:900;color:#7c3aed;"><i class="fa-solid fa-credit-card"></i> Payment Slots</label>';
+    grid.appendChild(head);
+
+    slots.forEach((s) => {
+        const flagKey = 'course2payment' + s.slot;
+        const payKey = 'pay' + s.slot;
+
+        const flagField = document.createElement('div');
+        flagField.className = 'field' + (editable ? ' editing' : '');
+        const flagLabel = document.createElement('label');
+        flagLabel.innerHTML = flagKey + ' &nbsp;' + slotBadge(s.flag);
+        flagField.appendChild(flagLabel);
+        if (editable) {
+            const input = document.createElement('input');
+            input.value = s.flag;
+            input.dataset.key = flagKey;
+            flagField.appendChild(input);
+        } else {
+            const val = document.createElement('div');
+            val.className = 'val';
+            val.textContent = s.flag === '' ? 'N/A' : s.flag;
+            flagField.appendChild(val);
+        }
+        grid.appendChild(flagField);
+
+        const payField = document.createElement('div');
+        payField.className = 'field' + (editable ? ' editing' : '');
+        const payLabel = document.createElement('label');
+        payLabel.textContent = payKey;
+        payField.appendChild(payLabel);
+        if (editable) {
+            const input = document.createElement('input');
+            input.value = s.paid === null ? '' : String(s.paid);
+            input.dataset.key = payKey;
+            payField.appendChild(input);
+        } else {
+            const val = document.createElement('div');
+            val.className = 'val';
+            val.textContent = (s.paid === '' || s.paid === null || s.paid === undefined) ? 'N/A' : String(s.paid);
+            payField.appendChild(val);
+        }
+        grid.appendChild(payField);
+    });
+}
+
 function renderDetail(u, editable) {
     $('dAvatar').textContent = initials(u.full_name);
     $('dName').textContent = u.full_name || 'N/A';
@@ -262,6 +388,9 @@ function renderDetail(u, editable) {
         }
         grid.appendChild(field);
     });
+
+    appendExtraCoursesSection(grid, u, editable);
+    appendPaymentSlotsSection(grid, u, editable);
 
     $('detailActions').innerHTML = editable
         ? '<button class="btn-act save" id="saveBtn"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button><button class="btn-act cancel" id="cancelEdit"><i class="fa-solid fa-xmark"></i> Cancel</button>'
@@ -302,7 +431,7 @@ async function saveEdits() {
         let v = inp.value;
         const key = inp.dataset.key;
         const orig = currentUser[key];
-        if (NUMERIC_KEYS.includes(key)) {
+        if (isNumericKey(key)) {
             const n = Number(v);
             if (!isNaN(n) && v !== '') v = n;
         }
