@@ -357,6 +357,9 @@ function sanitizeUserData(ud) {
   return clean;
 }
 
+
+
+
 function looksLikeJamb(cid, cname, cprice) {
   const id = String(cid || '').trim().toLowerCase();
   const name = String(cname || '').trim().toLowerCase();
@@ -367,18 +370,9 @@ function looksLikeJamb(cid, cname, cprice) {
   return false;
 }
 
-function stripCourseDataFromStorage() {
-  try {
-    const raw = localStorage.getItem('idt_user');
-    if (!raw) return;
-    const u = JSON.parse(raw);
-    Object.keys(u).forEach((k) => {
-      if (String(k).toLowerCase().indexOf('jamb') !== -1) delete u[k];
-    });
-    ['course_id', 'course_name', 'course_number', 'course_price'].forEach((k) => delete u[k]);
-    localStorage.setItem('idt_user', JSON.stringify(u));
-  } catch (e) {}
-}
+
+
+
 
 function isCourseMissing(ud) {
   const u = sanitizeUserData(ud);
@@ -493,8 +487,6 @@ async function saveUpdate(patch) {
 }
 
 
-
-
 async function refreshProfile() {
   const { data, error } = await supabase
     .from('user_profiles')
@@ -504,53 +496,13 @@ async function refreshProfile() {
   if (error) throw error;
   if (!data || !data[0]) throw new Error('Profile not found');
   profileData = data[0];
-  userData = data[0].user_data || {};
-  if (!userData || typeof userData !== 'object') userData = {};
-  userData = sanitizeUserData(userData);
+  const rawUd = data[0].user_data || {};
+  userData = (rawUd && typeof rawUd === 'object') ? rawUd : {};
   if (!userData.academy_id && !userData.academyId) {
     userData.academy_id = String(user.id);
   }
-  let needsSave = false;
-  const cid = String(userData.course_id || '').trim();
-  const cname = String(userData.course_name || '').trim();
-  const cprice = Number(userData.course_price || userData.price || 0);
-  if (cid && (looksLikeJamb(cid, cname, cprice) || !isValidCourseId(cid))) {
-    delete userData.course_id;
-    delete userData.course_name;
-    delete userData.course_number;
-    delete userData.course_price;
-    delete userData.price;
-    needsSave = true;
-  }
-  const info = courseInfoMap[cid] || null;
-  if (cid && info && Number(info.price || info.course_price || 0) === 3500) {
-    delete userData.course_id;
-    delete userData.course_name;
-    delete userData.course_number;
-    delete userData.course_price;
-    delete userData.price;
-    needsSave = true;
-  }
-  for (let n = 2; n <= 20; n++) {
-    const ncid = String(userData[n + 'course_id'] || '').trim();
-    const ncname = String(userData[n + 'course_name'] || '').trim();
-    const ncprice = Number(userData[n + 'course_price'] || 0);
-    if (ncid && (looksLikeJamb(ncid, ncname, ncprice) || !isValidCourseId(ncid))) {
-      delete userData[n + 'course_id'];
-      delete userData[n + 'course_name'];
-      delete userData[n + 'course_number'];
-      delete userData[n + 'course_price'];
-      delete userData[n + 'course_status'];
-      needsSave = true;
-    }
-  }
-  if (needsSave) {
-    try {
-      await saveUserData();
-    } catch (err) {}
-    stripCourseDataFromStorage();
-  }
 }
+
 
 
 async function saveUserData() {
@@ -926,8 +878,7 @@ async function chooseCourse(courseId) {
     try {
       await saveUserData();
     } catch (err) {}
-    stripCourseDataFromStorage();
-    stripCourseDataFromStorage();
+    
     courseList = collectCourses(userData);
     renderPendingGate();
     closeCoursePush();
@@ -2523,10 +2474,9 @@ async function loadDashboard() {
   try {
     await loadCourseInfos();
     await refreshProfile();
-    userData = sanitizeUserData(userData);
-    stripCourseDataFromStorage();
     await loadUpdateTable();
-    courseList = collectCourses(userData);
+    const cleanUd = sanitizeUserData(userData);
+    courseList = collectCourses(cleanUd);
     for (const c of courseList) {
       await loadTopicsFor(c.course_id);
     }
@@ -2538,7 +2488,7 @@ async function loadDashboard() {
       renderPendingGate();
       const gate = $('pendingGate');
       if (gate) gate.classList.add('open');
-      if (isCourseMissing(userData)) {
+      if (isCourseMissing(cleanUd)) {
         openCoursePush();
         const sub = $('pnSub');
         if (sub) sub.textContent = 'Your account has no course yet. Pick a course below and complete your payment to start learning.';
@@ -2550,7 +2500,7 @@ async function loadDashboard() {
     if (gate) gate.classList.remove('open');
     const paidCourses = courseList.filter((c) => {
       const st = String(c.status || '').toLowerCase();
-      const isMainPaid = c.course_id === String(userData.course_id || '').trim() && status === 'active';
+      const isMainPaid = c.course_id === String((userData && userData.course_id) || '').trim() && status === 'active';
       if (st !== 'active' && !isMainPaid) return false;
       return !looksLikeJamb(c.course_id, c.course_name, c.course_price);
     });
@@ -2582,7 +2532,6 @@ async function loadDashboard() {
     showToast('error', 'Dashboard Error', 'Could not load your dashboard.', err.message || String(err));
   }
 }
-
 
 
 function on(id, event, handler) {
