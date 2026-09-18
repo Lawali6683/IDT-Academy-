@@ -344,36 +344,71 @@ function isValidCourseId(v) {
   return Boolean(s) && s.toUpperCase() !== 'N/A' && s.toLowerCase() !== 'null' && s.toLowerCase() !== 'undefined';
 }
 
+
+function sanitizeUserData(ud) {
+  if (!ud || typeof ud !== 'object') return {};
+  const clean = Object.assign({}, ud);
+  delete clean.jambCourseId;
+  delete clean.jambCourseName;
+  delete clean.jambCourseSubjects;
+  delete clean.jambCoursePrice;
+  delete clean.jamb_course_id;
+  delete clean.jamb_course_name;
+  delete clean.jamb_course_subjects;
+  delete clean.jamb_course_price;
+  return clean;
+}
+
+function stripCourseDataFromStorage() {
+  try {
+    const raw = localStorage.getItem('idt_user');
+    if (!raw) return;
+    const u = JSON.parse(raw);
+    ['course_id', 'course_name', 'course_number', 'course_price', 'jambCourseId', 'jambCourseName', 'jambCourseSubjects', 'jambCoursePrice'].forEach((k) => delete u[k]);
+    localStorage.setItem('idt_user', JSON.stringify(u));
+  } catch (e) {}
+}
+
 function isCourseMissing(ud) {
-  const cid = String((ud && ud.course_id) || '').trim();
-  const cname = String((ud && ud.course_name) || '').trim().toUpperCase();
-  const cprice = Number((ud && (ud.course_price || ud.price)) || 0);
-  if (!cid || cid.toUpperCase() === 'N/A' || cid === 'null' || cid === 'undefined') return true;
+  const u = sanitizeUserData(ud);
+  const cid = String((u && u.course_id) || '').trim();
+  const cname = String((u && u.course_name) || '').trim().toUpperCase();
+  const cprice = Number((u && (u.course_price || u.price)) || 0);
+  if (!isValidCourseId(cid)) return true;
   if (!cname || cname === 'N/A' || cname === 'NULL' || cname === 'UNDEFINED') return true;
-  if (!cprice) return true;
+  if (!cprice || cprice === 3500) return true;
   return false;
 }
 
+
+
+
 function collectCourses(ud) {
   const arr = [];
+  const u = sanitizeUserData(ud);
   const main = {
-    course_id: ud.course_id || '',
-    course_name: ud.course_name || '',
-    course_number: ud.course_number || '',
-    course_price: Number(ud.course_price || ud.price || 0),
-    status: ud.status || 'pending'
+    course_id: String(u.course_id || '').trim(),
+    course_name: String(u.course_name || '').trim(),
+    course_number: String(u.course_number || '').trim(),
+    course_price: Number(u.course_price || u.price || 0),
+    status: u.status || 'pending'
   };
-  if (isValidCourseId(main.course_id) && main.course_name && main.course_price) arr.push(main);
+  if (isValidCourseId(main.course_id) && main.course_name && main.course_name.toUpperCase() !== 'N/A' && main.course_price > 0 && main.course_price !== 3500) {
+    arr.push(main);
+  }
   for (let n = 2; n <= 20; n++) {
-    const cid = ud[n + 'course_id'];
+    const cid = String(u[n + 'course_id'] || '').trim();
     if (!isValidCourseId(cid)) continue;
-    const st = String(ud[n + 'course_status'] || 'active').toLowerCase();
+    const st = String(u[n + 'course_status'] || 'active').toLowerCase();
     if (st !== 'active') continue;
+    const cname = String(u[n + 'course_name'] || '').trim();
+    const cprice = Number(u[n + 'course_price'] || 0);
+    if (!cname || cname.toUpperCase() === 'N/A' || cprice <= 0) continue;
     arr.push({
-      course_id: String(cid).trim(),
-      course_name: ud[n + 'course_name'] || '',
-      course_number: ud[n + 'course_number'] || '000',
-      course_price: Number(ud[n + 'course_price'] || 0),
+      course_id: cid,
+      course_name: cname,
+      course_number: String(u[n + 'course_number'] || '').trim() || '000',
+      course_price: cprice,
       status: 'active'
     });
   }
@@ -385,20 +420,19 @@ function collectCourses(ud) {
   });
 }
 
+
+
+
 function getPrimaryCourse() {
   if (!userData || typeof userData !== 'object') {
     return { course_id: '', course_name: '', course_number: '', course_price: 0, valid: false };
   }
-  const cid = String(userData.course_id || '').trim();
-  const cname = String(userData.course_name || '').trim();
-  const cnum = String(userData.course_number || '').trim();
-  const cprice = Number(userData.course_price || userData.price || 0);
-  const validId = isValidCourseId(cid);
-  const validName = cname &&
-    cname.toUpperCase() !== 'N/A' &&
-    cname.toUpperCase() !== 'NULL' &&
-    cname.toUpperCase() !== 'UNDEFINED';
-  if (validId && validName && cprice > 0) {
+  const u = sanitizeUserData(userData);
+  const cid = String(u.course_id || '').trim();
+  const cname = String(u.course_name || '').trim();
+  const cnum = String(u.course_number || '').trim();
+  const cprice = Number(u.course_price || u.price || 0);
+  if (isValidCourseId(cid) && cname && cname.toUpperCase() !== 'N/A' && cname.toUpperCase() !== 'NULL' && cname.toUpperCase() !== 'UNDEFINED' && cprice > 0 && cprice !== 3500) {
     return {
       course_id: cid,
       course_name: cname,
@@ -409,6 +443,7 @@ function getPrimaryCourse() {
   }
   return { course_id: '', course_name: '', course_number: '', course_price: 0, valid: false };
 }
+
 
 async function loadUpdateTable() {
   try {
@@ -776,6 +811,8 @@ function closeCoursePush() {
   if (p) p.classList.remove('open');
 }
 
+
+
 async function chooseCourse(courseId) {
   if (!courseId) return;
   const clickedCard = document.querySelector('.pn-course[data-cid="' + courseId.replace(/"/g, '\\"') + '"]');
@@ -829,18 +866,12 @@ async function chooseCourse(courseId) {
     if (!res.ok || data.success !== true) {
       throw new Error(data.message || 'Could not save your course. Please try again.');
     }
-    if (!userData) userData = {};
     userData.course_id = courseId;
     userData.course_name = courseName;
     userData.course_number = courseNumber;
     userData.course_price = price;
     userData.status = 'pending';
-    const safe = JSON.parse(localStorage.getItem('idt_user') || '{}');
-    safe.course_id = userData.course_id;
-    safe.course_name = userData.course_name;
-    safe.course_number = userData.course_number;
-    safe.course_price = userData.course_price;
-    localStorage.setItem('idt_user', JSON.stringify(safe));
+    stripCourseDataFromStorage();
     courseList = collectCourses(userData);
     renderPendingGate();
     closeCoursePush();
@@ -1231,9 +1262,6 @@ async function finishCourse() {
     userData.date_complet = new Date().toISOString();
     try {
       await saveUserData();
-      const safe = JSON.parse(localStorage.getItem('idt_user') || '{}');
-      safe.level_completed = 'final';
-      localStorage.setItem('idt_user', JSON.stringify(safe));
     } catch (err) {
       showToast('error', 'Save Failed', 'Could not save your completion.', err.message || String(err));
     }
@@ -1245,7 +1273,6 @@ async function finishCourse() {
   const modal = $('completionModal');
   if (modal) modal.classList.add('open');
 }
-
 
 
 
@@ -2433,10 +2460,14 @@ async function startPayment() {
 
 
 
+
+
 async function loadDashboard() {
   showLoading();
   try {
     await refreshProfile();
+    userData = sanitizeUserData(userData);
+    stripCourseDataFromStorage();
     await loadUpdateTable();
     courseList = collectCourses(userData);
     await loadCourseInfos();
@@ -2448,15 +2479,6 @@ async function loadDashboard() {
     renderUserGreet();
     const status = String((userData && userData.status) || 'pending');
     if (status !== 'active') {
-      const primary = getPrimaryCourse();
-      if (!primary.valid) {
-        const safe = JSON.parse(localStorage.getItem('idt_user') || '{}');
-        delete safe.course_id;
-        delete safe.course_name;
-        delete safe.course_number;
-        delete safe.course_price;
-        localStorage.setItem('idt_user', JSON.stringify(safe));
-      }
       renderPendingGate();
       const gate = $('pendingGate');
       if (gate) gate.classList.add('open');
@@ -2505,6 +2527,8 @@ async function loadDashboard() {
   }
 }
 
+
+
 function on(id, event, handler) {
   const el = $(id);
   if (!el) {
@@ -2540,6 +2564,7 @@ domReady(() => {
         window.location.replace('register.html');
         return;
       }
+      user = { id: String(user.id) };
       await loadDashboard();
     } catch (err) {
       hideLoading();
