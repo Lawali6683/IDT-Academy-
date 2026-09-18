@@ -472,16 +472,18 @@ if (el.registerForm) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          account_type: 'student',
+          course_type: 'jamb',
           full_name: fullName,
           email: email,
           phone: phone,
           gender: gender,
           date_of_birth: dob,
           school_level: level,
-          course_id: deptId,
-          course_name: courseName,
-          course_number: courseSubjects,
-          course_price: coursePrice,
+          jamb_course_id: deptId,
+          jamb_course_name: courseName,
+          jamb_course_subjects: courseSubjects,
+          jamb_course_price: coursePrice,
           password: password
         })
       });
