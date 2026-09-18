@@ -33,9 +33,15 @@ export async function onRequestPost(context) {
     if (!getRes.ok) return json({ success: false, message: 'Could not read user profile' }, 502);
     const rows = await getRes.json();
     if (!Array.isArray(rows) || rows.length === 0) return json({ success: false, message: 'User not found' }, 404);
-    const ud = (rows[0].user_data && typeof rows[0].user_data === 'object') ? rows[0].user_data : {};
+    
+   const ud = (rows[0].user_data && typeof rows[0].user_data === 'object') ? rows[0].user_data : {};
     const oldCourseId = String(ud.course_id || '').trim();
     const hadCourse = oldCourseId && oldCourseId.toUpperCase() !== 'N/A' && oldCourseId !== 'null' && oldCourseId !== 'undefined';
+    const cidLower = courseId.toLowerCase();
+    const cnameLower = courseName.toLowerCase();
+    if (cidLower.indexOf('jamb') !== -1 || cnameLower.indexOf('jamb') !== -1 || coursePrice === 3500) {
+      return json({ success: false, message: 'Invalid course selection' }, 400);
+    }
     ud.course_id = courseId;
     ud.course_name = courseName;
     ud.course_number = courseNumber || '000';
