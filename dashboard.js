@@ -345,18 +345,26 @@ function isValidCourseId(v) {
 }
 
 
+
+
+
 function sanitizeUserData(ud) {
   if (!ud || typeof ud !== 'object') return {};
   const clean = Object.assign({}, ud);
-  delete clean.jambCourseId;
-  delete clean.jambCourseName;
-  delete clean.jambCourseSubjects;
-  delete clean.jambCoursePrice;
-  delete clean.jamb_course_id;
-  delete clean.jamb_course_name;
-  delete clean.jamb_course_subjects;
-  delete clean.jamb_course_price;
+  Object.keys(clean).forEach((k) => {
+    if (String(k).toLowerCase().indexOf('jamb') !== -1) delete clean[k];
+  });
   return clean;
+}
+
+function looksLikeJamb(cid, cname, cprice) {
+  const id = String(cid || '').trim().toLowerCase();
+  const name = String(cname || '').trim().toLowerCase();
+  const price = Number(cprice || 0);
+  if (price === 3500) return true;
+  if (name.indexOf('jamb') !== -1) return true;
+  if (id.indexOf('jamb') !== -1) return true;
+  return false;
 }
 
 function stripCourseDataFromStorage() {
@@ -364,7 +372,10 @@ function stripCourseDataFromStorage() {
     const raw = localStorage.getItem('idt_user');
     if (!raw) return;
     const u = JSON.parse(raw);
-    ['course_id', 'course_name', 'course_number', 'course_price', 'jambCourseId', 'jambCourseName', 'jambCourseSubjects', 'jambCoursePrice'].forEach((k) => delete u[k]);
+    Object.keys(u).forEach((k) => {
+      if (String(k).toLowerCase().indexOf('jamb') !== -1) delete u[k];
+    });
+    ['course_id', 'course_name', 'course_number', 'course_price'].forEach((k) => delete u[k]);
     localStorage.setItem('idt_user', JSON.stringify(u));
   } catch (e) {}
 }
@@ -372,13 +383,14 @@ function stripCourseDataFromStorage() {
 function isCourseMissing(ud) {
   const u = sanitizeUserData(ud);
   const cid = String((u && u.course_id) || '').trim();
-  const cname = String((u && u.course_name) || '').trim().toUpperCase();
+  const cname = String((u && u.course_name) || '').trim();
   const cprice = Number((u && (u.course_price || u.price)) || 0);
   if (!isValidCourseId(cid)) return true;
-  if (!cname || cname === 'N/A' || cname === 'NULL' || cname === 'UNDEFINED') return true;
-  if (!cprice || cprice === 3500) return true;
+  if (!cname) return true;
+  if (looksLikeJamb(cid, cname, cprice)) return true;
   return false;
 }
+
 
 
 
@@ -391,19 +403,19 @@ function collectCourses(ud) {
     course_name: String(u.course_name || '').trim(),
     course_number: String(u.course_number || '').trim(),
     course_price: Number(u.course_price || u.price || 0),
-    status: u.status || 'pending'
+    status: String(u.status || 'pending').toLowerCase()
   };
-  if (isValidCourseId(main.course_id) && main.course_name && main.course_name.toUpperCase() !== 'N/A' && main.course_price > 0 && main.course_price !== 3500) {
+  if (isValidCourseId(main.course_id) && main.course_name && main.course_price > 0 && !looksLikeJamb(main.course_id, main.course_name, main.course_price)) {
     arr.push(main);
   }
   for (let n = 2; n <= 20; n++) {
     const cid = String(u[n + 'course_id'] || '').trim();
-    if (!isValidCourseId(cid)) continue;
-    const st = String(u[n + 'course_status'] || 'active').toLowerCase();
-    if (st !== 'active') continue;
     const cname = String(u[n + 'course_name'] || '').trim();
     const cprice = Number(u[n + 'course_price'] || 0);
-    if (!cname || cname.toUpperCase() === 'N/A' || cprice <= 0) continue;
+    if (!isValidCourseId(cid) || !cname || cprice <= 0) continue;
+    const st = String(u[n + 'course_status'] || 'active').toLowerCase();
+    if (st !== 'active') continue;
+    if (looksLikeJamb(cid, cname, cprice)) continue;
     arr.push({
       course_id: cid,
       course_name: cname,
@@ -422,7 +434,6 @@ function collectCourses(ud) {
 
 
 
-
 function getPrimaryCourse() {
   if (!userData || typeof userData !== 'object') {
     return { course_id: '', course_name: '', course_number: '', course_price: 0, valid: false };
@@ -430,20 +441,13 @@ function getPrimaryCourse() {
   const u = sanitizeUserData(userData);
   const cid = String(u.course_id || '').trim();
   const cname = String(u.course_name || '').trim();
-  const cnum = String(u.course_number || '').trim();
+  const cnum = String(u.course_number || '000').trim();
   const cprice = Number(u.course_price || u.price || 0);
-  if (isValidCourseId(cid) && cname && cname.toUpperCase() !== 'N/A' && cname.toUpperCase() !== 'NULL' && cname.toUpperCase() !== 'UNDEFINED' && cprice > 0 && cprice !== 3500) {
-    return {
-      course_id: cid,
-      course_name: cname,
-      course_number: cnum || '000',
-      course_price: cprice,
-      valid: true
-    };
+  if (isValidCourseId(cid) && cname && cprice > 0 && !looksLikeJamb(cid, cname, cprice)) {
+    return { course_id: cid, course_name: cname, course_number: cnum, course_price: cprice, valid: true };
   }
   return { course_id: '', course_name: '', course_number: '', course_price: 0, valid: false };
 }
-
 
 async function loadUpdateTable() {
   try {
@@ -488,6 +492,9 @@ async function saveUpdate(patch) {
   }
 }
 
+
+
+
 async function refreshProfile() {
   const { data, error } = await supabase
     .from('user_profiles')
@@ -499,10 +506,52 @@ async function refreshProfile() {
   profileData = data[0];
   userData = data[0].user_data || {};
   if (!userData || typeof userData !== 'object') userData = {};
+  userData = sanitizeUserData(userData);
   if (!userData.academy_id && !userData.academyId) {
     userData.academy_id = String(user.id);
   }
+  let needsSave = false;
+  const cid = String(userData.course_id || '').trim();
+  const cname = String(userData.course_name || '').trim();
+  const cprice = Number(userData.course_price || userData.price || 0);
+  if (cid && (looksLikeJamb(cid, cname, cprice) || !isValidCourseId(cid))) {
+    delete userData.course_id;
+    delete userData.course_name;
+    delete userData.course_number;
+    delete userData.course_price;
+    delete userData.price;
+    needsSave = true;
+  }
+  const info = courseInfoMap[cid] || null;
+  if (cid && info && Number(info.price || info.course_price || 0) === 3500) {
+    delete userData.course_id;
+    delete userData.course_name;
+    delete userData.course_number;
+    delete userData.course_price;
+    delete userData.price;
+    needsSave = true;
+  }
+  for (let n = 2; n <= 20; n++) {
+    const ncid = String(userData[n + 'course_id'] || '').trim();
+    const ncname = String(userData[n + 'course_name'] || '').trim();
+    const ncprice = Number(userData[n + 'course_price'] || 0);
+    if (ncid && (looksLikeJamb(ncid, ncname, ncprice) || !isValidCourseId(ncid))) {
+      delete userData[n + 'course_id'];
+      delete userData[n + 'course_name'];
+      delete userData[n + 'course_number'];
+      delete userData[n + 'course_price'];
+      delete userData[n + 'course_status'];
+      needsSave = true;
+    }
+  }
+  if (needsSave) {
+    try {
+      await saveUserData();
+    } catch (err) {}
+    stripCourseDataFromStorage();
+  }
 }
+
 
 async function saveUserData() {
   if (!profileData || !userData) return;
@@ -542,6 +591,8 @@ function markWatched(topicIdx) {
     if (txt) txt.textContent = 'Video watched ✓';
   }
 }
+
+
 
 function isWatched(topicIdx) {
   const arr = watchedMap[activeCourseId] || [];
@@ -871,6 +922,11 @@ async function chooseCourse(courseId) {
     userData.course_number = courseNumber;
     userData.course_price = price;
     userData.status = 'pending';
+    
+    try {
+      await saveUserData();
+    } catch (err) {}
+    stripCourseDataFromStorage();
     stripCourseDataFromStorage();
     courseList = collectCourses(userData);
     renderPendingGate();
@@ -2465,12 +2521,12 @@ async function startPayment() {
 async function loadDashboard() {
   showLoading();
   try {
+    await loadCourseInfos();
     await refreshProfile();
     userData = sanitizeUserData(userData);
     stripCourseDataFromStorage();
     await loadUpdateTable();
     courseList = collectCourses(userData);
-    await loadCourseInfos();
     for (const c of courseList) {
       await loadTopicsFor(c.course_id);
     }
@@ -2492,7 +2548,12 @@ async function loadDashboard() {
     }
     const gate = $('pendingGate');
     if (gate) gate.classList.remove('open');
-    const paidCourses = courseList.filter((c) => String(c.status || '').toLowerCase() === 'active' || c.course_id === String(userData.course_id || '').trim());
+    const paidCourses = courseList.filter((c) => {
+      const st = String(c.status || '').toLowerCase();
+      const isMainPaid = c.course_id === String(userData.course_id || '').trim() && status === 'active';
+      if (st !== 'active' && !isMainPaid) return false;
+      return !looksLikeJamb(c.course_id, c.course_name, c.course_price);
+    });
     if (paidCourses.length === 0) {
       hideLoading();
       showToast('info', 'No Paid Course', 'No paid course was found on your account. Please select a course and complete your payment.', '');
@@ -2509,11 +2570,6 @@ async function loadDashboard() {
       return;
     }
     const cid = paidCourses[0].course_id;
-    if (!cid) {
-      hideLoading();
-      showToast('error', 'No Course Found', 'No course is linked to your account. Please contact support.', '');
-      return;
-    }
     await selectCourse(cid);
     const app = $('app');
     if (app) app.classList.remove('hidden');
