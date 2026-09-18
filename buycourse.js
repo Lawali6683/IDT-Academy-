@@ -10,6 +10,7 @@ const CATEGORIES = {
 const PLACEHOLDER_IMG = 'https://i.imgur.com/oyqM5oF.png';
 const POLL_INTERVAL = 6000;
 const POLL_MAX_MS = 30 * 60 * 1000;
+const PENDING_KEY = 'idt_pending_payment';
 
 let allCourses = [];
 let currentCourse = null;
@@ -18,10 +19,10 @@ let currentUserData = null;
 let coursesDone = false;
 let activeCategory = 'all';
 let payPolling = false;
-let paySlot = 0;
 let payDeadline = 0;
 let countdownTimer = null;
 let pollTimer = null;
+let resumeTimer = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -90,6 +91,40 @@ function nextOpenSlot(ud) {
   return 0;
 }
 
+function savePendingPayment(course, slot) {
+  try {
+    localStorage.setItem(PENDING_KEY, JSON.stringify({
+      user_id: currentUser,
+      slot: slot,
+      course_id: String(course.id || ''),
+      course_name: course.course_name || '',
+      course_number: course.course_number || '',
+      course_price: Number(course.price || 0),
+      image_url: course.image_url || '',
+      category: String(course.category || ''),
+      deadline: payDeadline
+    }));
+  } catch (e) {}
+}
+
+function getPendingPayment() {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (!p || String(p.user_id || '') !== String(currentUser || '')) return null;
+    return p;
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearPendingPayment() {
+  try {
+    localStorage.removeItem(PENDING_KEY);
+  } catch (e) {}
+}
+
 async function loadUser() {
   const uuid = getUserUuid();
   if (!uuid) {
@@ -107,10 +142,6 @@ async function loadUser() {
   }
   const ud = data.user_data || {};
   const status = String(ud.status || '').toLowerCase();
-  if (status === 'pending') {
-    window.location.href = 'register.html';
-    return false;
-  }
   if (status !== 'active') {
     window.location.href = 'register.html';
     return false;
@@ -166,12 +197,34 @@ function renderTabs() {
   });
 }
 
-function cardHTML(course) {
+function cardHTML(course, owned) {
   const catName = CATEGORIES[String(course.category)] || 'Course';
   const desc = String(course.info_text || '').replace(/\s+/g, ' ').trim();
   const shortDesc = desc.length > 110 ? desc.slice(0, 110) + '...' : desc;
   const isDiploma = String(course.category) === '4';
   const priceTag = isDiploma ? 'Per Year' : 'One-time';
+
+  if (owned) {
+    return '<div class="course-card owned" data-id="' + escapeHtml(course.id) + '" data-owned="1">' +
+      '<div class="c-img">' +
+        '<span class="c-badge"><i class="fa-solid fa-layer-group"></i> ' + escapeHtml(catName) + '</span>' +
+        '<img src="' + escapeHtml(course.image_url || PLACEHOLDER_IMG) + '" alt="' + escapeHtml(course.course_name || 'Course') + '" loading="lazy" onerror="this.onerror=null;this.src=\'' + PLACEHOLDER_IMG + '\'">' +
+        '<span class="c-num">#' + escapeHtml(course.course_number || '') + '</span>' +
+        '<span class="c-owned-overlay"><i class="fa-solid fa-circle-check"></i><em>Purchased</em></span>' +
+      '</div>' +
+      '<div class="c-body">' +
+        '<h4>' + escapeHtml(course.course_name || 'Untitled Course') + '</h4>' +
+        '<p class="c-desc">' + escapeHtml(shortDesc) + '</p>' +
+        '<div class="c-price">' +
+          '<b><i class="fa-solid fa-naira-sign"></i>' + formatNaira(course.price) + '</b>' +
+          '<span>' + priceTag + '</span>' +
+        '</div>' +
+        '<div class="c-actions">' +
+          '<span class="owned-tag"><i class="fa-solid fa-circle-check"></i> You already own this course</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
 
   return '<div class="course-card" data-id="' + escapeHtml(course.id) + '">' +
     '<div class="c-img">' +
@@ -203,10 +256,12 @@ function renderGrid() {
   const grid = $('coursesGrid');
   const empty = $('emptyState');
   if (!grid) return;
+  const owned = ownedCourseIds(currentUserData);
   const list = filteredCourses();
-  grid.innerHTML = list.map(cardHTML).join('');
+  grid.innerHTML = list.map((c) => cardHTML(c, owned.has(String(c.id)))).join('');
   if (empty) empty.classList.toggle('hidden', list.length > 0);
   grid.querySelectorAll('.course-card').forEach((card) => {
+    if (card.dataset.owned === '1') return;
     card.querySelectorAll('.btn').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -220,6 +275,11 @@ function renderGrid() {
 }
 
 function openView(course) {
+  const owned = ownedCourseIds(currentUserData);
+  if (owned.has(String(course.id))) {
+    showToast('info', 'Already Owned', 'You already have this course. Check My Courses on your dashboard.');
+    return;
+  }
   currentCourse = course;
   const catName = CATEGORIES[String(course.category)] || 'Course';
   const isDiploma = String(course.category) === '4';
@@ -235,13 +295,6 @@ function openView(course) {
 
 function closeView() {
   $('viewOverlay').classList.remove('open');
-}
-
-function buildRegisterUrl(course) {
-  return 'register.html?course_id=' + encodeURIComponent(course.id) +
-    '&course_name=' + encodeURIComponent(course.course_name || '') +
-    '&course_number=' + encodeURIComponent(course.course_number || '') +
-    '&course_price=' + encodeURIComponent(course.price || 0);
 }
 
 async function startPaymentFlow(course) {
@@ -268,6 +321,11 @@ async function startPaymentFlow(course) {
     showToast('info', 'Payment In Progress', 'Please complete or wait for your current payment first.');
     return;
   }
+  const slot = nextOpenSlot(currentUserData);
+  if (!slot) {
+    showToast('error', 'Course Limit Reached', 'You have reached the maximum number of courses. Please contact support.');
+    return;
+  }
   closeView();
   $('payDetails').classList.add('hidden');
   $('payWait').classList.remove('hidden');
@@ -292,6 +350,8 @@ async function startPaymentFlow(course) {
     }
 
     if (data.account_number) {
+      payDeadline = Date.now() + (data.expires_in_minutes || 30) * 60000;
+      savePendingPayment(course, slot);
       $('payWait').classList.add('hidden');
       $('payDetails').classList.remove('hidden');
       $('payBank').textContent = data.bank_name || 'Wema Bank';
@@ -299,11 +359,11 @@ async function startPaymentFlow(course) {
       $('payAcctName').textContent = data.account_name || 'IDT ACADEMY';
       $('payAmount').innerHTML = '<i class="fa-solid fa-naira-sign"></i>' + formatNaira(data.amount || price);
       $('payAmt2').textContent = 'N' + formatNaira(data.amount || price);
-      payDeadline = Date.now() + (data.expires_in_minutes || 30) * 60000;
       startCountdown();
-      startPolling(course);
+      startPolling(course, slot);
     } else if (data.authorization_url) {
-      $('payOverlay').classList.remove('open');
+      payDeadline = Date.now() + 60 * 60000;
+      savePendingPayment(course, slot);
       window.location.href = data.authorization_url;
     } else {
       throw new Error('No payment account or link returned');
@@ -330,43 +390,18 @@ function startCountdown() {
   }, 1000);
 }
 
-function startPolling(course) {
-  payPolling = true;
-  const startedAt = Date.now();
+function stopPaymentUi() {
   if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(async () => {
-    if (Date.now() - startedAt > POLL_MAX_MS) {
-      clearInterval(pollTimer);
-      payPolling = false;
-      $('payOverlay').classList.remove('open');
-      showToast('error', 'Payment Expired', 'The payment window expired. Please try Pay Now again.');
-      return;
-    }
-    try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('user_data')
-        .eq('id', currentUser)
-        .single();
-      if (error || !data) return;
-      const ud = data.user_data || {};
-      currentUserData = ud;
-      const slot = nextOpenSlot(ud);
-      if (!slot) return;
-      const flag = String(ud['course2payment' + slot] || '').toLowerCase();
-      const paid = Number(ud['pay' + slot] || 0);
-      if (flag === 'yes' && paid > 0) {
-        clearInterval(pollTimer);
-        if (countdownTimer) clearInterval(countdownTimer);
-        paySlot = slot;
-        await finalizeCourse(course, slot, paid);
-      }
-    } catch (e) {}
-  }, POLL_INTERVAL);
+  if (countdownTimer) clearInterval(countdownTimer);
+  if (resumeTimer) clearInterval(resumeTimer);
+  pollTimer = null;
+  countdownTimer = null;
+  resumeTimer = null;
+  payPolling = false;
+  $('payOverlay').classList.remove('open');
 }
 
 async function finalizeCourse(course, slot, paidAmount) {
-  const btn = $('btnPayNow');
   try {
     const res = await fetch('/api/newCourse', {
       method: 'POST',
@@ -385,17 +420,87 @@ async function finalizeCourse(course, slot, paidAmount) {
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'Could not add your course');
     }
-    payPolling = false;
-    $('payOverlay').classList.remove('open');
+    stopPaymentUi();
+    clearPendingPayment();
+    const { data: fresh } = await supabase
+      .from('user_profiles')
+      .select('user_data')
+      .eq('id', currentUser)
+      .single();
+    if (fresh && fresh.user_data) currentUserData = fresh.user_data;
+    renderGrid();
     $('cgImg').src = course.image_url || PLACEHOLDER_IMG;
     $('cgName').textContent = course.course_name || 'Untitled Course';
     $('cgCat').textContent = CATEGORIES[String(course.category)] || 'Course';
     $('congratsOverlay').classList.add('open');
   } catch (err) {
-    payPolling = false;
-    $('payOverlay').classList.remove('open');
-    showToast('success', 'Payment Confirmed', 'Your payment was confirmed. Please refresh your dashboard — if the course is missing, contact support with your reference.');
+    showToast('info', 'Confirming Purchase', 'Your payment was received. We are saving your course, please wait...');
   }
+}
+
+function startPolling(course, slot) {
+  payPolling = true;
+  const startedAt = Date.now();
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    if (Date.now() - startedAt > POLL_MAX_MS) {
+      stopPaymentUi();
+      showToast('error', 'Payment Expired', 'The payment window expired. Please try Pay Now again.');
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('user_data')
+        .eq('id', currentUser)
+        .single();
+      if (error || !data) return;
+      const ud = data.user_data || {};
+      currentUserData = ud;
+      const flag = String(ud['course2payment' + slot] || '').toLowerCase();
+      const paid = Number(ud['pay' + slot] || 0);
+      if (flag === 'yes' && paid > 0) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        await finalizeCourse(course, slot, paid);
+      }
+    } catch (e) {}
+  }, POLL_INTERVAL);
+}
+
+function resumePendingPayment() {
+  const pending = getPendingPayment();
+  if (!pending) return;
+  if (payPolling) return;
+  const slot = Number(pending.slot || 0);
+  if (!slot || slot < 1 || slot > 40) {
+    clearPendingPayment();
+    return;
+  }
+  const course = {
+    id: pending.course_id,
+    course_name: pending.course_name,
+    course_number: pending.course_number,
+    course_price: Number(pending.course_price || 0),
+    price: Number(pending.course_price || 0),
+    image_url: pending.image_url || '',
+    category: pending.category || ''
+  };
+  if (!course.id) {
+    clearPendingPayment();
+    return;
+  }
+  const owned = ownedCourseIds(currentUserData);
+  if (owned.has(String(course.id))) {
+    clearPendingPayment();
+    return;
+  }
+  payDeadline = Number(pending.deadline || 0) || (Date.now() + 60 * 60000);
+  $('payWait').classList.remove('hidden');
+  $('payDetails').classList.add('hidden');
+  $('payOverlay').classList.add('open');
+  startCountdown();
+  startPolling(course, slot);
 }
 
 function setupSearch() {
@@ -527,6 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ok = await loadUser();
     if (!ok) return;
     await loadCourses();
+    resumePendingPayment();
   })();
 });
 
