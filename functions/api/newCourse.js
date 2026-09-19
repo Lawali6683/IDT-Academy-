@@ -37,6 +37,9 @@ async function fetchSupabase(url, options) {
 
 const MAX_SLOTS = 40;
 
+
+
+
 export const onRequestPost = async (context) => {
   const env = context.env;
 
@@ -49,8 +52,7 @@ export const onRequestPost = async (context) => {
     }
 
     const userId = String(body.user_id || '').trim();
-    const slot = Math.round(Number(body.slot || 0));
-    const amountPaid = Math.round(Number(body.amount_paid || 0));
+    const requestedSlot = Math.round(Number(body.slot || 0));
     const courseId = String(body.course_id || '').trim();
     const courseName = String(body.course_name || '').trim();
     const courseNumber = String(body.course_number || '').trim();
@@ -61,9 +63,6 @@ export const onRequestPost = async (context) => {
     }
     if (!courseId) {
       return json({ success: false, error: 'course_id is required' }, 400);
-    }
-    if (!slot || slot < 1 || slot > MAX_SLOTS) {
-      return json({ success: false, error: 'Valid payment slot is required' }, 400);
     }
 
     if (!env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -84,40 +83,66 @@ export const onRequestPost = async (context) => {
 
     const record = rows[0];
     const ud = record.user_data || {};
+    const updated = Object.assign({}, ud);
 
-    const flag = String(ud['course2payment' + slot] || '').toLowerCase();
-    const paid = Math.round(Number(ud['pay' + slot] || 0));
-
-    if (flag !== 'yes') {
-      return json({ success: false, error: 'Payment for this slot is not confirmed yet' }, 402);
+    if (String(updated.course_id || '').trim() === courseId) {
+      return json({ success: true, message: 'Course already owned', course_id: courseId });
     }
-    if (paid <= 0) {
-      return json({ success: false, error: 'Paid amount record not found for this slot' }, 402);
-    }
-    if (coursePrice > 0 && paid + 1 < coursePrice) {
-      return json({ success: false, error: 'Paid amount is less than the course price' }, 402);
-    }
-
-    const updated = { ...ud };
-
-    if (!String(updated.course_id || '').trim()) {
-      updated.course_id = courseId;
-      updated.course_name = courseName || updated.course_name || 'Selected Course';
-      updated.course_number = courseNumber || updated.course_number || '';
-      updated.course_price = coursePrice || updated.course_price || paid;
-    } else {
-      let target = 0;
-      if (String(updated['2course_id'] || '').trim() === courseId) {
-       return json({ success: true, message: 'Course already owned', assigned_slot: 2 });
+    for (let i = 2; i <= MAX_SLOTS; i++) {
+      if (String(updated[i + 'course_id'] || '').trim() === courseId) {
+        return json({ success: true, message: 'Course already owned', course_id: courseId, assigned_slot: i });
       }
+    }
+
+    let paidSlot = 0;
+    let paidAmount = 0;
+
+    if (requestedSlot >= 1 && requestedSlot <= MAX_SLOTS) {
+      const flag = String(updated['course2payment' + requestedSlot] || '').toLowerCase();
+      const paid = Math.round(Number(updated['pay' + requestedSlot] || 0));
+      const used = String(updated['course2payment' + requestedSlot + 'used'] || '').toLowerCase();
+      if (flag === 'yes' && paid > 0 && used !== 'yes') {
+        paidSlot = requestedSlot;
+        paidAmount = paid;
+      }
+    }
+
+    if (!paidSlot) {
+      for (let i = 1; i <= MAX_SLOTS; i++) {
+        const flag = String(updated['course2payment' + i] || '').toLowerCase();
+        const paid = Math.round(Number(updated['pay' + i] || 0));
+        const used = String(updated['course2payment' + i + 'used'] || '').toLowerCase();
+        if (flag !== 'yes' || paid <= 0 || used === 'yes') continue;
+        if (coursePrice > 0 && paid < coursePrice) continue;
+        paidSlot = i;
+        paidAmount = paid;
+        break;
+      }
+    }
+
+    if (!paidSlot) {
+      for (let i = 1; i <= MAX_SLOTS; i++) {
+        const flag = String(updated['course2payment' + i] || '').toLowerCase();
+        const paid = Math.round(Number(updated['pay' + i] || 0));
+        const used = String(updated['course2payment' + i + 'used'] || '').toLowerCase();
+        if (flag !== 'yes' || paid <= 0 || used === 'yes') continue;
+        paidSlot = i;
+        paidAmount = paid;
+        break;
+      }
+    }
+
+    if (!paidSlot) {
+      return json({ success: false, error: 'Payment for this course is not confirmed yet' }, 402);
+    }
+
+    if (String(updated.course_id || '').trim()) {
+      let target = 0;
       for (let i = 2; i <= MAX_SLOTS; i++) {
         const key = i + 'course_id';
         if (!updated[key] || !String(updated[key]).trim()) {
           target = i;
           break;
-        }
-        if (String(updated[key]).trim() === courseId) {
-          return json({ success: true, message: 'Course already owned', assigned_slot: i });
         }
       }
       if (!target) {
@@ -126,8 +151,16 @@ export const onRequestPost = async (context) => {
       updated[target + 'course_id'] = courseId;
       updated[target + 'course_name'] = courseName || 'Selected Course';
       updated[target + 'course_number'] = courseNumber || '';
-      updated[target + 'course_price'] = coursePrice || paid;
+      updated[target + 'course_price'] = coursePrice || paidAmount;
+      updated[target + 'course_status'] = 'active';
+   } else {
+      updated.course_id = courseId;
+      updated.course_name = courseName || 'Selected Course';
+      updated.course_number = courseNumber || '';
+      updated.course_price = coursePrice || paidAmount;
     }
+
+    updated['course2payment' + paidSlot + 'used'] = 'yes';
 
     const patchRes = await fetch(
       base + 'user_profiles?id=eq.' + encodeURIComponent(userId),
@@ -147,13 +180,15 @@ export const onRequestPost = async (context) => {
       success: true,
       message: 'Course added successfully',
       course_id: courseId,
-      course_name: courseName
+      course_name: courseName,
+      payment_slot_used: paidSlot
     });
 
   } catch (err) {
     return json({ success: false, error: err.message || 'Server error' }, 500);
   }
 };
+
 
 export const onRequestOptions = async () => {
   return new Response(null, { status: 204, headers: CORS });
