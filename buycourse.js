@@ -402,45 +402,87 @@ function stopPaymentUi() {
 }
 
 async function finalizeCourse(course, slot, paidAmount) {
-  try {
-    const res = await fetch('/api/newCourse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: currentUser,
-        slot: slot,
-        amount_paid: paidAmount,
-        course_id: course.id,
-        course_name: course.course_name || '',
-        course_number: course.course_number || '',
-        course_price: Number(course.price || 0)
-      })
-    });
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Could not add your course');
+  const maxAttempts = 5;
+  let lastError = '';
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch('/api/newCourse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: currentUser,
+          slot: slot,
+          amount_paid: paidAmount,
+          course_id: course.id,
+          course_name: course.course_name || '',
+          course_number: course.course_number || '',
+          course_price: Number(course.price || 0)
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success) {
+        stopPaymentUi();
+        clearPendingPayment();
+        try {
+          const { data: fresh } = await supabase
+            .from('user_profiles')
+            .select('user_data')
+            .eq('id', currentUser)
+            .single();
+          if (fresh && fresh.user_data) currentUserData = fresh.user_data;
+        } catch (e) {}
+        renderGrid();
+        $('cgImg').src = course.image_url || PLACEHOLDER_IMG;
+        $('cgName').textContent = course.course_name || 'Untitled Course';
+        $('cgCat').textContent = CATEGORIES[String(course.category)] || 'Course';
+        $('congratsOverlay').classList.add('open');
+        return;
+      }
+
+      if (res.status === 402) {
+        if (attempt < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, 4000));
+          continue;
+        }
+        lastError = data.error || 'Payment confirmation is still syncing. Please refresh the page in a minute.';
+        break;
+      }
+
+      if (res.status === 409) {
+        lastError = data.error || 'Course slots are full. Please contact support.';
+        break;
+      }
+
+      lastError = data.error || 'Could not add your course';
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        continue;
+      }
+      break;
+    } catch (err) {
+      lastError = err.message || 'Network error';
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        continue;
+      }
+      break;
     }
-    stopPaymentUi();
-    clearPendingPayment();
-    const { data: fresh } = await supabase
-      .from('user_profiles')
-      .select('user_data')
-      .eq('id', currentUser)
-      .single();
-    if (fresh && fresh.user_data) currentUserData = fresh.user_data;
-    renderGrid();
-    $('cgImg').src = course.image_url || PLACEHOLDER_IMG;
-    $('cgName').textContent = course.course_name || 'Untitled Course';
-    $('cgCat').textContent = CATEGORIES[String(course.category)] || 'Course';
-    $('congratsOverlay').classList.add('open');
-  } catch (err) {
-    showToast('info', 'Confirming Purchase', 'Your payment was received. We are saving your course, please wait...');
   }
+
+  stopPaymentUi();
+  showToast('error', 'Saving Failed', lastError || 'Your payment was received but we could not save the course. Please refresh the page or contact support with your payment reference.');
 }
+
+
+
+
 
 function startPolling(course, slot) {
   payPolling = true;
   const startedAt = Date.now();
+  let finalizeFailed = false;
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(async () => {
     if (Date.now() - startedAt > POLL_MAX_MS) {
@@ -457,16 +499,35 @@ function startPolling(course, slot) {
       if (error || !data) return;
       const ud = data.user_data || {};
       currentUserData = ud;
-      const flag = String(ud['course2payment' + slot] || '').toLowerCase();
-      const paid = Number(ud['pay' + slot] || 0);
-      if (flag === 'yes' && paid > 0) {
+      const owned = ownedCourseIds(ud);
+      if (owned.has(String(course.id))) {
         clearInterval(pollTimer);
         pollTimer = null;
-        await finalizeCourse(course, slot, paid);
+        stopPaymentUi();
+        clearPendingPayment();
+        renderGrid();
+        showToast('success', 'Course Saved!', 'Your new course has been added. Check My Courses on your dashboard.');
+        return;
+      }
+      const paid = Number(ud['pay' + slot] || 0);
+      let confirmed = false;
+      for (let i = 1; i <= 40; i++) {
+        if (String(ud['course2payment' + i] || '').toLowerCase() === 'yes' && Number(ud['pay' + i] || 0) > 0) {
+          confirmed = true;
+          break;
+        }
+      }
+      if ((confirmed && paid > 0) || (confirmed && !finalizeFailed)) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        await finalizeCourse(course, slot, paid || Number(course.price || 0));
+        finalizeFailed = true;
+        startPolling(course, slot);
       }
     } catch (e) {}
   }, POLL_INTERVAL);
 }
+
 
 function resumePendingPayment() {
   const pending = getPendingPayment();
