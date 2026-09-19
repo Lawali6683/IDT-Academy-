@@ -53,35 +53,51 @@ export async function onRequestPost(context) {
       );
     }
 
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
+    const modelsToTry = [
+      "gemini-1.5-flash",
+      "gemini-2.0-flash",
+      "gemini-flash-latest"
+    ];
 
-    const apiResponse = await fetch(geminiEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: parts
-          }
-        ]
-      })
-    });
+    let lastErrorData = null;
+    let apiResponse = null;
 
-    const responseData = await apiResponse.json();
+    for (const modelName of modelsToTry) {
+      const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
-    if (!apiResponse.ok) {
+      apiResponse = await fetch(geminiEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: parts
+            }
+          ]
+        })
+      });
+
+      if (apiResponse.ok) {
+        break;
+      }
+
+      lastErrorData = await apiResponse.json();
+    }
+
+    if (!apiResponse || !apiResponse.ok) {
       return new Response(
         JSON.stringify({
-          status: apiResponse.status,
-          statusText: apiResponse.statusText,
-          error: responseData
+          status: apiResponse ? apiResponse.status : 500,
+          statusText: apiResponse ? apiResponse.statusText : "Server Error",
+          error: lastErrorData
         }),
-        { status: apiResponse.status, headers: corsHeaders }
+        { status: apiResponse ? apiResponse.status : 500, headers: corsHeaders }
       );
     }
 
+    const responseData = await apiResponse.json();
     const outputText = responseData.candidates?.[0]?.content?.parts?.[0]?.text || "Babu sakon amsa da ya dawo.";
 
     return new Response(
