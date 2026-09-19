@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase.js';
 
 const $ = (id) => document.getElementById(id);
@@ -71,7 +70,7 @@ function showLoading() {
             <div class="i2-book">
               <div class="i2-cover i2-cl"><img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="i2-coverlogo"></div>
               <div class="i2-cover i2-cr"><img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="i2-coverlogo i2-crlogo"></div>
-              <div class="i2-page i2-p1"><i></i><i></i><i></i><i></i></div>
+              <div class="i2-page i2-p1"><i></i><i></i><i></i></div>
               <div class="i2-page i2-p2"><i></i><i></i></div>
               <div class="i2-page i2-p3"><i></i><i></i></div>
               <div class="i2-spine"></div>
@@ -103,7 +102,7 @@ function showLoading() {
         @keyframes i2float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
         .i2-cover{position:absolute;top:0;width:50%;height:100%;background:linear-gradient(180deg,#8b5cf6,#6d28d9);box-shadow:0 14px 30px rgba(0,0,0,.35)}
         .i2-cl{left:0;border-radius:6px 2px 2px 6px;transform-origin:right center;animation:i2sway 3.6s ease-in-out infinite;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#a78bfa 0%,#8b5cf6 45%,#6d28d9 100%)}
-        .i2-cr{right:0;border-radius:2px 6px 6px 2px;transform-origin:left center;animation:i2sway 3.6s ease-in-out infinite reverse;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#7c3aed 0%,#6d28d9 50%,#4c1d95 100%)}
+        .i2-cr{right:0;border-radius:2px 6px 6px 2px;transform-origin:left center;background:linear-gradient(145deg,#7c3aed 0%,#6d28d9 50%,#4c1d95 100%);animation:i2sway 3.6s ease-in-out infinite reverse;display:flex;align-items:center;justify-content:center}
         @keyframes i2sway{0%,100%{transform:rotateY(0)}50%{transform:rotateY(16deg)}}
         .i2-coverlogo{width:48px;height:48px;object-fit:contain;background:#fff;border-radius:50%;padding:7px;box-shadow:0 6px 18px rgba(0,0,0,.4),0 0 0 2px rgba(255,255,255,.25)}
         .i2-crlogo{width:42px;height:42px;opacity:.85}
@@ -117,7 +116,7 @@ function showLoading() {
         .i2-p3{z-index:1;animation:i2flip 3.6s ease-in-out 2.4s infinite}
         @keyframes i2flip{0%{transform:rotateY(0)}40%{transform:rotateY(-160deg)}70%,100%{transform:rotateY(0)}}
         .i2-spine{position:absolute;left:50%;top:0;bottom:0;width:9px;margin-left:-4.5px;background:linear-gradient(90deg,rgba(0,0,0,.45),rgba(0,0,0,.05) 50%,rgba(0,0,0,.45));border-radius:4px;z-index:4}
-        .i2-ribbon{position:absolute;left:50%;bottom:-24px;width:13px;height:24px;margin-left:-6.5px;background:linear-gradient(180deg,#fbbf24,#d97706);border-radius:0 0 7px 7px;transform-origin:top center;z-index:5;animation:i2dangle 3.6s ease-in-out infinite}
+        .i2-ribbon{position:absolute;left:50%;bottom:-24px;width:13px;height:24px;margin-left:-6.5px;background:linear-gradient(180deg,#fbbf24,#d97706);border-radius:0 0 7px 7px;transform-origin:top center;z-index:5;animation:i2dangle 3.6s ease-in-out infinite;box-shadow:0 6px 14px rgba(217,119,6,.45)}
         @keyframes i2dangle{0%,100%{transform:rotate(0)}50%{transform:rotate(12deg)}}
         .i2-title{margin-top:18px;font-size:27px;font-weight:800;letter-spacing:5px;text-transform:uppercase;background:linear-gradient(90deg,#f8fafc 0%,#a78bfa 30%,#22d3ee 55%,#fbbf24 80%,#f8fafc 100%);background-size:220% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;animation:i2shine 4s linear infinite}
         .i2-title b{font-weight:900}
@@ -183,6 +182,28 @@ function getUrlRef() {
   if (!ref) ref = localStorage.getItem('idt_ref') || '';
   if (!ref) ref = sessionStorage.getItem('idt_ref') || '';
   return ref.trim().toUpperCase();
+}
+
+function isValidRefFormat(value) {
+  return /^[A-Z0-9]{4,8}$/.test(String(value || '').trim().toUpperCase());
+}
+
+async function pickRefFromClipboard() {
+  const refInput = $('regRef');
+  if (!refInput) return;
+  const current = (refInput.value || '').trim().toUpperCase();
+  if (current && isValidRefFormat(current)) return;
+  if (!navigator.clipboard || !navigator.clipboard.readText) return;
+  try {
+    const text = await navigator.clipboard.readText();
+    const candidate = String(text || '').trim().toUpperCase();
+    if (isValidRefFormat(candidate)) {
+      refInput.value = candidate;
+      localStorage.setItem('idt_ref', candidate);
+      sessionStorage.setItem('idt_ref', candidate);
+      showToast('info', 'Referral Code Detected', 'Referral code ' + candidate + ' was detected and applied.', '');
+    }
+  } catch (err) {}
 }
 
 function switchTab(name) {
@@ -471,6 +492,19 @@ async function handleLogin(e) {
   }
 }
 
+function tryAutoLogin() {
+  try {
+    const raw = localStorage.getItem('idt_user');
+    if (!raw) return false;
+    const u = JSON.parse(raw);
+    if (!u || !u.id || typeof u.id !== 'string' || !u.id.trim()) return false;
+    window.location.replace('dashboard.html');
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
 if ($('tabRegister')) $('tabRegister').addEventListener('click', () => switchTab('register'));
 if ($('tabLogin')) $('tabLogin').addEventListener('click', () => switchTab('login'));
 
@@ -518,6 +552,9 @@ if (menuBtn && menuItems) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   showLoading();
+
+  if (tryAutoLogin()) return;
+
   parseUrl();
 
   const ref = getUrlRef();
@@ -536,6 +573,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadCourses();
   hideLoading();
+  pickRefFromClipboard();
 });
 
 document.addEventListener('DOMContentLoaded', () => {
