@@ -28,6 +28,7 @@ function sbHeaders(env) {
 
 async function fetchUserProfile(env, userId) {
   if (!userId) return null;
+
   const base = sbUrl(env);
   const headers = sbHeaders(env);
 
@@ -35,7 +36,6 @@ async function fetchUserProfile(env, userId) {
     const url = base + 'user_profiles?id=eq.' + encodeURIComponent(userId) + '&select=user_data';
     const r = await fetch(url, { headers });
     const rows = await r.json();
-
     if (Array.isArray(rows) && rows[0] && rows[0].user_data) {
       return rows[0].user_data;
     }
@@ -45,7 +45,6 @@ async function fetchUserProfile(env, userId) {
     const jambUrl = base + 'jambdata?id=eq.' + encodeURIComponent(userId) + '&select=jamb_data';
     const r2 = await fetch(jambUrl, { headers });
     const rows2 = await r2.json();
-
     if (Array.isArray(rows2) && rows2[0] && rows2[0].jamb_data) {
       return rows2[0].jamb_data;
     }
@@ -54,15 +53,14 @@ async function fetchUserProfile(env, userId) {
   return null;
 }
 
-async function askGemini(apiKey, prompt, systemInstruction) {
-  const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=' + apiKey;
-  const contents = [];
+async function askGeminiDirect(apiKey, prompt, systemInstruction) {
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
 
+  const contents = [];
   if (systemInstruction) {
     contents.push({ role: 'user', parts: [{ text: systemInstruction }] });
     contents.push({ role: 'model', parts: [{ text: 'Understood. I will follow these instructions.' }] });
   }
-
   contents.push({ role: 'user', parts: [{ text: prompt }] });
 
   const body = {
@@ -88,11 +86,86 @@ async function askGemini(apiKey, prompt, systemInstruction) {
   });
 
   const data = await res.json();
+
   if (!res.ok) {
-    throw new Error('Gemini API error: ' + (data.error && data.error.message ? data.error.message : JSON.stringify(data)));
+    throw new Error('Gemini API Error (' + res.status + '): ' + (data.error && data.error.message ? data.error.message : JSON.stringify(data)));
   }
 
   return data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] ? data.candidates[0].content.parts[0].text : '';
+}
+
+async function askOpenRouter(apiKey, prompt, systemInstruction, siteUrl = 'https://idtacademy.com.ng', siteTitle = 'IDT Academy') {
+  const url = 'https://openrouter.ai/api/v1/chat/completions';
+
+  const messages = [];
+  if (systemInstruction) {
+    messages.push({ role: 'system', content: systemInstruction });
+  }
+  messages.push({ role: 'user', content: prompt });
+
+  const body = {
+    model: 'openai/gpt-4o-mini',
+    messages: messages,
+    temperature: 0.7,
+    max_tokens: 4096
+  };
+
+  const headers = {
+    'Authorization': 'Bearer ' + apiKey,
+    'HTTP-Referer': siteUrl,
+    'X-Title': siteTitle,
+    'Content-Type': 'application/json'
+  };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(body)
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error('OpenRouter API Error (' + res.status + '): ' + (data.error && data.error.message ? data.error.message : JSON.stringify(data)));
+  }
+
+  return data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
+}
+
+async function askAI(env, prompt, systemInstruction) {
+  const geminiKey = env.GEMINI_API_KEY;
+  const openRouterKey = env.OPENROUTER_API_KEY;
+
+  if (geminiKey) {
+    try {
+      const response = await askGeminiDirect(geminiKey, prompt, systemInstruction);
+      if (response && response.trim().length > 0) {
+        return response;
+      }
+    } catch (geminiError) {}
+  }
+
+  if (openRouterKey) {
+    try {
+      const siteUrl = env.SITE_URL || 'https://idtacademy.com.ng';
+      const siteTitle = env.SITE_TITLE || 'IDT Academy';
+      return await askOpenRouter(openRouterKey, prompt, systemInstruction, siteUrl, siteTitle);
+    } catch (openRouterError) {
+      throw new Error('All AI services failed. OpenRouter error: ' + openRouterError.message);
+    }
+  }
+
+  throw new Error('No valid AI API keys (GEMINI_API_KEY / OPENROUTER_API_KEY) are configured in environment variables.');
+}
+
+function parseCleanJSON(rawText) {
+  if (!rawText) throw new Error('Empty AI response');
+  try {
+    return JSON.parse(rawText);
+  } catch (e) {
+    const cleaned = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    return JSON.parse(cleaned);
+  }
 }
 
 function buildExamPrompt(userData) {
@@ -143,6 +216,7 @@ function buildExamPrompt(userData) {
   const subjects = subjectsMap[courseId] || 'Use of English, Physics, Chemistry, Mathematics';
 
   return `You are a JAMB exam question generator for IDT Academy. Generate a complete JAMB UTME mock examination for a student named ${fullName} studying ${courseName}.
+
 EXAM STRUCTURE (JAMB UTME 2026 standard):
 - Total questions: 180
 - Use of English: 60 questions (40 seconds per question recommended)
@@ -159,13 +233,16 @@ For each question, provide:
 4. The subject name
 
 OUTPUT FORMAT: Return ONLY a valid JSON array. No markdown, no code blocks. Each object must have: id (string like "q1"), number (1-180), subject (string), text (string), options (array of 4 strings), correct (0-3 integer).
+
 Example:
 [{"id":"q1","number":1,"subject":"Use of English","text":"Choose the correct option to complete the sentence: The committee ___ agreed on the proposal.","options":["has","have","is having","are having"],"correct":0}]
+
 Generate questions following the JAMB UTME format. Ensure all subjects have correct question counts.`;
 }
 
 function buildMarkingPrompt(questions, answers, userData) {
   return `You are a JAMB exam marker for IDT Academy. Mark the following exam and provide detailed results.
+
 STUDENT: ${userData.full_name || 'Student'}
 COURSE: ${userData.course_name || 'General'}
 
@@ -199,14 +276,15 @@ OUTPUT FORMAT: Return ONLY a valid JSON object with these fields:
     }
   ]
 }
+
 Calculate scores correctly. Use 2.22 marks per correct answer. Round the final score to nearest integer. Determine pass/fail correctly.`;
 }
 
 function buildChatPrompt(messages, language) {
   const systemMsg = messages.find((m) => m.role === 'system');
   const systemInstr = systemMsg ? systemMsg.content : 'You are a helpful JAMB tutor AI for IDT Academy.';
-  let conversationHistory = '';
 
+  let conversationHistory = '';
   for (let i = 0; i < messages.length; i++) {
     const m = messages[i];
     if (m.role === 'system') continue;
@@ -214,9 +292,12 @@ function buildChatPrompt(messages, language) {
   }
 
   return `${systemInstr}
+
 LANGUAGE INSTRUCTION: The student wants explanations in ${language} format. Provide the response clearly. Make sure the student understands completely.
+
 CONVERSATION HISTORY:
 ${conversationHistory}
+
 Tutor: Provide a helpful, educational response. Be encouraging, clear, and thorough. Use JAMB exam context. If the student asks about a specific topic, explain it with examples. If they ask about a question they got wrong, explain why the correct answer is right and help them understand the concept.`;
 }
 
@@ -228,19 +309,17 @@ export const onRequestPost = async (context) => {
     try {
       body = await context.request.json();
     } catch (err) {
-      return json({ success: false, error: 'Invalid JSON body' }, 400);
+      return json({ success: false, error: 'Invalid JSON body in request' }, 400);
     }
 
     const action = String(body.action || '').trim();
-    if (!action) return json({ success: false, error: 'action is required (generate_exam, mark_exam, or chat)' }, 400);
-
-    const apiKey = env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return json({ success: false, error: 'GEMINI_API_KEY is not configured.' }, 500);
+    if (!action) {
+      return json({ success: false, error: 'action is required (generate_exam, mark_exam, or chat)' }, 400);
     }
 
     const userId = String(body.user_id || body.id || '').trim();
     let dbProfile = null;
+
     if (userId) {
       dbProfile = await fetchUserProfile(env, userId);
     }
@@ -254,22 +333,16 @@ export const onRequestPost = async (context) => {
 
       try {
         const prompt = buildExamPrompt(userData);
-        const geminiText = await askGemini(apiKey, prompt, 'You are a JAMB UTME exam generator. Generate accurate, exam-standard questions following the exact JAMB format. Return ONLY valid JSON array with questions.');
+        const systemInstruction = 'You are a JAMB UTME exam generator. Generate accurate, exam-standard questions following the exact JAMB format. Return ONLY valid JSON array with questions.';
 
-        let questions;
-        try {
-          questions = JSON.parse(geminiText);
-        } catch (e) {
-          const cleaned = geminiText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-          questions = JSON.parse(cleaned);
-        }
+        const aiResponseText = await askAI(env, prompt, systemInstruction);
+        const questions = parseCleanJSON(aiResponseText);
 
         if (!Array.isArray(questions) || questions.length === 0) {
-          throw new Error('Invalid questions generated');
+          throw new Error('Generated questions format is invalid or empty');
         }
 
         return json({ success: true, questions: questions });
-
       } catch (err) {
         return json({ success: false, error: 'Exam generation failed: ' + err.message }, 500);
       }
@@ -291,22 +364,16 @@ export const onRequestPost = async (context) => {
 
       try {
         const prompt = buildMarkingPrompt(questions, answers, userData);
-        const geminiText = await askGemini(apiKey, prompt, 'You are a JAMB exam marker. Mark accurately, calculate scores correctly using 2.22 per question. Return ONLY valid JSON.');
+        const systemInstruction = 'You are a JAMB exam marker. Mark accurately, calculate scores correctly using 2.22 per question. Return ONLY valid JSON.';
 
-        let result;
-        try {
-          result = JSON.parse(geminiText);
-        } catch (e) {
-          const cleaned = geminiText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-          result = JSON.parse(cleaned);
-        }
+        const aiResponseText = await askAI(env, prompt, systemInstruction);
+        const result = parseCleanJSON(aiResponseText);
 
         if (!result || (result.score === undefined && result.score !== 0)) {
-          throw new Error('Invalid marking result format');
+          throw new Error('Invalid marking result structure received from AI');
         }
 
         return json({ success: true, ...result });
-
       } catch (err) {
         return json({ success: false, error: 'Marking failed: ' + err.message }, 500);
       }
@@ -322,10 +389,10 @@ export const onRequestPost = async (context) => {
 
       try {
         const prompt = buildChatPrompt(messages, language);
-        const response = await askGemini(apiKey, prompt, 'You are a helpful, patient JAMB tutor AI for IDT Academy students. Be encouraging and educational. Respond in the requested language format.');
+        const systemInstruction = 'You are a helpful, patient JAMB tutor AI for IDT Academy students. Be encouraging and educational. Respond in the requested language format.';
 
-        return json({ success: true, response: response });
-
+        const responseText = await askAI(env, prompt, systemInstruction);
+        return json({ success: true, response: responseText });
       } catch (err) {
         return json({ success: false, error: 'AI chat failed: ' + err.message }, 500);
       }
@@ -334,7 +401,7 @@ export const onRequestPost = async (context) => {
     return json({ success: false, error: 'Unknown action. Use generate_exam, mark_exam, or chat.' }, 400);
 
   } catch (err) {
-    return json({ success: false, error: err.message || 'Server error' }, 500);
+    return json({ success: false, error: err.message || 'Internal Server Error' }, 500);
   }
 };
 
