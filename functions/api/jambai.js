@@ -59,7 +59,7 @@ async function askGeminiDirect(apiKey, prompt, systemInstruction) {
   const contents = [];
   if (systemInstruction) {
     contents.push({ role: 'user', parts: [{ text: systemInstruction }] });
-    contents.push({ role: 'model', parts: [{ text: 'Understood. I will follow these instructions.' }] });
+    contents.push({ role: 'model', parts: [{ text: 'Understood. I will follow these instructions exactly.' }] });
   }
   contents.push({ role: 'user', parts: [{ text: prompt }] });
 
@@ -69,7 +69,8 @@ async function askGeminiDirect(apiKey, prompt, systemInstruction) {
       temperature: 0.7,
       topK: 40,
       topP: 0.9,
-      maxOutputTokens: 4096
+      maxOutputTokens: 32768,
+      thinkingConfig: { thinkingBudget: 0 }
     },
     safetySettings: [
       { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
@@ -107,7 +108,7 @@ async function askOpenRouter(apiKey, prompt, systemInstruction, siteUrl = 'https
     model: 'openai/gpt-4o-mini',
     messages: messages,
     temperature: 0.7,
-    max_tokens: 4096
+    max_tokens: 16384
   };
 
   const headers = {
@@ -163,125 +164,211 @@ function parseCleanJSON(rawText) {
   try {
     return JSON.parse(rawText);
   } catch (e) {
-    const cleaned = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-    return JSON.parse(cleaned);
+    const start = rawText.indexOf('[') !== -1 ? rawText.indexOf('[') : rawText.indexOf('{');
+    const endArr = rawText.lastIndexOf(']');
+    const endObj = rawText.lastIndexOf('}');
+    const end = endArr > endObj ? endArr : endObj;
+    if (start === -1 || end === -1 || end <= start) {
+      const cleaned = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      return JSON.parse(cleaned);
+    }
+    return JSON.parse(rawText.substring(start, end + 1));
   }
 }
 
-function buildExamPrompt(userData) {
-  const fullName = userData.full_name || 'Student';
-  const courseName = userData.course_name || 'General';
-  const courseId = userData.course_id || '';
+const subjectsMap = {
+  'eng_tech': ['Use of English', 'Mathematics', 'Physics', 'Chemistry'],
+  'medicine': ['Use of English', 'Biology', 'Chemistry', 'Physics'],
+  'cs_science': ['Use of English', 'Mathematics', 'Physics', 'Chemistry'],
+  'cs_mgmt': ['Use of English', 'Mathematics', 'Physics', 'Economics'],
+  'agric': ['Use of English', 'Chemistry', 'Biology', 'Physics'],
+  'architecture': ['Use of English', 'Mathematics', 'Physics', 'Chemistry'],
+  'bio_sciences': ['Use of English', 'Biology', 'Chemistry', 'Physics'],
+  'physical_sci': ['Use of English', 'Mathematics', 'Physics', 'Chemistry'],
+  'math_stats': ['Use of English', 'Mathematics', 'Physics', 'Chemistry'],
+  'food_sci': ['Use of English', 'Chemistry', 'Mathematics', 'Biology'],
+  'law': ['Use of English', 'Literature in English', 'Government', 'CRK'],
+  'mass_comm': ['Use of English', 'Literature in English', 'Government', 'Economics'],
+  'pol_sci': ['Use of English', 'Government', 'Economics', 'Literature in English'],
+  'sociology': ['Use of English', 'Government', 'Economics', 'Literature in English'],
+  'economics': ['Use of English', 'Mathematics', 'Economics', 'Government'],
+  'english_lang': ['Use of English', 'Literature in English', 'Government', 'Linguistics'],
+  'history': ['Use of English', 'History', 'Literature in English', 'Government'],
+  'theatre': ['Use of English', 'Literature in English', 'Government', 'Fine Arts'],
+  'languages': ['Use of English', 'Nigerian Language', 'Literature in English', 'Government'],
+  'religious': ['Use of English', 'IRK', 'Government', 'Literature in English'],
+  'accounting': ['Use of English', 'Mathematics', 'Economics', 'Commerce'],
+  'business_admin': ['Use of English', 'Mathematics', 'Economics', 'Commerce'],
+  'marketing': ['Use of English', 'Mathematics', 'Economics', 'Commerce'],
+  'hr': ['Use of English', 'Mathematics', 'Economics', 'Government'],
+  'insurance': ['Use of English', 'Mathematics', 'Economics', 'Commerce'],
+  'estate': ['Use of English', 'Mathematics', 'Economics', 'Geography'],
+  'geography': ['Use of English', 'Geography', 'Mathematics', 'Economics'],
+  'edu_science': ['Use of English', 'Biology', 'Mathematics', 'Chemistry'],
+  'edu_math': ['Use of English', 'Mathematics', 'Physics', 'Chemistry'],
+  'edu_english': ['Use of English', 'Literature in English', 'Government', 'Linguistics'],
+  'edu_econs': ['Use of English', 'Mathematics', 'Economics', 'Government'],
+  'primary_edu': ['Use of English', 'Government', 'Economics', 'Biology'],
+  'mls': ['Use of English', 'Biology', 'Chemistry', 'Physics'],
+  'physio': ['Use of English', 'Biology', 'Chemistry', 'Physics'],
+  'public_health': ['Use of English', 'Biology', 'Chemistry', 'Physics'],
+  'veterinary': ['Use of English', 'Biology', 'Chemistry', 'Physics'],
+  'telecom': ['Use of English', 'Mathematics', 'Physics', 'Chemistry'],
+  'library': ['Use of English', 'Government', 'Literature in English', 'Economics']
+};
 
-  const subjectsMap = {
-    'eng_tech': 'Use of English, Physics, Chemistry, Mathematics',
-    'medicine': 'Use of English, Biology, Chemistry, Physics',
-    'cs_science': 'Use of English, Mathematics, Physics, Chemistry',
-    'cs_mgmt': 'Use of English, Mathematics, Physics, Economics',
-    'agric': 'Use of English, Chemistry, Biology, Physics',
-    'architecture': 'Use of English, Mathematics, Physics, Chemistry',
-    'bio_sciences': 'Use of English, Biology, Chemistry, Physics',
-    'physical_sci': 'Use of English, Mathematics, Physics, Chemistry',
-    'math_stats': 'Use of English, Mathematics, Physics, Chemistry',
-    'food_sci': 'Use of English, Chemistry, Mathematics, Biology',
-    'law': 'Use of English, Literature in English, Government, CRK',
-    'mass_comm': 'Use of English, Literature in English, Government, Economics',
-    'pol_sci': 'Use of English, Government, Economics, Literature',
-    'sociology': 'Use of English, Government, Economics, Literature',
-    'economics': 'Use of English, Mathematics, Economics, Government',
-    'english_lang': 'Use of English, Literature in English, Government, Any Language',
-    'history': 'Use of English, History, Literature, Government',
-    'theatre': 'Use of English, Literature, Government, Fine Arts',
-    'languages': 'Use of English, Specific Language, Literature, Any Arts',
-    'religious': 'Use of English, IRK/CRK, Government, Literature',
-    'accounting': 'Use of English, Mathematics, Economics, Commerce',
-    'business_admin': 'Use of English, Mathematics, Economics, Commerce',
-    'marketing': 'Use of English, Mathematics, Economics, Commerce',
-    'hr': 'Use of English, Mathematics, Economics, Government',
-    'insurance': 'Use of English, Mathematics, Economics, Commerce',
-    'estate': 'Use of English, Mathematics, Economics, Geography',
-    'geography': 'Use of English, Geography, Mathematics, Economics',
-    'edu_science': 'Use of English, Science, Mathematics, Chemistry',
-    'edu_math': 'Use of English, Mathematics, Physics, Chemistry',
-    'edu_english': 'Use of English, Literature, Government, Any Arts',
-    'primary_edu': 'Use of English, Any 3 Arts/Social Science/Science',
-    'mls': 'Use of English, Biology, Chemistry, Physics',
-    'physio': 'Use of English, Biology, Chemistry, Physics',
-    'public_health': 'Use of English, Biology, Chemistry, Physics',
-    'veterinary': 'Use of English, Biology, Chemistry, Physics',
-    'telecom': 'Use of English, Mathematics, Physics, Chemistry',
-    'library': 'Use of English, Any 3 Arts/Social Science/Science'
-  };
+function resolveExamSubjects(body, dbProfile) {
+  const courseId = String(body.jambCourseId || (dbProfile && dbProfile.jambCourseId) || '').trim();
+  if (courseId && subjectsMap[courseId]) {
+    return subjectsMap[courseId];
+  }
 
-  const subjects = subjectsMap[courseId] || 'Use of English, Physics, Chemistry, Mathematics';
+  const provided = body.jambCourseSubjects || (dbProfile && dbProfile.jambCourseSubjects);
+  if (Array.isArray(provided) && provided.length >= 2) {
+    const cleaned = provided.map(function(s) { return String(s).trim(); }).filter(function(s) { return s && s.length > 0; });
+    if (cleaned.length >= 2) {
+      const englishIndex = cleaned.findIndex(function(s) { return s.toLowerCase().indexOf('english') !== -1; });
+      const english = englishIndex !== -1 ? cleaned.splice(englishIndex, 1)[0] : 'Use of English';
+      const others = cleaned.slice(0, 3);
+      while (others.length < 3) others.push('Physics');
+      return [english].concat(others);
+    }
+  }
 
-  return `You are a JAMB exam question generator for IDT Academy. Generate a complete JAMB UTME mock examination for a student named ${fullName} studying ${courseName}.
+  return ['Use of English', 'Mathematics', 'Physics', 'Chemistry'];
+}
 
-EXAM STRUCTURE (JAMB UTME 2026 standard):
-- Total questions: 180
-- Use of English: 60 questions (40 seconds per question recommended)
-- Each of the 3 other subjects: 40 questions each
-- Total time: 2 hours (120 minutes)
-- Marking: 2.22 marks per question = 400 marks total
-- No negative marking
-- Subjects: ${subjects}
+function buildSubjectPrompt(subject, count, fullName, courseName) {
+  return `You are a JAMB UTME question generator for IDT Academy. Generate exactly ${count} multiple-choice questions for the subject "${subject}" for a JAMB UTME mock exam for a student named ${fullName} studying ${courseName}.
 
-For each question, provide:
-1. The question text (clear, exam-standard)
-2. Four options (A, B, C, D) with one correct answer
-3. The correct answer index (0 for A, 1 for B, 2 for C, 3 for D)
-4. The subject name
+STRICT RULES:
+- Questions must match the real JAMB UTME standard: past-question style, syllabus-based, exam-standard difficulty.
+- Each question has exactly 4 options (A, B, C, D) and exactly one correct answer.
+- "correct" is the zero-based index of the correct answer (0 = A, 1 = B, 2 = C, 3 = D).
+- Questions must be clear, unambiguous, and educationally accurate.
+- Cover different areas of the ${subject} JAMB syllabus. No duplicates.
 
-OUTPUT FORMAT: Return ONLY a valid JSON array. No markdown, no code blocks. Each object must have: id (string like "q1"), number (1-180), subject (string), text (string), options (array of 4 strings), correct (0-3 integer).
+OUTPUT FORMAT: Return ONLY a valid JSON array. No markdown, no explanations, no code blocks. Each object must have exactly these fields: "subject" (string), "text" (string), "options" (array of exactly 4 strings), "correct" (integer 0-3).
 
 Example:
-[{"id":"q1","number":1,"subject":"Use of English","text":"Choose the correct option to complete the sentence: The committee ___ agreed on the proposal.","options":["has","have","is having","are having"],"correct":0}]
+[{"subject":"${subject}","text":"Choose the option that best completes the sentence: The committee ___ agreed on the proposal.","options":["has","have","is having","are having"],"correct":0}]
 
-Generate questions following the JAMB UTME format. Ensure all subjects have correct question counts.`;
+Generate exactly ${count} questions now.`;
 }
 
-function buildMarkingPrompt(questions, answers, userData) {
-  return `You are a JAMB exam marker for IDT Academy. Mark the following exam and provide detailed results.
+async function generateExam(env, subjects, fullName, courseName) {
+  const allQuestions = [];
+  const counts = subjects.map(function(s, i) { return i === 0 ? 60 : 40; });
 
-STUDENT: ${userData.full_name || 'Student'}
-COURSE: ${userData.course_name || 'General'}
+  for (let i = 0; i < subjects.length; i++) {
+    const subject = subjects[i];
+    const count = counts[i];
+    let questions = null;
 
-MARKING SCHEME:
-- Each question carries 2.22 marks
-- Total: 400 marks
-- Pass mark: 200 (50%)
-- No negative marking
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const prompt = buildSubjectPrompt(subject, count, fullName, courseName);
+        const systemInstruction = 'You are a JAMB UTME exam generator. Generate accurate, exam-standard questions in the exact JSON format requested. Return ONLY a valid JSON array, nothing else.';
+        const aiResponseText = await askAI(env, prompt, systemInstruction);
+        const parsed = parseCleanJSON(aiResponseText);
 
-QUESTIONS AND ANSWERS:
-${JSON.stringify({ questions: questions, answers: answers })}
-
-OUTPUT FORMAT: Return ONLY a valid JSON object with these fields:
-{
-  "score": 0,
-  "total": 180,
-  "correct": 0,
-  "passed": false,
-  "subjects": [
-    { "subject": "Subject Name", "correct": 0, "total": 40 }
-  ],
-  "details": [
-    {
-      "number": 1,
-      "subject": "Subject Name",
-      "question": "Full question text",
-      "options": ["A", "B", "C", "D"],
-      "correct": 0,
-      "user_answer": 0,
-      "is_correct": true
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const valid = parsed.filter(function(q) {
+            return q && typeof q.text === 'string' && q.text.trim().length > 0 && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === 'number' && q.correct >= 0 && q.correct <= 3;
+          });
+          if (valid.length >= Math.ceil(count * 0.7)) {
+            questions = valid.slice(0, count);
+            break;
+          }
+        }
+      } catch (err) {}
     }
-  ]
+
+    if (!questions || questions.length === 0) {
+      throw new Error('Failed to generate questions for subject: ' + subject);
+    }
+
+    questions.forEach(function(q, qi) {
+      q.id = 'q' + (i + 1) + '_' + (qi + 1);
+      q.number = qi + 1;
+      q.subject = subject;
+      if (!q.options || q.options.length !== 4) {
+        while (!q.options) q.options = [];
+        while (q.options.length < 4) q.options.push('None of the above');
+      }
+      q.correct = Number(q.correct);
+    });
+
+    allQuestions.push.apply(allQuestions, questions);
+  }
+
+  return allQuestions;
 }
 
-Calculate scores correctly. Use 2.22 marks per correct answer. Round the final score to nearest integer. Determine pass/fail correctly.`;
+function markExamServer(questions, answers) {
+  let correct = 0;
+  const details = [];
+
+  questions.forEach(function(q, i) {
+    const rawAns = answers[i];
+    const userAns = (rawAns === null || rawAns === undefined || rawAns === '') ? null : Number(rawAns);
+    const qCorrect = Number(q.correct);
+    const isCorrect = userAns !== null && userAns === Number(q.correct);
+    if (isCorrect) correct++;
+    details.push({
+      number: i + 1,
+      subject: q.subject,
+      question: q.text,
+      options: q.options,
+      correct: Number(q.correct),
+      user_answer: userAns,
+      is_correct: isCorrect
+    });
+  });
+
+  const total = questions.length;
+  const score = Math.round(correct * (400 / total));
+  const passed = score >= 200;
+
+  const map = {};
+  details.forEach(function(d) {
+    if (!map[d.subject]) map[d.subject] = { correct: 0, total: 0 };
+    map[d.subject].total++;
+    if (d.is_correct) map[d.subject].correct++;
+  });
+  const subjects = Object.keys(map).map(function(s) {
+    return { subject: s, correct: map[s].correct, total: map[s].total };
+  });
+
+  return {
+    success: true,
+    score: score,
+    total: total,
+    correct: correct,
+    passed: passed,
+    subjects: subjects,
+    details: details
+  };
+}
+
+function buildChatLanguageInstruction(language) {
+  const lang = String(language || 'english').trim();
+  const lower = lang.toLowerCase();
+
+  if (lower === 'english' || lower === 'en') {
+    return 'LANGUAGE RULE: Respond ONLY in clear English. Keep explanations simple and easy to understand.';
+  }
+
+  if (lower.indexOf('english+') === 0) {
+    const other = lang.substring(8).trim();
+    return 'LANGUAGE RULE: The student chose bilingual mode. First give the explanation in clear English, then repeat the key points in ' + other + ' so the student fully understands.';
+  }
+
+  return 'LANGUAGE RULE: Respond ONLY in ' + lang + '. You are capable of communicating in every world language — never claim you cannot speak a language, never refuse, and never apologize about language support. If the student writes in a language different from English, always reply in the language the student used.';
 }
 
 function buildChatPrompt(messages, language) {
-  const systemMsg = messages.find((m) => m.role === 'system');
+  const systemMsg = messages.find(function(m) { return m.role === 'system'; });
   const systemInstr = systemMsg ? systemMsg.content : 'You are a helpful JAMB tutor AI for IDT Academy.';
 
   let conversationHistory = '';
@@ -293,7 +380,7 @@ function buildChatPrompt(messages, language) {
 
   return `${systemInstr}
 
-LANGUAGE INSTRUCTION: The student wants explanations in ${language} format. Provide the response clearly. Make sure the student understands completely.
+${buildChatLanguageInstruction(language)}
 
 CONVERSATION HISTORY:
 ${conversationHistory}
@@ -325,18 +412,12 @@ export const onRequestPost = async (context) => {
     }
 
     if (action === 'generate_exam') {
-      const userData = {
-        full_name: String(body.full_name || (dbProfile && dbProfile.full_name) || ''),
-        course_name: String(body.course_name || (dbProfile && dbProfile.course_name) || ''),
-        course_id: String(body.course_id || (dbProfile && dbProfile.course_id) || '')
-      };
+      const fullName = String(body.full_name || (dbProfile && dbProfile.full_name) || 'Student');
+      const courseName = String(body.jambCourseName || body.course_name || (dbProfile && dbProfile.jambCourseName) || 'JAMB Preparation');
+      const subjects = resolveExamSubjects(body, dbProfile);
 
       try {
-        const prompt = buildExamPrompt(userData);
-        const systemInstruction = 'You are a JAMB UTME exam generator. Generate accurate, exam-standard questions following the exact JAMB format. Return ONLY valid JSON array with questions.';
-
-        const aiResponseText = await askAI(env, prompt, systemInstruction);
-        const questions = parseCleanJSON(aiResponseText);
+        const questions = await generateExam(env, subjects, fullName, courseName);
 
         if (!Array.isArray(questions) || questions.length === 0) {
           throw new Error('Generated questions format is invalid or empty');
@@ -351,37 +432,18 @@ export const onRequestPost = async (context) => {
     if (action === 'mark_exam') {
       const questions = body.questions;
       const answers = body.answers;
-      const userData = {
-        full_name: String(body.full_name || (dbProfile && dbProfile.full_name) || ''),
-        course_name: String(body.course_name || (dbProfile && dbProfile.course_name) || ''),
-        course_id: String(body.course_id || (dbProfile && dbProfile.course_id) || ''),
-        email: String(body.email || (dbProfile && dbProfile.email) || '')
-      };
 
-      if (!questions || !answers) {
+      if (!questions || !Array.isArray(questions) || questions.length === 0 || !answers || !Array.isArray(answers)) {
         return json({ success: false, error: 'questions and answers are required' }, 400);
       }
 
-      try {
-        const prompt = buildMarkingPrompt(questions, answers, userData);
-        const systemInstruction = 'You are a JAMB exam marker. Mark accurately, calculate scores correctly using 2.22 per question. Return ONLY valid JSON.';
-
-        const aiResponseText = await askAI(env, prompt, systemInstruction);
-        const result = parseCleanJSON(aiResponseText);
-
-        if (!result || (result.score === undefined && result.score !== 0)) {
-          throw new Error('Invalid marking result structure received from AI');
-        }
-
-        return json({ success: true, ...result });
-      } catch (err) {
-        return json({ success: false, error: 'Marking failed: ' + err.message }, 500);
-      }
+      const result = markExamServer(questions, answers);
+      return json(result);
     }
 
     if (action === 'chat') {
       const messages = body.messages;
-      const language = String(body.language || 'english+hausa');
+      const language = String(body.language || 'english');
 
       if (!messages || !Array.isArray(messages)) {
         return json({ success: false, error: 'messages array is required' }, 400);
@@ -389,7 +451,7 @@ export const onRequestPost = async (context) => {
 
       try {
         const prompt = buildChatPrompt(messages, language);
-        const systemInstruction = 'You are a helpful, patient JAMB tutor AI for IDT Academy students. Be encouraging and educational. Respond in the requested language format.';
+        const systemInstruction = 'You are a helpful, patient JAMB tutor AI for IDT Academy students. Be encouraging and educational. You support every world language and always follow the language rules given in the prompt.';
 
         const responseText = await askAI(env, prompt, systemInstruction);
         return json({ success: true, response: responseText });
