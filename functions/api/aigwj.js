@@ -3,18 +3,18 @@ export async function onRequestOptions() {
     status: 204,
     headers: {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Access-Control-Max-Age": "86400",
-    },
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Max-Age": "86400"
+    }
   });
 }
 
 export async function onRequestPost(context) {
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
     "Content-Type": "application/json"
   };
 
@@ -23,96 +23,80 @@ export async function onRequestPost(context) {
 
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: "API Key ba a saita shi a Cloudflare Environment Variables ba (GEMINI_API_KEY)." }),
+        JSON.stringify({ error: "API Key is missing in environment variables." }),
         { status: 500, headers: corsHeaders }
       );
     }
 
-    const requestData = await context.request.json();
-    const { prompt, image, mimeType } = requestData;
+    const body = await context.request.json();
+    const promptText = body.prompt || "";
+    const base64Image = body.image || null;
+    const mimeType = body.mimeType || "image/jpeg";
 
     const parts = [];
 
-    if (prompt) {
-      parts.push({ text: prompt });
+    if (promptText) {
+      parts.push({ text: promptText });
     }
 
-    if (image && mimeType) {
+    if (base64Image) {
       parts.push({
         inline_data: {
           mime_type: mimeType,
-          data: image
+          data: base64Image
         }
       });
     }
 
     if (parts.length === 0) {
       return new Response(
-        JSON.stringify({ error: "Dole ne ka tura rubutu ko hoto." }),
+        JSON.stringify({ error: "Payload must contain prompt text or image data." }),
         { status: 400, headers: corsHeaders }
       );
     }
 
-    const modelsToTry = [
-      "gemini-1.5-flash",
-      "gemini-2.0-flash-exp",
-      "gemini-1.5-pro",
-      "gemini-flash-latest"
-    ];
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
-    let lastErrorData = null;
-    let apiResponse = null;
+    const geminiResponse = await fetch(geminiEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: parts
+          }
+        ]
+      })
+    });
 
-    for (const modelName of modelsToTry) {
-      const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    const responseData = await geminiResponse.json();
 
-      apiResponse = await fetch(geminiEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: parts
-            }
-          ]
-        })
-      });
-
-      if (apiResponse.ok) {
-        lastErrorData = null;
-        break;
-      }
-
-      lastErrorData = await apiResponse.json();
-    }
-
-    if (!apiResponse || !apiResponse.ok) {
+    if (!geminiResponse.ok) {
       return new Response(
         JSON.stringify({
-          status: apiResponse ? apiResponse.status : 500,
-          statusText: apiResponse ? apiResponse.statusText : "Server Error",
-          error: lastErrorData
+          status: geminiResponse.status,
+          statusText: geminiResponse.statusText,
+          geminiErrorDetails: responseData
         }),
-        { status: apiResponse ? apiResponse.status : 500, headers: corsHeaders }
+        { status: geminiResponse.status, headers: corsHeaders }
       );
     }
 
-    const responseData = await apiResponse.json();
-    const outputText = responseData.candidates?.[0]?.content?.parts?.[0]?.text || "Babu sakon amsa da ya dawo.";
+    const replyText = responseData.candidates?.[0]?.content?.parts?.[0]?.text || "Ba a samu amsa ba.";
 
     return new Response(
-      JSON.stringify({ text: outputText, fullResponse: responseData }),
+      JSON.stringify({ reply: replyText }),
       { status: 200, headers: corsHeaders }
     );
 
-  } catch (err) {
+  } catch (error) {
     return new Response(
       JSON.stringify({
-        error: "Server Error occurred",
-        message: err.message,
-        stack: err.stack
+        error: "Internal Server Execution Exception",
+        message: error.message,
+        stack: error.stack
       }),
       { status: 500, headers: corsHeaders }
     );
