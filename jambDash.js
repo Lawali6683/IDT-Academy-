@@ -161,7 +161,7 @@ let examStarted = false;
 let isMobile = false;
 let camStream = null;
 let aiContext = [];
-let aiActiveLang = 'english+hausa';
+let aiActiveLang = 'english';
 let netPaused = false;
 let netDeadline = null;
 let netCountdownInterval = null;
@@ -1164,6 +1164,7 @@ function startExam() {
   document.addEventListener('keydown', examKeyHandler);
 }
 
+
 function startExamTimer() {
   if (examTimerInterval) clearInterval(examTimerInterval);
   examTimerInterval = setInterval(function() {
@@ -1171,7 +1172,9 @@ function startExamTimer() {
     if (examTimeLeft <= 0) {
       clearInterval(examTimerInterval);
       examTimerInterval = null;
-      submitExam(true);
+      showToast('Time is up! Your exam is being submitted automatically.', 'warning', 6000);
+      showLoading(true);
+      setTimeout(function() { submitExam(true); }, 800);
       return;
     }
     const h = Math.floor(examTimeLeft / 3600);
@@ -1203,15 +1206,25 @@ function examKeyHandler(e) {
   }
 }
 
+
+
 function renderExamQuestion(index) {
   const q = examQuestions[index];
   if (!q) return;
   currentExamQ = index;
-  const num = index + 1;
-  const total = examQuestions.length;
+
+  let subjectTotal = 0;
+  let subjectFirst = 0;
+  for (let i = 0; i < examQuestions.length; i++) {
+    if (examQuestions[i].subject === q.subject) {
+      subjectTotal++;
+      if (subjectTotal === 1) subjectFirst = i;
+    }
+  }
+  const numInSubject = index - subjectFirst + 1;
   const selected = examAnswers[index];
 
-  el.examQNum.textContent = 'Question ' + num + ' of ' + total + ' | ' + q.subject;
+  el.examQNum.textContent = 'Question ' + numInSubject + ' of ' + subjectTotal + ' | ' + q.subject;
   el.examQText.textContent = q.text;
   el.examOptions.innerHTML = '';
   q.options.forEach(function(opt, oi) {
@@ -1222,7 +1235,7 @@ function renderExamQuestion(index) {
     el.examOptions.appendChild(div);
   });
 
-  el.camQNum.textContent = 'Question ' + num + ' of ' + total + ' | ' + q.subject;
+  el.camQNum.textContent = 'Question ' + numInSubject + ' of ' + subjectTotal + ' | ' + q.subject;
   el.camQText.textContent = q.text;
   el.camOptions.innerHTML = '';
   q.options.forEach(function(opt, oi) {
@@ -1481,6 +1494,8 @@ function getSubjectScores(details) {
   });
 }
 
+
+
 function showExamResults(data) {
   const passed = data.passed;
   const icon = passed ? 'pass' : 'fail';
@@ -1500,16 +1515,13 @@ function showExamResults(data) {
 
   let detailsHtml = '';
   if (data.details) {
-    data.details.slice(0, 20).forEach(function(d) {
+    data.details.forEach(function(d) {
       const corr = d.is_correct ? 'correct' : 'wrong';
       const ic = d.is_correct ? 'fas fa-check' : 'fas fa-times';
       const userLetter = d.user_answer !== null && d.user_answer !== undefined ? String.fromCharCode(65 + d.user_answer) : 'N/A';
       const correctLetter = String.fromCharCode(65 + d.correct);
       detailsHtml += '<div class="rc-q-item"><div class="rq-icon ' + corr + '"><i class="' + ic + '"></i></div><div class="rq-detail"><div class="rq-question">Q' + d.number + ': ' + escapeHtml(String(d.question || '').substring(0, 80)) + (String(d.question || '').length > 80 ? '...' : '') + '</div><div class="rq-answer">Your answer: <span class="user-ans' + (d.is_correct ? '' : ' wrong') + '">' + userLetter + '</span> | Correct: <span class="correct-ans">' + correctLetter + '</span> | ' + escapeHtml(d.subject) + '</div></div></div>';
     });
-    if (data.details.length > 20) {
-      detailsHtml += '<div style="text-align:center;padding:10px;color:var(--muted);font-size:13px">Showing 20 of ' + data.details.length + ' questions</div>';
-    }
   }
 
   el.resultsCard.innerHTML = '<div class="rc-header"><div class="rc-icon ' + icon + '"><i class="' + iconChar + '"></i></div><h2>' + statusText + '</h2><p>' + statusMsg + '</p></div><div class="rc-body"><div class="rc-total"><div class="rt-label">Your Score</div><div class="rt-score">' + data.score + '/400</div><div class="rt-status ' + icon + '">' + (passed ? 'PASS' : 'FAIL') + '</div></div><div class="rc-score-grid">' + subjectsHtml + '</div><h4 style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--ink)">Question Review</h4><div class="rc-questions">' + detailsHtml + '</div></div><div class="rc-footer"><button class="btn-rc-pdf" id="downloadPdfBtn"><i class="fas fa-file-pdf"></i> Download PDF</button><button class="btn-rc-ai" id="aiReviewBtn"><i class="fas fa-robot"></i> AI Review</button><button class="btn-rc-close" id="resultsCloseBtn"><i class="fas fa-xmark"></i> Close</button></div>';
@@ -1531,9 +1543,11 @@ function showExamResults(data) {
   $('#resultsCloseBtn').addEventListener('click', function() {
     el.resultsOverlay.classList.remove('active');
     document.body.style.overflow = '';
+    resetExamState();
     if (passed) showCertificate(data);
   });
 }
+
 
 el.submitExamBtn.addEventListener('click', function() { submitExam(false); });
 
@@ -1552,6 +1566,16 @@ function saveExamToHistory(data) {
   });
   if (history.length > 10) history.length = 10;
   localStorage.setItem('idt_history_' + u.id, JSON.stringify(history));
+}
+
+
+function resetExamState() {
+  examQuestions = [];
+  examAnswers = [];
+  currentExamQ = 0;
+  examTimeLeft = 7200;
+  examStarted = false;
+  screenSwitchCount = 0;
 }
 
 function downloadResultsPdf(data) {
@@ -1677,10 +1701,14 @@ function openAITutor(mode, examData, topic) {
   addAIMessage('bot', msg);
 }
 
+
 function addAIMessage(type, text) {
   const div = document.createElement('div');
   div.className = 'ai-msg ' + type;
-  div.innerHTML = '<div class="ai-msg-label">' + (type === 'bot' ? 'AI Tutor' : 'You') + '</div><p>' + text.replace(/\n/g, '<br>') + '</p>';
+  const labelHtml = type === 'bot'
+    ? '<span class="ai-msg-icon"><img src="https://i.imgur.com/DPrM9ZJ.png" alt="AI" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>AI Tutor'
+    : 'You';
+  div.innerHTML = '<div class="ai-msg-label">' + labelHtml + '</div><p>' + text.replace(/\n/g, '<br>') + '</p>';
   el.aiChatArea.appendChild(div);
   el.aiChatArea.scrollTop = el.aiChatArea.scrollHeight;
 }
@@ -1697,14 +1725,19 @@ el.aiModalOverlay.addEventListener('click', function(e) {
   }
 });
 
+
+
 $$('.ai-lang-select button', el.aiLangSelect).forEach(function(btn) {
   btn.addEventListener('click', function() {
     $$('.ai-lang-select button', el.aiLangSelect).forEach(function(b) { b.classList.remove('active'); });
     this.classList.add('active');
     if (this.id === 'aiOtherLang') {
-      const lang = prompt('Enter your preferred language (e.g. Fulfude, Tiv, Efik):');
-      if (lang) aiActiveLang = 'english+' + lang.trim().toLowerCase();
-      else aiActiveLang = 'english+hausa';
+      const lang = prompt('Enter your preferred language (e.g. Fulfude, Tiv, Efik, Arabic, French):');
+      if (lang && lang.trim()) {
+        aiActiveLang = 'english+' + lang.trim();
+      } else {
+        aiActiveLang = 'english';
+      }
     } else {
       aiActiveLang = this.dataset.lang;
     }
@@ -1716,6 +1749,8 @@ el.aiInput.addEventListener('keydown', function(e) {
   if (e.key === 'Enter') sendAIMessage();
 });
 
+
+
 async function sendAIMessage() {
   const text = el.aiInput.value.trim();
   if (!text) return;
@@ -1725,7 +1760,7 @@ async function sendAIMessage() {
   el.aiSendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
   try {
-    aiContext.push({ role: 'user', content: text + ' (Please respond in ' + aiActiveLang + ' format: first in English, then in the selected language for key points)' });
+    aiContext.push({ role: 'user', content: text });
     const res = await fetch('/api/jambai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1761,6 +1796,8 @@ async function sendAIMessage() {
     el.aiSendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
   }
 }
+
+
 
 function initExamVisibilityGuards() {
   document.addEventListener('visibilitychange', function() {
