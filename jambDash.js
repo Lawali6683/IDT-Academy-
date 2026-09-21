@@ -113,8 +113,12 @@ const el = {
   examPanel: $('#examPanel'),
   examQGrid: $('#examQGrid'),
   submitExamBtn: $('#submitExamBtn'),
+  backToLearningBtn: $('#backToLearningBtn'),
+refBackToLearningBtn: $('#refBackToLearningBtn'),
   cameraOverlay: $('#cameraOverlay'),
   camVideo: $('#camVideo'),
+  camFloatingWidget: $('#camFloatingWidget'),
+  camFloatVideo: $('#camFloatVideo'),
   examMainCam: $('#examMainCam'),
   camQNum: $('#camQNum'),
   camQText: $('#camQText'),
@@ -881,11 +885,15 @@ function saveProgress(progress) {
   localStorage.setItem('idt_progress_' + (currentUser && currentUser.id ? currentUser.id : ''), JSON.stringify(progress));
 }
 
+
+
+
 function renderLearning() {
   if (!topics || topics.length === 0) {
     el.tvContent.innerHTML = '<p style="text-align:center;color:var(--muted);padding:30px">No topics available yet. Check back later.</p>';
     el.topicViewer.style.display = 'none';
     el.allComplete.style.display = 'none';
+    if (el.refBackToLearningBtn) el.refBackToLearningBtn.classList.add('hidden');
     if (el.progressFill) el.progressFill.style.width = '0%';
     if (el.progressText) el.progressText.textContent = '0%';
     if (el.progressPercent) el.progressPercent.textContent = '0%';
@@ -906,14 +914,20 @@ function renderLearning() {
   if (completedCount >= totalCount && isExamUnlocked(progress)) {
     el.topicViewer.style.display = 'none';
     el.allComplete.style.display = 'block';
+    if (el.refBackToLearningBtn) el.refBackToLearningBtn.classList.remove('hidden');
     return;
   }
 
-  el.topicViewer.style.display = 'block';
-  el.allComplete.style.display = 'none';
+  if (el.refBackToLearningBtn) el.refBackToLearningBtn.classList.add('hidden');
+  showLearningView();
+}
 
+function showLearningView() {
+  el.allComplete.style.display = 'none';
+  el.topicViewer.style.display = 'block';
+  const progress = getStoredProgress();
   let targetIdx = progress.current;
-  if (targetIdx >= totalCount) targetIdx = totalCount - 1;
+  if (targetIdx >= topics.length) targetIdx = topics.length - 1;
   if (targetIdx < 0) targetIdx = 0;
   currentTopicIndex = targetIdx;
   showTopic(currentTopicIndex);
@@ -943,7 +957,7 @@ function showTopic(index) {
   el.tvContent.innerHTML = topic.text || '<p>No content available for this topic.</p>';
 
   el.tvBackBtn.disabled = index <= 0;
-  el.tvNextBtn.disabled = index >= total - 1;
+ el.tvNextBtn.disabled = index >= total - 1;
 
   const progress = getStoredProgress();
   if (!progress.completed) progress.completed = [];
@@ -960,9 +974,11 @@ function showTopic(index) {
     if (completedCount >= total && isExamUnlocked(progress)) {
       el.topicViewer.style.display = 'none';
       el.allComplete.style.display = 'block';
+      if (el.refBackToLearningBtn) el.refBackToLearningBtn.classList.remove('hidden');
     }
   }
 }
+
 
 function extractYouTubeId(url) {
   if (!url) return null;
@@ -989,6 +1005,27 @@ el.tvNextBtn.addEventListener('click', function() {
 el.finalExamBtn.addEventListener('click', function() {
   openExamLock();
 });
+
+
+
+function backToLearning() {
+  el.examLockOverlay.classList.remove('active');
+  el.resultsOverlay.classList.remove('active');
+  el.certificateOverlay.classList.remove('active');
+  document.body.style.overflow = '';
+  el.dashboardContent.classList.remove('hidden');
+  resetExamState();
+  if (!topics || topics.length === 0) {
+    fetchTopics().then(function() { renderLearning(); });
+  } else {
+    renderLearning();
+  }
+  el.learningSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+el.backToLearningBtn.addEventListener('click', backToLearning);
+el.refBackToLearningBtn.addEventListener('click', backToLearning);
+
 
 async function openExamLock() {
   const u = getLocalUser();
@@ -1075,59 +1112,75 @@ el.startExamBtn.addEventListener('click', async function() {
   startExam();
 });
 
-async function generateExamQuestions() {
-  const u = getLocalUser();
-  if (!u) return false;
 
-  try {
-    const res = await fetch('/api/jambai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'generate_exam',
-        user_id: u.id,
-        jambCourseId: u.jambCourseId || '',
-        jambCourseName: u.jambCourseName || '',
-        jambCourseSubjects: u.jambCourseSubjects || [],
-        full_name: u.full_name || ''
-      })
-    });
 
-    if (res.status !== 200) {
-      const apiMsg = await readApiError(res);
-      const errMsg = apiMsg
-        ? apiMsg
-        : 'The exam server returned an unexpected response (HTTP ' + res.status + '). Please try again.';
-      showToast('Could not start exam: ' + errMsg, 'error', 7000);
-      return false;
+function enableCamDrag() {
+  const widget = el.camFloatingWidget;
+  if (!widget) return;
+  const handle = widget.querySelector('.cam-drag-handle');
+  if (!handle) return;
+
+  let isDragging = false;
+  let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+
+  function onPointerDown(e) {
+    isDragging = true;
+    const rect = widget.getBoundingClientRect();
+    startX = e.clientX;
+    startY = e.clientY;
+    startLeft = rect.left;
+    startTop = rect.top;
+    widget.style.right = 'auto';
+    widget.style.left = rect.left + 'px';
+    widget.style.top = rect.top + 'px';
+    if (e.pointerId !== undefined && widget.setPointerCapture) {
+      try { widget.setPointerCapture(e.pointerId); } catch (err) {}
     }
-
-    const data = await res.json();
-
-    if (!data.success || !data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
-      const apiMsg = data && (data.error || data.message) ? (data.error || data.message) : null;
-      const errMsg = apiMsg
-        ? apiMsg
-        : 'The exam server did not return any questions. Please try again.';
-      showToast('Could not start exam: ' + errMsg, 'error', 7000);
-      return false;
-    }
-
-    examQuestions = data.questions;
-    return true;
-
-  } catch (err) {
-    console.error('generateExamQuestions error:', err);
-    showToast('Network connection error while preparing the exam. Please check your internet and try again.', 'error', 7000);
-    return false;
+    e.preventDefault();
   }
+
+  function onPointerMove(e) {
+    if (!isDragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    let newLeft = startLeft + dx;
+    let newTop = startTop + dy;
+    const maxX = window.innerWidth - widget.offsetWidth;
+    const maxY = window.innerHeight - widget.offsetHeight;
+    if (newLeft < 0) newLeft = 0;
+    if (newTop < 0) newTop = 0;
+    if (newLeft > maxX) newLeft = maxX;
+    if (newTop > maxY) newTop = maxY;
+    widget.style.left = newLeft + 'px';
+    widget.style.top = newTop + 'px';
+  }
+
+  function onPointerUp() {
+    isDragging = false;
+  }
+
+  handle.addEventListener('pointerdown', onPointerDown);
+  widget.addEventListener('pointermove', onPointerMove);
+  widget.addEventListener('pointerup', onPointerUp);
+  widget.addEventListener('pointercancel', onPointerUp);
 }
+
+
+
 
 async function requireCamera() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
     camStream = stream;
-    el.camVideo.srcObject = stream;
+    if (el.camVideo) el.camVideo.srcObject = stream;
+    if (el.camFloatVideo) el.camFloatVideo.srcObject = stream;
+    if (el.camFloatingWidget) {
+      el.camFloatingWidget.classList.remove('hidden');
+      el.camFloatingWidget.style.top = '70px';
+      el.camFloatingWidget.style.right = '12px';
+      el.camFloatingWidget.style.left = 'auto';
+      enableCamDrag();
+    }
     return true;
   } catch (err) {
     console.log('Camera not available or permission denied:', err.message);
@@ -1155,8 +1208,6 @@ function startExam() {
   renderExamGrid();
 
   el.examScreen.classList.add('active');
-  el.cameraOverlay.classList.add('active');
-  el.examScreen.classList.add('cam-active');
   enableExamProtection();
 
   startExamTimer();
@@ -1286,11 +1337,52 @@ function renderExamGrid() {
   });
 }
 
+
+
+
+
+
+
+
+let aiSecTimeout = null;
+
+function showAiSecurityWarning() {
+  const popup = document.getElementById('aiSecurityPopup');
+  if (!popup) return;
+  popup.classList.remove('show');
+  void popup.offsetWidth;
+  popup.classList.add('show');
+  if (aiSecTimeout) clearTimeout(aiSecTimeout);
+  aiSecTimeout = setTimeout(function() {
+    popup.classList.remove('show');
+  }, 2500);
+}
+
+
 function preventCopy(e) {
   e.preventDefault();
   e.stopPropagation();
-  showToast('Copying exam content is not allowed.', 'warning', 2500);
+  showAiSecurityWarning();
   return false;
+}
+
+
+function preventScreenshotAttempt() {
+  showAiSecurityWarning();
+}
+
+function blockPrintScreen(e) {
+  if (e.key === 'PrintScreen' || (e.key === 'Snapshot')) {
+    e.preventDefault();
+    try { navigator.clipboard.writeText(' '); } catch (err) {}
+    showAiSecurityWarning();
+  }
+  if ((e.metaKey || e.ctrlKey || e.shiftKey) && (e.key === 'S' || e.key === 's' || e.key === 'P' || e.key === 'p' || e.key === '5') && examStarted) {
+    if (e.shiftKey || e.metaKey) {
+      e.preventDefault();
+      showAiSecurityWarning();
+    }
+  }
 }
 
 function enableExamProtection() {
@@ -1299,6 +1391,20 @@ function enableExamProtection() {
   document.addEventListener('cut', preventCopy, true);
   document.addEventListener('contextmenu', preventCopy, true);
   document.addEventListener('selectstart', preventCopy, true);
+  document.addEventListener('keyup', blockPrintScreen, true);
+  document.addEventListener('keydown', blockPrintScreen, true);
+  document.addEventListener('visibilitychange', screenshotVisibilityGuard, true);
+  window.addEventListener('blur', screenshotBlurGuard, true);
+}
+
+function screenshotVisibilityGuard() {
+  if (!examStarted) return;
+  if (document.hidden) preventScreenshotAttempt();
+}
+
+function screenshotBlurGuard() {
+  if (!examStarted) return;
+  if (!document.hidden) preventScreenshotAttempt();
 }
 
 function disableExamProtection() {
@@ -1307,7 +1413,15 @@ function disableExamProtection() {
   document.removeEventListener('cut', preventCopy, true);
   document.removeEventListener('contextmenu', preventCopy, true);
   document.removeEventListener('selectstart', preventCopy, true);
+  document.removeEventListener('keyup', blockPrintScreen, true);
+  document.removeEventListener('keydown', blockPrintScreen, true);
+  document.removeEventListener('visibilitychange', screenshotVisibilityGuard, true);
+  window.removeEventListener('blur', screenshotBlurGuard, true);
 }
+
+
+
+
 
 function handleScreenSwitchAttempt() {
   if (!examStarted || netPaused) return;
@@ -1524,7 +1638,7 @@ function showExamResults(data) {
     });
   }
 
-  el.resultsCard.innerHTML = '<div class="rc-header"><div class="rc-icon ' + icon + '"><i class="' + iconChar + '"></i></div><h2>' + statusText + '</h2><p>' + statusMsg + '</p></div><div class="rc-body"><div class="rc-total"><div class="rt-label">Your Score</div><div class="rt-score">' + data.score + '/400</div><div class="rt-status ' + icon + '">' + (passed ? 'PASS' : 'FAIL') + '</div></div><div class="rc-score-grid">' + subjectsHtml + '</div><h4 style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--ink)">Question Review</h4><div class="rc-questions">' + detailsHtml + '</div></div><div class="rc-footer"><button class="btn-rc-pdf" id="downloadPdfBtn"><i class="fas fa-file-pdf"></i> Download PDF</button><button class="btn-rc-ai" id="aiReviewBtn"><i class="fas fa-robot"></i> AI Review</button><button class="btn-rc-close" id="resultsCloseBtn"><i class="fas fa-xmark"></i> Close</button></div>';
+  el.resultsCard.innerHTML = '<div class="rc-header"><div class="rc-icon ' + icon + '"><i class="' + iconChar + '"></i></div><h2>' + statusText + '</h2><p>' + statusMsg + '</p></div><div class="rc-body"><div class="rc-total"><div class="rt-label">Your Score</div><div class="rt-score">' + data.score + '/400</div><div class="rt-status ' + icon + '">' + (passed ? 'PASS' : 'FAIL') + '</div></div><div class="rc-score-grid">' + subjectsHtml + '</div><h4 style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--ink)">Question Review</h4><div class="rc-questions">' + detailsHtml + '</div></div><div class="rc-footer"><button class="btn-rc-pdf" id="downloadPdfBtn"><i class="fas fa-file-pdf"></i> Download PDF</button><button class="btn-rc-ai" id="aiReviewBtn"><i class="fas fa-robot"></i> AI Review</button><button class="btn-rc-back" id="backToStudyBtn"><i class="fas fa-book-open"></i> Back to Study</button><button class="btn-rc-close" id="resultsCloseBtn"><i class="fas fa-xmark"></i> Close</button></div>';
 
   el.resultsOverlay.classList.add('active');
   document.body.style.overflow = 'hidden';
@@ -1535,11 +1649,66 @@ function showExamResults(data) {
   }
 
   $('#downloadPdfBtn').addEventListener('click', function() { downloadResultsPdf(data); });
-  $('#aiReviewBtn').addEventListener('click', function() {
+
+  $('#aiReviewBtn').addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI is analyzing...';
     el.resultsOverlay.classList.remove('active');
     document.body.style.overflow = '';
     openAITutor('review', data);
+    addAIMessage('bot', 'I am reviewing your exam results... please wait a moment.');
+    el.aiSendBtn.disabled = true;
+
+    let reviewText = '';
+    try {
+      const wrongDetails = (data.details || []).filter(function(d) { return !d.is_correct; }).slice(0, 30);
+      const summary = wrongDetails.map(function(d) {
+        const userLetter = d.user_answer !== null && d.user_answer !== undefined ? String.fromCharCode(65 + d.user_answer) : 'N/A';
+        return 'Q' + d.number + ' (' + d.subject + '): "' + String(d.question || '').substring(0, 150) + '" — Student chose ' + userLetter + ', correct answer is ' + String.fromCharCode(65 + d.correct);
+      }).join('\n');
+
+      const res = await fetch('/api/jambai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'chat',
+          language: aiActiveLang,
+          user_id: currentUser ? currentUser.id : '',
+          full_name: currentUser ? currentUser.full_name : '',
+          messages: [
+            { role: 'system', content: 'You are a helpful JAMB tutor AI for IDT Academy. The student just completed a JAMB mock exam. Score: ' + data.score + '/400, ' + (data.passed ? 'PASSED' : 'FAILED') + '. Subject scores: ' + JSON.stringify(data.subjects || []) + '. Analyze the questions the student got wrong below. For each wrong question, explain briefly why the correct answer is right and what topic the student should study. Group explanations by subject. Be encouraging and clear.' },
+            { role: 'user', content: 'Here are the questions I got wrong. Please explain each one and tell me what to study:\n' + summary }
+          ]
+        })
+      });
+
+      if (res.status === 200) {
+        const rdata = await res.json();
+        if (rdata.success && rdata.response) reviewText = rdata.response;
+      }
+    } catch (err) {
+      console.error('AI review error:', err);
+    }
+
+    el.aiSendBtn.disabled = false;
+    if (reviewText) {
+      addAIMessage('bot', reviewText);
+      aiContext.push({ role: 'assistant', content: reviewText });
+    } else {
+      addAIMessage('bot', 'I could not complete the full review right now. Please ask me directly about any question you got wrong — for example: "Explain question 5" — and I will help you.');
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-robot"></i> AI Review';
   });
+
+  $('#backToStudyBtn').addEventListener('click', function() {
+    el.resultsOverlay.classList.remove('active');
+    document.body.style.overflow = '';
+    resetExamState();
+    activateDashboardView();
+  });
+
   $('#resultsCloseBtn').addEventListener('click', function() {
     el.resultsOverlay.classList.remove('active');
     document.body.style.overflow = '';
@@ -1640,11 +1809,16 @@ function showCertificate(data) {
   });
 }
 
+
+
 function stopCamera() {
   if (camStream) {
     camStream.getTracks().forEach(function(t) { t.stop(); });
     camStream = null;
   }
+  if (el.camVideo) el.camVideo.srcObject = null;
+  if (el.camFloatVideo) el.camFloatVideo.srcObject = null;
+  if (el.camFloatingWidget) el.camFloatingWidget.classList.add('hidden');
   el.cameraOverlay.classList.remove('active');
 }
 
@@ -1677,6 +1851,8 @@ el.tvExplainBtn.addEventListener('click', function() {
   openAITutor('explain', null, topic);
 });
 
+
+
 function openAITutor(mode, examData, topic) {
   el.aiModalOverlay.classList.add('active');
   document.body.style.overflow = 'hidden';
@@ -1685,17 +1861,17 @@ function openAITutor(mode, examData, topic) {
 
   let msg = '';
   if (mode === 'review' && examData) {
-    msg = 'Hello! I am your IDT Academy AI tutor. I have reviewed your exam results. Would you like me to explain the questions you got wrong and help you improve? Please tell me which questions you want me to explain or ask me anything about your exam.';
-    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI. The user just completed a JAMB mock exam. Their score was ' + examData.score + '/400. They ' + (examData.passed ? 'passed' : 'failed') + '. Help them understand their mistakes and improve. Use the working language the user chooses.' });
+    msg = 'Hello! I am your IDT Academy AI tutor. I have analyzed your exam results. Scroll down to see my full explanation of the questions you got wrong. You can also ask me about any specific question.';
+    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI for IDT Academy. The user just completed a JAMB mock exam. Score: ' + examData.score + '/400, ' + (examData.passed ? 'passed' : 'failed') + '. Subject scores: ' + JSON.stringify(examData.subjects || []) + '. Wrong questions: ' + JSON.stringify((examData.details || []).filter(function(d) { return !d.is_correct; }).slice(0, 30)) + '. When asked, explain why the correct answers are right and what topics to study. Respond according to the language rules given in each request.' });
   } else if (mode === 'question' && topic) {
-    msg = 'Hello! I am your IDT Academy AI tutor. You can ask me any question about the topic "' + topic.title + '". I will explain it clearly in the language you prefer. What would you like to know?';
-    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI. The user is studying the topic: ' + topic.title + '. Topic content: ' + (topic.text || '') + '. Help them understand the topic, answer their questions, and provide clear explanations. Use the working language the user chooses.' });
+    msg = 'Hello! I am your IDT Academy AI tutor. You can ask me any question about the topic "' + topic.title + '". What would you like to know?';
+    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI. The user is studying the topic: ' + topic.title + '. Topic content: ' + (topic.text || '') + '. Help them understand the topic and answer their questions clearly.' });
   } else if (mode === 'explain' && topic) {
-    msg = 'Hello! I am your IDT Academy AI tutor. I will explain the topic "' + topic.title + '" in more detail. I can use both English and your native language for better understanding. What specific part would you like me to explain?';
-    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI. The user wants a detailed explanation of the topic: ' + topic.title + '. Topic content: ' + (topic.text || '') + '. Explain thoroughly, give examples, and relate to JAMB exam questions. Use the working language the user chooses.' });
+    msg = 'Hello! I am your IDT Academy AI tutor. I will explain the topic "' + topic.title + '" in more detail. What specific part would you like me to explain?';
+    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI. The user wants a detailed explanation of the topic: ' + topic.title + '. Topic content: ' + (topic.text || '') + '. Explain thoroughly with examples and relate to JAMB exam questions.' });
   } else {
     msg = 'Hello! I am your IDT Academy AI tutor. How can I help you with your JAMB preparation today?';
-    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI for IDT Academy. Help students prepare for JAMB exams. Answer questions, explain topics, and provide guidance. Use the working language the user chooses.' });
+    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI for IDT Academy. Help students prepare for JAMB exams. Answer questions, explain topics, and provide guidance.' });
   }
 
   addAIMessage('bot', msg);
