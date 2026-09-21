@@ -256,54 +256,72 @@ Example:
 Generate exactly ${count} questions now.`;
 }
 
+
+
+
+
 async function generateExam(env, subjects, fullName, courseName) {
   const allQuestions = [];
   const counts = subjects.map(function(s, i) { return i === 0 ? 60 : 40; });
 
   for (let i = 0; i < subjects.length; i++) {
     const subject = subjects[i];
-    const count = counts[i];
-    let questions = null;
+    const target = counts[i];
+    const subjectQuestions = [];
 
-    for (let attempt = 0; attempt < 2; attempt++) {
+    let attempts = 0;
+    while (subjectQuestions.length < target && attempts < 6) {
+      const remaining = target - subjectQuestions.length;
+      const batchSize = attempts === 0 ? target : remaining;
+      const skipText = subjectQuestions.length > 0
+        ? '\n\nIMPORTANT: The following questions already exist. Generate DIFFERENT new questions, do NOT repeat any of these:\n' + subjectQuestions.slice(0, 10).map(function(q) { return '- ' + String(q.text).substring(0, 90); }).join('\n')
+        : '';
+
       try {
-        const prompt = buildSubjectPrompt(subject, count, fullName, courseName);
+        const prompt = buildSubjectPrompt(subject, batchSize, fullName, courseName) + skipText;
         const systemInstruction = 'You are a JAMB UTME exam generator. Generate accurate, exam-standard questions in the exact JSON format requested. Return ONLY a valid JSON array, nothing else.';
         const aiResponseText = await askAI(env, prompt, systemInstruction);
         const parsed = parseCleanJSON(aiResponseText);
 
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const valid = parsed.filter(function(q) {
-            return q && typeof q.text === 'string' && q.text.trim().length > 0 && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === 'number' && q.correct >= 0 && q.correct <= 3;
+        if (Array.isArray(parsed)) {
+          const existingTexts = subjectQuestions.map(function(q) { return String(q.text).trim().toLowerCase(); });
+          parsed.forEach(function(q) {
+            if (subjectQuestions.length >= target) return;
+            if (!q || typeof q.text !== 'string' || q.text.trim().length === 0) return;
+            if (!Array.isArray(q.options)) return;
+            const correct = Number(q.correct);
+            if (isNaN(correct) || correct < 0 || correct > 3) return;
+            while (q.options.length < 4) q.options.push('None of the above');
+            if (q.options.length > 4) q.options = q.options.slice(0, 4);
+            const key = String(q.text).trim().toLowerCase();
+            if (existingTexts.indexOf(key) !== -1) return;
+            existingTexts.push(key);
+            subjectQuestions.push(q);
           });
-          if (valid.length >= Math.ceil(count * 0.7)) {
-            questions = valid.slice(0, count);
-            break;
-          }
         }
       } catch (err) {}
+
+      attempts++;
     }
 
-    if (!questions || questions.length === 0) {
-      throw new Error('Failed to generate questions for subject: ' + subject);
+    if (subjectQuestions.length < target) {
+      throw new Error('Could not generate enough questions for ' + subject + ' (got ' + subjectQuestions.length + ' of ' + target + '). Please try again.');
     }
 
-    questions.forEach(function(q, qi) {
+    subjectQuestions.forEach(function(q, qi) {
       q.id = 'q' + (i + 1) + '_' + (qi + 1);
       q.number = qi + 1;
       q.subject = subject;
-      if (!q.options || q.options.length !== 4) {
-        while (!q.options) q.options = [];
-        while (q.options.length < 4) q.options.push('None of the above');
-      }
       q.correct = Number(q.correct);
     });
 
-    allQuestions.push.apply(allQuestions, questions);
+    allQuestions.push.apply(allQuestions, subjectQuestions);
   }
 
   return allQuestions;
 }
+
+
 
 function markExamServer(questions, answers) {
   let correct = 0;
