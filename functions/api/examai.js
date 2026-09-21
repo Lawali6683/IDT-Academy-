@@ -4,7 +4,8 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 };
 
-const MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const OPENROUTER_MODEL = 'google/gemini-2.5-flash';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -26,16 +27,16 @@ function extractJson(text) {
   }
 }
 
-async function gemini(env, systemText, userText, maxTokens) {
+async function fetchGeminiDirect(env, systemText, userText, maxTokens) {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 55000);
+  const timer = setTimeout(() => ctrl.abort(), 45000);
   try {
     const payload = {
       systemInstruction: { parts: [{ text: systemText }] },
       contents: [{ role: 'user', parts: [{ text: userText }] }],
       generationConfig: { temperature: 0.4, maxOutputTokens: maxTokens || 8192 }
     };
-    const res = await fetch('https://generativelanguage.googleapis.com/v1/models/' + MODEL + ':generateContent?key=' + encodeURIComponent(env.GEMINI_API_KEY), {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1/models/' + GEMINI_MODEL + ':generateContent?key=' + encodeURIComponent(env.GEMINI_API_KEY), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -43,18 +44,73 @@ async function gemini(env, systemText, userText, maxTokens) {
     });
     const data = await res.json();
     if (!res.ok) {
-      const msg = data && data.error && data.error.message ? data.error.message : 'Gemini API error';
+      const msg = data && data.error && data.error.message ? data.error.message : 'Gemini error status ' + res.status;
       throw new Error(msg);
     }
     const text = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] ? data.candidates[0].content.parts[0].text : '';
     if (!text) {
-      const reason = data && data.promptFeedback && data.promptFeedback.blockReason ? data.promptFeedback.blockReason : 'No response from model';
+      const reason = data && data.promptFeedback && data.promptFeedback.blockReason ? data.promptFeedback.blockReason : 'No response text';
       throw new Error(reason);
     }
     return text;
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function fetchOpenRouter(env, systemText, userText, maxTokens) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 45000);
+  try {
+    const payload = {
+      model: OPENROUTER_MODEL,
+      messages: [
+        { role: 'system', content: systemText },
+        { role: 'user', content: userText }
+      ],
+      temperature: 0.4,
+      max_tokens: maxTokens || 8192
+    };
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + env.OPENROUTER_API_KEY,
+        'HTTP-Referer': 'https://idtacademy.com.ng',
+        'X-Title': 'IDT Academy',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const msg = data && data.error && data.error.message ? data.error.message : 'OpenRouter error status ' + res.status;
+      throw new Error(msg);
+    }
+    const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? data.choices[0].message.content : '';
+    if (!text) throw new Error('Empty response from OpenRouter');
+    return text;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function aiService(env, systemText, userText, maxTokens) {
+  try {
+    if (env.GEMINI_API_KEY) {
+      return await fetchGeminiDirect(env, systemText, userText, maxTokens);
+    }
+  } catch (err1) {}
+
+  if (env.OPENROUTER_API_KEY) {
+    try {
+      return await fetchOpenRouter(env, systemText, userText, maxTokens);
+    } catch (err2) {
+      throw new Error('All AI providers failed: ' + err2.message);
+    }
+  }
+
+  throw new Error('No working AI configuration available');
 }
 
 function topicsText(topics) {
@@ -133,7 +189,7 @@ async function generateQuestions(env, body) {
     language: String(body.language || 'English')
   };
   const prompt = buildGeneratePrompt(payload.course_name, body.topics, payload.language);
-  const text = await gemini(env,
+  const text = await aiService(env,
     'You only output valid JSON objects. You never wrap JSON in markdown code blocks.',
     prompt, 12288);
   const parsed = extractJson(text);
@@ -162,7 +218,7 @@ async function gradeQuestions(env, body, qs) {
   };
   const lang = String(body.preferred_lang || body.language || 'English');
   const prompt = buildGradePrompt(String(body.course_name || ''), body.topics, qs, meta, lang);
-  const text = await gemini(env,
+  const text = await aiService(env,
     'You only output valid JSON objects. You never wrap JSON in markdown code blocks.',
     prompt, 12288);
   const parsed = extractJson(text);
@@ -219,11 +275,13 @@ export const onRequestPost = async (context) => {
   try {
     let body;
     try {
-      body = await context.request.json();
+      body = await context.request.request ? context.request.json() : await context.request.json();
     } catch (err) {
       return json({ success: false, error: 'Invalid JSON body' }, 400);
     }
-    if (!env.GEMINI_API_KEY) return json({ success: false, error: 'GEMINI_API_KEY is not set' }, 500);
+    if (!env.GEMINI_API_KEY && !env.OPENROUTER_API_KEY) {
+      return json({ success: false, error: 'Neither GEMINI_API_KEY nor OPENROUTER_API_KEY is configured' }, 500);
+    }
     const action = String(body.action || '');
     if (action === 'grade') {
       const qs = normalizeAnswers(body.questions);
@@ -234,18 +292,14 @@ export const onRequestPost = async (context) => {
       try {
         result = await gradeQuestions(env, body, qs);
       } catch (err) {
-        try {
-          result = await gradeQuestions(env, body, qs);
-        } catch (err2) {
-          return json({ success: false, error: err2.message || 'Grading failed' }, 502);
-        }
+        return json({ success: false, error: err.message || 'Grading failed' }, 502);
       }
       return json({ success: true, score: result.score, pct: result.pct, passed: result.passed, message: result.message, results: result.results });
     }
     if (action === 'explain') {
       const lang = String(body.language || 'English').trim() || 'English';
       const prompt = buildExplainPrompt(String(body.course_name || ''), body, lang);
-      const explanation = await gemini(env,
+      const explanation = await aiService(env,
         'You are a kind, practical teacher. Use clear markdown. Answer completely.',
         prompt, 8192);
       return json({ success: true, explanation: explanation, language: lang });
@@ -257,11 +311,7 @@ export const onRequestPost = async (context) => {
     try {
       questions = await generateQuestions(env, body);
     } catch (err) {
-      try {
-        questions = await generateQuestions(env, body);
-      } catch (err2) {
-        return json({ success: false, error: err2.message || 'Generation failed' }, 502);
-      }
+      return json({ success: false, error: err.message || 'Generation failed' }, 502);
     }
     const examId = 'ex_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     return json({ success: true, exam_id: examId, questions: questions });
