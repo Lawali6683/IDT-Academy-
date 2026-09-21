@@ -1123,6 +1123,30 @@ textarea{resize:vertical}
   .certificate h2{font-size:16px}
   .camera-overlay .exam-main-cam{inset:3% 3% 14%}
 }
+
+.ai-modal .ai-msg-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ai-modal .ai-msg.bot .ai-msg-label .ai-msg-icon img {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.ai-modal .ai-lang-select button[data-lang="english"] {
+  border-color: var(--jamb-green, #006838);
+  color: var(--jamb-green, #006838);
+}
+
+.ai-modal .ai-lang-select button[data-lang="english"].active {
+  background: var(--jamb-green, #006838);
+  color: #ffffff;
+}
 </style>
 </head>
 <body>
@@ -1444,12 +1468,14 @@ textarea{resize:vertical}
   <div class="ai-modal">
 
     <div class="ai-header">
-      <h3><i class="fas fa-robot"></i> IDT AI Tutor</h3>
+      <h3><img src="https://i.imgur.com/DPrM9ZJ.png" alt="AI" style="width:26px;height:26px;border-radius:50%;object-fit:cover"> IDT AI Tutor</h3>
       <button class="ai-close" id="aiModalClose"><i class="fas fa-xmark"></i></button>
     </div>
 
     <div class="ai-lang-select" id="aiLangSelect">
-      <button data-lang="english+hausa" class="active">English + Hausa</button>
+      <div class="ai-lang-select" id="aiLangSelect">
+  <button data-lang="english" class="active">English</button>
+  <button data-lang="english+hausa">English + Hausa</button>
       <button data-lang="english+yoruba">English + Yoruba</button>
       <button data-lang="english+igbo">English + Igbo</button>
       <button data-lang="english+pidgin">English + Pidgin</button>
@@ -1457,12 +1483,12 @@ textarea{resize:vertical}
     </div>
 
     <div class="ai-body">
-      <div id="aiChatArea">
-        <div class="ai-msg bot">
-          <div class="ai-msg-label">AI Tutor</div>
-          <p>Hello! I am your IDT Academy AI tutor. Ask me any question about your JAMB topics, and I will explain in the language you choose.</p>
-        </div>
-      </div>
+   <div id="aiChatArea">
+  <div class="ai-msg bot">
+    <div class="ai-msg-label"><span class="ai-msg-icon"><img src="https://i.imgur.com/DPrM9ZJ.png" alt="AI" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>AI Tutor</div>
+    <p>Hello! I am your IDT Academy AI tutor. Ask me any question about your JAMB topics, and I will explain in the language you choose.</p>
+  </div>
+</div>
     </div>
 
     <div class="ai-input-area">
