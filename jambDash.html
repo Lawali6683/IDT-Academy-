@@ -753,6 +753,13 @@ textarea{resize:vertical}
 }
 .rc-footer .btn-rc-close:hover{background:var(--rose);color:#fff}
 
+
+.rc-footer .btn-rc-back{
+  background:rgba(0,104,56,.08);color:var(--jamb-green);
+}
+.rc-footer .btn-rc-back:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,104,56,.2)}
+
+
 .certificate-overlay{
   position:fixed;inset:0;z-index:800;
   background:rgba(30,27,75,.6);
@@ -1147,6 +1154,143 @@ textarea{resize:vertical}
   background: var(--jamb-green, #006838);
   color: #ffffff;
 }
+
+
+.ai-security-popup {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 99999;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  background: #ffffff;
+  border: 3px solid #f43f5e;
+  border-radius: 16px;
+  box-shadow: 0 12px 50px rgba(244, 63, 94, 0.45);
+  animation: shakeX 0.5s ease-in-out infinite, aiSecIn .25s ease;
+}
+
+.ai-security-popup.show { display: flex; }
+
+.ai-security-popup img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.ai-security-popup .ai-sec-text {
+  font-size: 15px;
+  font-weight: 800;
+  color: #f43f5e;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+@keyframes shakeX {
+  0%, 100% { transform: translateX(calc(-50% - 12px)); }
+  25% { transform: translateX(calc(-50% + 12px)); }
+  50% { transform: translateX(calc(-50% - 12px)); }
+  75% { transform: translateX(calc(-50% + 12px)); }
+}
+
+
+
+.cam-floating-widget {
+  position: fixed;
+  top: 70px;
+  right: 12px;
+  z-index: 650;
+  width: 110px;
+  height: 110px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,.5);
+  box-shadow: 0 6px 24px rgba(0,0,0,.4);
+  background: #000;
+  touch-action: none;
+  cursor: move;
+}
+
+.cam-floating-widget video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+
+.cam-floating-widget .cam-drag-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 18px;
+  background: rgba(0,0,0,.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: move;
+  z-index: 2;
+}
+
+.cam-floating-widget .cam-drag-handle i {
+  color: rgba(255,255,255,.8);
+  font-size: 10px;
+}
+
+.cam-floating-widget .cam-rec-dot {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff4444;
+  animation: pulseRed 1.2s infinite;
+  z-index: 2;
+}
+
+@keyframes aiSecIn {
+  from { opacity: 0; transform: translateX(-50%) scale(0.8); }
+  to { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+
+
+
+
+.ai-modal-overlay.active{display:flex}
+.ai-modal{
+  width:100%;max-width:650px;
+  height:100vh;      
+  height:100dvh;     
+  display:flex;flex-direction:column;
+  background:#fff;overflow:hidden;
+}
+@media(min-width:640px){
+  .ai-modal{height:90vh;height:90dvh;border-radius:24px}
+}
+
+
+.ai-modal .ai-header h3 img{
+  width:26px;height:26px;max-width:26px;max-height:26px;
+  border-radius:50%;object-fit:cover;flex:0 0 auto;
+}
+.ai-modal .ai-msg img{
+  max-width:100%;max-height:180px;width:auto;height:auto;
+  object-fit:cover;border-radius:10px;display:block;margin:6px 0;
+}
+.ai-modal .ai-msg-label img{
+  width:22px;height:22px;max-width:22px;max-height:22px;
+  border-radius:50%;object-fit:cover;flex:0 0 auto;
+}
+
+.ai-modal .ai-body{flex:1 1 0;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
 </style>
 </head>
 <body>
@@ -1419,6 +1563,8 @@ textarea{resize:vertical}
   </div>
 </div>
 
+
+
 <div class="camera-overlay" id="cameraOverlay">
   <div class="cam-indicator"><span class="pulse-dot"></span> Recording</div>
   <div class="cam-view">
@@ -1435,6 +1581,13 @@ textarea{resize:vertical}
     </div>
   </div>
 </div>
+
+<div class="cam-floating-widget hidden" id="camFloatingWidget">
+  <div class="cam-drag-handle"><i class="fas fa-grip-lines"></i></div>
+  <video id="camFloatVideo" autoplay muted playsinline></video>
+  <span class="cam-rec-dot"></span>
+</div>
+
 
 <div class="net-pause-overlay" id="netPauseOverlay">
   <div class="net-pause-card">
@@ -1464,6 +1617,10 @@ textarea{resize:vertical}
   </div>
 </div>
 
+
+
+
+
 <div class="ai-modal-overlay" id="aiModalOverlay">
   <div class="ai-modal">
 
@@ -1473,9 +1630,8 @@ textarea{resize:vertical}
     </div>
 
     <div class="ai-lang-select" id="aiLangSelect">
-      <div class="ai-lang-select" id="aiLangSelect">
-  <button data-lang="english" class="active">English</button>
-  <button data-lang="english+hausa">English + Hausa</button>
+      <button data-lang="english" class="active">English</button>
+      <button data-lang="english+hausa">English + Hausa</button>
       <button data-lang="english+yoruba">English + Yoruba</button>
       <button data-lang="english+igbo">English + Igbo</button>
       <button data-lang="english+pidgin">English + Pidgin</button>
@@ -1499,6 +1655,14 @@ textarea{resize:vertical}
   </div>
 </div>
 
+
+
+
+
+<div class="ai-security-popup" id="aiSecurityPopup">
+  <img src="https://i.imgur.com/rMW6FMN.png" alt="AI Security">
+  <span class="ai-sec-text">NO COPY / NO SCREENSHOT!</span>
+</div>
 
 <div class="toast-container" id="toastContainer"></div>
 
