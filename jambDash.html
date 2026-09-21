@@ -1483,28 +1483,33 @@ textarea{resize:vertical}
           <button class="btn-nav" id="tvNextBtn">Next <i class="fas fa-chevron-right"></i></button>
         </div>
       </div>
+      
+      
       <div style="text-align:center;padding:30px 20px;display:none" id="allComplete">
-        <i class="fas fa-check-circle" style="font-size:48px;color:var(--green);margin-bottom:12px"></i>
-        <h3 style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px">All Topics Completed!</h3>
-        <p style="color:var(--muted);font-size:14px;margin-bottom:16px">You have finished all learning topics. Take the final JAMB exam now.</p>
-        <button class="btn-exam-start" id="finalExamBtn"><i class="fas fa-pencil"></i> Start Final Exam</button>
-      </div>
-      <div class="exam-warning hidden" id="examWarning" style="margin-top:16px"><i class="fas fa-triangle-exclamation"></i> <span id="examWarningText"></span></div>
-    </div>
+  <i class="fas fa-check-circle" style="font-size:48px;color:var(--green);margin-bottom:12px"></i>
+  <h3 style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px">All Topics Completed!</h3>
+  <p style="color:var(--muted);font-size:14px;margin-bottom:16px">You have finished all learning topics. Take the final JAMB exam now.</p>
+  <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+    <button class="btn-exam-start" id="finalExamBtn"><i class="fas fa-pencil"></i> Start Final Exam</button>
+    <button class="btn-nav" id="backToLearningBtn" style="padding:14px 28px;border-radius:14px;font-size:14px;font-weight:700"><i class="fas fa-book-open"></i> Back to Learning</button>
   </div>
+</div>
 
   <div class="section-card" style="background:rgba(212,160,23,.04);border-color:rgba(212,160,23,.15)">
-    <div class="section-body" style="padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-      <div>
-        <p style="font-size:13px;color:var(--muted);font-weight:500">Earn ₦1,500 per referral</p>
-        <p style="font-size:14px;font-weight:700;color:var(--ink)">Refer your friends to IDT Academy</p>
-      </div>
+  <div class="section-body" style="padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <p style="font-size:13px;color:var(--muted);font-weight:500">Earn ₦1,500 per referral</p>
+      <p style="font-size:14px;font-weight:700;color:var(--ink)">Refer your friends to IDT Academy</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-exam-start hidden" id="refBackToLearningBtn" style="padding:10px 22px;font-size:13px"><i class="fas fa-book-open"></i> Back to Learning</button>
       <button class="btn-exam-start" id="referralPageBtn" style="padding:10px 22px;font-size:13px;background:linear-gradient(135deg,var(--jamb-gold),var(--amber))">
         <i class="fas fa-link"></i> Go to Referral
       </button>
     </div>
   </div>
 </div>
+
 
 <div class="exam-lock-overlay" id="examLockOverlay">
   <div class="exam-lock-card">
