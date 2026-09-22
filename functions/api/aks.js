@@ -169,6 +169,9 @@ async function generateAIResponse(env, systemText, messages) {
   }
 }
 
+
+
+
 async function handleAsk(env, body, userData) {
   const studentName = (userData && userData.full_name) || (body.full_name) || 'Student';
   const lang = String(body.preferred_lang || 'English').trim() || 'English';
@@ -180,8 +183,11 @@ async function handleAsk(env, body, userData) {
   if (!question) return json({ success: false, error: 'question is required' }, 400);
 
   const system = 'You are the official AI Teacher at IDT Academy (Intelligent Digital Technology Academy, www.idtacademy.com.ng). ' +
+    'You understand and can reply in every language in the world including Arabic, Hausa, Yoruba, Igbo, French, Spanish, Swahili and more. ' +
     'The student\'s name is ' + studentName + '. Always call them by their name and be warm, encouraging and patient. ' +
-    'Answer in ' + lang + '. If they asked in a language other than English, explain mainly in that language and include key terms in English too. ' +
+    'Default explanation language is English. ' +
+    'Detect the language of the student\'s question automatically. If they asked in a language other than English, answer mainly in that language and include key terms in English too. ' +
+    'If the student requests two languages, answer first in English then repeat the key points in the second language. ' +
     'Use **bold** for important words. Use bullet points for steps. Use short code blocks only when showing code. ' +
     'Include simple diagrams using text when helpful (like tables, flowcharts). ' +
     'Encourage the student by praising their effort and curiosity. End by asking if they understood or if they have another question. ' +
@@ -200,31 +206,45 @@ async function handleAsk(env, body, userData) {
     if (content) contents.push({ role: role, parts: [{ text: content }] });
   }
 
-  contents.push({ role: 'user', parts: [{ text: studentName + ' asks: ' + question + '\n\n(Answer warmly in ' + lang + ', call them by name, explain step by step, use examples, show diagrams with text when helpful, and encourage them.)' }] });
+  contents.push({ role: 'user', parts: [{ text: studentName + ' asks: ' + question + '\n\n(Answer warmly in the language of the question, default English. Call them by name, explain step by step, use examples, show diagrams with text when helpful, and encourage them.)' }] });
 
   const answer = await generateAIResponse(env, system, contents);
   return json({ success: true, answer: answer, message: answer });
 }
 
+
+
+
+
 async function handleExplain(env, body, userData) {
   const studentName = (userData && userData.full_name) || 'Student';
-  const lang = String(body.target_lang || body.preferred_lang || 'English').trim() || 'English';
+  const dual = body.explain_mode === 'dual';
+  const userLang = String(body.target_lang || body.preferred_lang || 'English').trim() || 'English';
+  const lang = dual ? ('English + ' + userLang) : 'English';
   const courseName = String(body.course_name || '');
   const topicName = String(body.topic_name || '');
   const topicText = String(body.topic_text || '').slice(0, 4000);
 
-  const system = 'You are the official AI Teacher at IDT Academy. The student ' + studentName + ' wants this lesson explained in ' + lang + '. ' +
-    'Explain the lesson clearly step by step in ' + lang + '. For every important term, write it in **' + lang + '** first, then show the English term in parentheses. ' +
-    'Use **bold** for key words. Use bullet points. Use short tables or text-diagrams when helpful. ' +
+  let system = 'You are the official AI Teacher at IDT Academy. You understand every language in the world including Arabic. ';
+  if (dual) {
+    system += 'The student ' + studentName + ' wants this lesson explained in TWO languages: first English, then ' + userLang + '. ' +
+      'Structure: Part 1 explain fully in English. Part 2 titled "In ' + userLang + '" repeat the key points in ' + userLang + ' with the English terms in parentheses. ' +
+      'Every important term must appear in both languages. ';
+  } else {
+    system += 'The student ' + studentName + ' wants this lesson explained in ' + lang + '. ' +
+      'Explain the lesson clearly step by step in ' + lang + '. For every important term, write it in **' + lang + '** first, then show the English term in parentheses. ';
+  }
+  system += 'Use **bold** for key words. Use bullet points. Use short tables or text-diagrams when helpful. ' +
     'Include 1 simple example from real life. End with one short question to check understanding. ' +
-    'Be warm, call them by name, praise their effort to learn in ' + lang + '.';
+    'Be warm, call them by name, praise their effort.';
 
   const text = await generateAIResponse(env, system,
-    'Lesson from "' + courseName + '"\nTopic: ' + topicName + '\n\nNotes:\n' + (topicText || 'No notes provided.') + '\n\nPlease explain this fully in ' + lang + '. Be clear, use examples, and encourage ' + studentName + '.'
+    'Lesson from "' + courseName + '"\nTopic: ' + topicName + '\n\nNotes:\n' + (topicText || 'No notes provided.') + '\n\nPlease explain this fully. Be clear, use examples, and encourage ' + studentName + '.'
   );
 
   return json({ success: true, explanation: text, language: lang, lang_detected: lang });
 }
+
 
 async function handleGetAssessment(env, body, userData) {
   const studentName = (userData && userData.full_name) || 'Student';
@@ -319,20 +339,18 @@ async function handleGradeAssessment(env, body, userData) {
   });
 }
 
+
+
 async function handleCreatePayment(env, body, userData) {
-  const studentName = body.full_name || (userData && userData.full_name) || 'Student';
   const amount = Number(body.price || 0);
-
   if (amount <= 0) return json({ success: false, error: 'Invalid price' }, 400);
-
   const ref = 'PAY_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7).toUpperCase();
-
   return json({
     success: true,
     account_number: env.PAYMENT_ACCOUNT_NUMBER || '1234567890',
-    account_name: env.PAYMENT_ACCOUNT_NAME || 'IDT Academy Ltd',
     accountNumber: env.PAYMENT_ACCOUNT_NUMBER || '1234567890',
     account_name: env.PAYMENT_ACCOUNT_NAME || 'IDT Academy Ltd',
+    accountName: env.PAYMENT_ACCOUNT_NAME || 'IDT Academy Ltd',
     reference: ref,
     ref: ref,
     amount: amount,
@@ -340,6 +358,7 @@ async function handleCreatePayment(env, body, userData) {
     expires_in_minutes: 30
   });
 }
+
 
 async function handleVerifyPayment(env, body, userData) {
   await new Promise(function(resolve) { setTimeout(resolve, 2000); });
