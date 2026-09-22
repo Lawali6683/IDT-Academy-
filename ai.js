@@ -1,13 +1,20 @@
+import { supabase } from './supabase.js';
+
 const ASK_API = '/api/ask';
 const PAYSTACK_API = '/api/paystack';
 const EMAIL_API = '/api/sendEmail';
 
 async function postJson(url, payload, errorPrefix) {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    throw new Error(errorPrefix + ': network failed. Check your connection and try again.');
+  }
   let data = null;
   try {
     data = await res.json();
@@ -18,7 +25,10 @@ async function postJson(url, payload, errorPrefix) {
     const txt = data && data.error ? data.error : '';
     throw new Error(errorPrefix + ' ' + res.status + (txt ? ': ' + txt : ''));
   }
-  if (data && data.success === false) {
+  if (!data || typeof data !== 'object') {
+    throw new Error(errorPrefix + ': server returned an empty response');
+  }
+  if (data.success === false) {
     throw new Error(data.error || (errorPrefix + ' failed'));
   }
   return data;
