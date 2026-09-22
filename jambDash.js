@@ -1015,10 +1015,17 @@ function backToLearning() {
   document.body.style.overflow = '';
   el.dashboardContent.classList.remove('hidden');
   resetExamState();
+  if (el.refBackToLearningBtn) el.refBackToLearningBtn.classList.add('hidden');
   if (!topics || topics.length === 0) {
-    fetchTopics().then(function() { renderLearning(); });
+    fetchTopics().then(function() {
+      if (topics && topics.length > 0) {
+        showLearningView();
+      } else {
+        renderLearning();
+      }
+    });
   } else {
-    renderLearning();
+    showLearningView();
   }
   el.learningSection.scrollIntoView({ behavior: 'smooth' });
 }
@@ -1903,27 +1910,50 @@ el.aiModalOverlay.addEventListener('click', function(e) {
 
 
 
+
+
 $$('.ai-lang-select button', el.aiLangSelect).forEach(function(btn) {
   btn.addEventListener('click', function() {
     $$('.ai-lang-select button', el.aiLangSelect).forEach(function(b) { b.classList.remove('active'); });
     this.classList.add('active');
     if (this.id === 'aiOtherLang') {
-      const lang = prompt('Enter your preferred language (e.g. Fulfude, Tiv, Efik, Arabic, French):');
-      if (lang && lang.trim()) {
-        aiActiveLang = 'english+' + lang.trim();
-      } else {
-        aiActiveLang = 'english';
-      }
+      requestOtherLanguage();
     } else {
       aiActiveLang = this.dataset.lang;
+      showToast('Language set to ' + this.textContent.trim() + '.', 'success');
     }
   });
 });
 
-el.aiSendBtn.addEventListener('click', sendAIMessage);
-el.aiInput.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') sendAIMessage();
-});
+function requestOtherLanguage() {
+  aiActiveLang = 'english';
+  if (document.getElementById('langToastInput')) return;
+  const t = document.createElement('div');
+  t.className = 'toast info';
+  t.innerHTML = '<span class="toast-icon"><i class="fas fa-language"></i></span><span class="toast-text">Enter your preferred language:</span><input type="text" class="lang-toast-input" id="langToastInput" placeholder="e.g. Fulfude, Tiv, Efik, Arabic"><button type="button" class="lang-toast-ok" id="langToastOk"><i class="fas fa-check"></i></button><button type="button" class="toast-close"><i class="fas fa-xmark"></i></button>';
+  el.toastContainer.appendChild(t);
+  const input = t.querySelector('#langToastInput');
+  const ok = t.querySelector('#langToastOk');
+  const closeBtn = t.querySelector('.toast-close');
+  function apply() {
+    const lang = (input.value || '').trim();
+    if (lang) {
+      aiActiveLang = 'english+' + lang;
+      showToast('Language set to English + ' + lang + '.', 'success', 5000);
+    } else {
+      aiActiveLang = 'english';
+      showToast('No language entered. Defaulting to English.', 'info', 5000);
+    }
+    removeToast(t);
+  }
+  ok.addEventListener('click', apply);
+  input.addEventListener('keydown', function(e) { if (e.key === 'Enter') apply(); });
+  closeBtn.addEventListener('click', function() { removeToast(t); });
+  setTimeout(function() { if (input && input.parentNode) input.focus(); }, 100);
+  setTimeout(function() {
+    if (t.parentNode) removeToast(t);
+  }, 30000);
+}
 
 
 
