@@ -1900,18 +1900,43 @@ el.logoutBtn.addEventListener('click', function() {
   window.location.href = 'jamb.html';
 });
 
+
+
 el.tvQuestionBtn.addEventListener('click', function() {
-  const topic = topics[currentTopicIndex];
-  if (!topic) return;
-  openAITutor('question', null, topic);
+  try {
+    const topic = topics[currentTopicIndex];
+    if (!topic) {
+      showToast('No topic is loaded yet. Please wait for topics to load.', 'warning');
+      return;
+    }
+    if (typeof openAITutor !== 'function') {
+      showToast('AI tutor is not ready. Please refresh the page.', 'error');
+      return;
+    }
+    openAITutor('question', null, topic);
+  } catch (err) {
+    console.error('Ask Question error:', err);
+    showToast('Could not open AI tutor. Please try again.', 'error');
+  }
 });
 
 el.tvExplainBtn.addEventListener('click', function() {
-  const topic = topics[currentTopicIndex];
-  if (!topic) return;
-  openAITutor('explain', null, topic);
+  try {
+    const topic = topics[currentTopicIndex];
+    if (!topic) {
+      showToast('No topic is loaded yet. Please wait for topics to load.', 'warning');
+      return;
+    }
+    if (typeof openAITutor !== 'function') {
+      showToast('AI tutor is not ready. Please refresh the page.', 'error');
+      return;
+    }
+    openAITutor('explain', null, topic);
+  } catch (err) {
+    console.error('Explain More error:', err);
+    showToast('Could not open AI tutor. Please try again.', 'error');
+  }
 });
-
 
 
 function openAITutor(mode, examData, topic) {
