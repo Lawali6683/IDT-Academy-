@@ -453,37 +453,59 @@ textarea{resize:vertical}
 .btn-nav:hover{background:var(--violet);color:#fff;border-color:var(--violet)}
 .btn-nav:disabled{opacity:.4;cursor:not-allowed;transform:none}
 
-
-
 .exam-lock-overlay{
-  position:fixed;inset:0;z-index:300;
-  background:rgba(30,27,75,.65);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  display:none;align-items:center;justify-content:center;
-  padding:0;animation:fadeInOverlay .3s ease;
-  width:100vw;height:100vh;height:100dvh;
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  z-index:300;
+  background:rgba(30,27,75,.75);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  display:none;
+  align-items:stretch;justify-content:center;
+  animation:fadeInOverlay .3s ease;
 }
 .exam-lock-overlay.active{display:flex}
 .exam-lock-card{
   position:relative;
-  width:100%;height:100vh;height:100dvh;
-  max-width:none;max-height:none;
-  background:#fff;border-radius:0;box-shadow:none;
+  width:100%;max-width:none;
+  height:100%;
+  min-height:100vh;
+  min-height:100dvh;
+  background:#fff;
+  border-radius:0;box-shadow:none;margin:0;
+  display:flex;flex-direction:column;
   overflow-y:auto;-webkit-overflow-scrolling:touch;
   animation:modalSlideUp .35s cubic-bezier(.22,.68,0,1);
   padding-top:env(safe-area-inset-top);
   padding-bottom:env(safe-area-inset-bottom);
 }
-.el-header,.el-body,.el-footer{max-width:640px;margin:0 auto}
 .el-close-btn{
-  position:absolute;top:14px;right:14px;z-index:5;
+  position:fixed;top:calc(14px + env(safe-area-inset-top));right:14px;z-index:10;
   width:42px;height:42px;border:none;border-radius:50%;
-  background:rgba(244,63,94,.1);color:var(--rose);
+  background:rgba(244,63,94,.12);color:var(--rose);
   font-size:18px;display:flex;align-items:center;justify-content:center;
-  transition:all .2s;box-shadow:0 4px 14px rgba(244,63,94,.25);
+  transition:all .2s;box-shadow:0 4px 14px rgba(244,63,94,.3);
 }
 .el-close-btn:hover{background:var(--rose);color:#fff;transform:rotate(90deg)}
 .el-close-btn:active{transform:scale(.9)}
+.el-header{
+  text-align:center;padding:64px 24px 20px;
+  background:linear-gradient(135deg,rgba(0,104,56,.04),rgba(124,58,237,.04));
+  flex-shrink:0;
+}
+.el-header .el-icon{font-size:48px;color:var(--amber);margin-bottom:10px}
+.el-header h2{font-size:22px;font-weight:800;color:var(--ink)}
+.el-header p{color:var(--muted);font-size:14px;margin-top:6px}
+.el-body{padding:24px;flex:1 0 auto;max-width:640px;width:100%;margin:0 auto}
+.el-footer{
+  position:sticky;bottom:0;left:0;right:0;
+  text-align:center;padding:16px 24px calc(16px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--line);
+  background:#fff;flex-shrink:0;
+  max-width:640px;width:100%;margin:0 auto;
+}
+.el-info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.el-info-row .eil{color:var(--muted)}
+.el-info-row .eir{font-weight:700;color:var(--ink)}
+
 
 .el-header{
   text-align:center;padding:30px 24px 20px;
@@ -1153,7 +1175,7 @@ textarea{resize:vertical}
   .toast-container{left:16px;right:16px;bottom:16px;max-width:none}
   .ai-modal{margin:8px;border-radius:18px}
   .results-card{margin:8px;border-radius:18px}
-  .exam-lock-card{margin:8px;border-radius:18px}
+
   .pgh-course-box .pgh-course-amount{font-size:24px}
   .net-pause-card .np-timer{font-size:34px}
 }
