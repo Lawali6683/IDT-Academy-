@@ -1125,45 +1125,127 @@ async function openExamLock() {
   el.examLockOverlay.classList.add('active');
 }
 
+
+
+async function generateExamQuestions() {
+  showLoading(true);
+  try {
+    let raw = null;
+    try {
+      const { data, error } = await supabase
+        .from('jamb')
+        .select('jamb_questions')
+        .eq('id', 'jamb_questions')
+        .maybeSingle();
+      if (!error && data && data.jamb_questions) {
+        raw = Array.isArray(data.jamb_questions)
+          ? data.jamb_questions
+          : (data.jamb_questions && Array.isArray(data.jamb_questions.questions) ? data.jamb_questions.questions : null);
+      }
+    } catch (e) {
+      console.error('Supabase questions fetch error:', e);
+    }
+
+    if (!raw || raw.length === 0) {
+      const u = getLocalUser();
+      const res = await fetch('/api/jambai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate_exam',
+          user_id: u ? u.id : '',
+          jambCourseId: u ? (u.jambCourseId || '') : '',
+          jambCourseSubjects: u ? (u.jambCourseSubjects || []) : []
+        })
+      });
+      if (res.status !== 200) {
+        const apiMsg = await readApiError(res);
+        showToast('Failed to load exam questions (' + (apiMsg || ('HTTP ' + res.status)) + '). Please check your internet and try again.', 'error', 7000);
+        return false;
+      }
+      const rdata = await res.json();
+      if (rdata.success && Array.isArray(rdata.questions) && rdata.questions.length > 0) {
+        raw = rdata.questions;
+      }
+    }
+
+    if (!raw || raw.length === 0) {
+      showToast('No exam questions were found. Please try again later.', 'error', 7000);
+      return false;
+    }
+
+    examQuestions = raw
+      .filter(function(q) { return q && typeof q === 'object'; })
+      .map(function(q) {
+        return {
+          subject: String(q.subject || 'General'),
+          text: String(q.text || q.question || ''),
+          options: Array.isArray(q.options) ? q.options.map(String) : [],
+          correct: Number(q.correct) || 0
+        };
+      })
+      .filter(function(q) { return q.text && q.options.length >= 2; });
+
+    if (examQuestions.length === 0) {
+      showToast('No valid questions were found. Please try again.', 'error', 7000);
+      return false;
+    }
+    return true;
+
+  } catch (err) {
+    console.error('generateExamQuestions error:', err);
+    showToast('Network error while loading questions. Please check your internet and try again.', 'error', 7000);
+    return false;
+  } finally {
+    showLoading(false);
+  }
+}
+
 el.startExamBtn.addEventListener('click', async function() {
   if (this.disabled) return;
+  const btn = this;
+  const originalHtml = btn.innerHTML;
+
   const progress = getStoredProgress();
   if (!isExamUnlocked(progress)) {
     el.examLockOverlay.classList.remove('active');
-    showToast('You must complete all topics first.', 'warning');
+    showToast('You must complete all topics first.', 'warning', 6000);
     return;
   }
 
-  const originalHtml = this.innerHTML;
-  this.disabled = true;
-  this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
 
-  showLoading(true);
-  const camOk = await requireCamera();
-  showLoading(false);
+  try {
+    const ok = await generateExamQuestions();
 
-  if (!camOk) {
-    this.disabled = false;
-    this.innerHTML = originalHtml;
-    showToast('Camera access is required before starting the exam. Please enable your camera and try again.', 'error', 6000);
-    return;
-  }
+    if (!ok) {
+      showToast('Could not start the exam right now. Please click "Start Exam Now" again.', 'error', 7000);
+      return;
+    }
 
-  const ok = await generateExamQuestions();
+    showLoading(true);
+    const camOk = await requireCamera();
+    showLoading(false);
 
-  this.disabled = false;
-  this.innerHTML = originalHtml;
+    if (!camOk) {
+      showToast('Camera access is required before starting the exam. Please enable your camera and try again.', 'error', 6000);
+      return;
+    }
 
-  if (!ok) {
+    el.examLockOverlay.classList.remove('active');
+    startExam();
+
+  } catch (err) {
+    console.error('startExamBtn error:', err);
+    showToast('An error occurred while preparing the exam. Please try again.', 'error', 7000);
     stopCamera();
-    el.examLockOverlay.classList.add('active');
-    return;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+    showLoading(false);
   }
-
-  el.examLockOverlay.classList.remove('active');
-  startExam();
 });
-
 
 
 
