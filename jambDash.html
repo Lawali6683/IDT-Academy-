@@ -1628,7 +1628,7 @@ font-size: 0.95em;
 
 
 <div class="exam-lock-overlay" id="examLockOverlay">
-  <div class="exam-lock-card">
+  <div class="exam-lock-car">
       
       <button class="el-close-btn" id="examLockCloseBtn"><i 
       class="fas fa-xmark"></i></button>
@@ -1642,7 +1642,7 @@ font-size: 0.95em;
       <div class="el-info-row"><span class="eil">Duration</span><span class="eir">2 Hours (120 minutes)</span></div>
       <div class="el-info-row"><span class="eil">Maximum Score</span><span class="eir">400</span></div>
       <div class="el-info-row"><span class="eil">Pass Mark</span><span class="eir">200+ (50%)</span></div>
-      <div class="el-info-row"><span class="eil">Marking</span><span class="eir">2.22 per question</span></div>
+      <div class="el-info-row"><span class="eil">Marking</span><span class="eir">2.22 Mark one question</span></div>
       <div class="el-info-row"><span class="eil">Negative Marking</span><span class="eir">None</span></div>
       <div style="margin-top:16px;padding:12px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:10px;font-size:13px;color:var(--muted);line-height:1.6">
         <strong style="color:var(--amber);font-weight:700">Important:</strong> You must score at least 200 to pass. If you fail, you can retry after 25 hours. Your camera is required and will remain active during the exam. Make sure you are in a well-lit environment. Copying exam content or switching screens is strictly monitored.
@@ -1802,19 +1802,19 @@ font-size: 0.95em;
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
-const aiInputInline = document.getElementById('aiInput');
-const aiBodyInline = document.querySelector('.ai-modal .ai-body');
+const aiInput = document.getElementById('aiInput');
+const aiBody = document.querySelector('.ai-modal .ai-body');
 
-if (aiInputInline) {
-  aiInputInline.addEventListener('input', function () {
+if (aiInput) {
+  aiInput.addEventListener('input', function () {
     this.style.height = 'auto';
     this.style.height = (this.scrollHeight) + 'px';
   });
 }
 
 function scrollToBottom() {
-  if (aiBodyInline) {
-    aiBodyInline.scrollTop = aiBodyInline.scrollHeight;
+  if (aiBody) {
+    aiBody.scrollTop = aiBody.scrollHeight;
   }
 }
 </script>
