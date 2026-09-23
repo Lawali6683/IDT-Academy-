@@ -1901,67 +1901,61 @@ el.logoutBtn.addEventListener('click', function() {
 });
 
 
-
 el.tvQuestionBtn.addEventListener('click', function() {
-  try {
-    const topic = topics[currentTopicIndex];
-    if (!topic) {
-      showToast('No topic is loaded yet. Please wait for topics to load.', 'warning');
-      return;
-    }
-    if (typeof openAITutor !== 'function') {
-      showToast('AI tutor is not ready. Please refresh the page.', 'error');
-      return;
-    }
-    openAITutor('question', null, topic);
-  } catch (err) {
-    console.error('Ask Question error:', err);
-    showToast('Could not open AI tutor. Please try again.', 'error');
+  const topic = topics && topics[currentTopicIndex] ? topics[currentTopicIndex] : null;
+  if (!topic) {
+    showToast('Please wait for the topic to finish loading, then try again.', 'warning', 5000);
+    return;
   }
+  openAITutor('question', null, topic);
 });
 
 el.tvExplainBtn.addEventListener('click', function() {
-  try {
-    const topic = topics[currentTopicIndex];
-    if (!topic) {
-      showToast('No topic is loaded yet. Please wait for topics to load.', 'warning');
-      return;
-    }
-    if (typeof openAITutor !== 'function') {
-      showToast('AI tutor is not ready. Please refresh the page.', 'error');
-      return;
-    }
-    openAITutor('explain', null, topic);
-  } catch (err) {
-    console.error('Explain More error:', err);
-    showToast('Could not open AI tutor. Please try again.', 'error');
+  const topic = topics && topics[currentTopicIndex] ? topics[currentTopicIndex] : null;
+  if (!topic) {
+    showToast('Please wait for the topic to finish loading, then try again.', 'warning', 5000);
+    return;
   }
+  openAITutor('explain', null, topic);
 });
 
 
+
+
 function openAITutor(mode, examData, topic) {
+  if (!el.aiModalOverlay || !el.aiChatArea || !el.aiInput || !el.aiSendBtn) {
+    showToast('AI tutor panel is not ready. Please refresh the page and try again.', 'error', 6000);
+    return;
+  }
   el.aiModalOverlay.classList.add('active');
   document.body.style.overflow = 'hidden';
   el.aiChatArea.innerHTML = '';
   aiContext = [];
 
   let msg = '';
+  let sys = '';
+
   if (mode === 'review' && examData) {
     msg = 'Hello! I am your IDT Academy AI tutor. I have analyzed your exam results. Scroll down to see my full explanation of the questions you got wrong. You can also ask me about any specific question.';
-    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI for IDT Academy. The user just completed a JAMB mock exam. Score: ' + examData.score + '/400, ' + (examData.passed ? 'passed' : 'failed') + '. Subject scores: ' + JSON.stringify(examData.subjects || []) + '. Wrong questions: ' + JSON.stringify((examData.details || []).filter(function(d) { return !d.is_correct; }).slice(0, 30)) + '. When asked, explain why the correct answers are right and what topics to study. Respond according to the language rules given in each request.' });
+    sys = 'You are a helpful JAMB tutor AI for IDT Academy. The user just completed a JAMB mock exam. Score: ' + examData.score + '/400, ' + (examData.passed ? 'passed' : 'failed') + '. Subject scores: ' + JSON.stringify(examData.subjects || []) + '. Wrong questions: ' + JSON.stringify((examData.details || []).filter(function(d) { return !d.is_correct; }).slice(0, 30)) + '. When asked, explain why the correct answers are right and what topics to study. Respond according to the language rules given in each request.';
   } else if (mode === 'question' && topic) {
     msg = 'Hello! I am your IDT Academy AI tutor. You can ask me any question about the topic "' + topic.title + '". What would you like to know?';
-    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI. The user is studying the topic: ' + topic.title + '. Topic content: ' + (topic.text || '') + '. Help them understand the topic and answer their questions clearly.' });
+    sys = 'You are a helpful JAMB tutor AI. The user is studying the topic: ' + topic.title + '. Topic content: ' + (topic.text || '') + '. Help them understand the topic and answer their questions clearly.';
   } else if (mode === 'explain' && topic) {
     msg = 'Hello! I am your IDT Academy AI tutor. I will explain the topic "' + topic.title + '" in more detail. What specific part would you like me to explain?';
-    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI. The user wants a detailed explanation of the topic: ' + topic.title + '. Topic content: ' + (topic.text || '') + '. Explain thoroughly with examples and relate to JAMB exam questions.' });
+    sys = 'You are a helpful JAMB tutor AI. The user wants a detailed explanation of the topic: ' + topic.title + '. Topic content: ' + (topic.text || '') + '. Explain thoroughly with examples and relate to JAMB exam questions.';
   } else {
     msg = 'Hello! I am your IDT Academy AI tutor. How can I help you with your JAMB preparation today?';
-    aiContext.push({ role: 'system', content: 'You are a helpful JAMB tutor AI for IDT Academy. Help students prepare for JAMB exams. Answer questions, explain topics, and provide guidance.' });
+    sys = 'You are a helpful JAMB tutor AI for IDT Academy. Help students prepare for JAMB exams. Answer questions, explain topics, and provide guidance.';
   }
 
+  aiContext.push({ role: 'system', content: sys });
   addAIMessage('bot', msg);
+  if (el.aiInput && el.aiInput.focus) {
+    setTimeout(function() { el.aiInput.focus(); }, 150);
+  }
 }
+
 
 
 function addAIMessage(type, text) {
