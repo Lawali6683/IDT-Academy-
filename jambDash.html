@@ -107,7 +107,7 @@ textarea{resize:vertical}
 @keyframes pulseDot{0%,100%{opacity:1;transform:translate(-50%,-50%) scale(1)}50%{opacity:.4;transform:translate(-50%,-50%) scale(.55)}}
 
 .topbar{
-  position:sticky;top:0;z-index:100;
+  position:sticky;top:0;z-index:80;
   display:flex;align-items:center;justify-content:space-between;gap:14px;
   padding:10px 4%;
   background:rgba(255,255,255,.85);
@@ -453,19 +453,38 @@ textarea{resize:vertical}
 .btn-nav:hover{background:var(--violet);color:#fff;border-color:var(--violet)}
 .btn-nav:disabled{opacity:.4;cursor:not-allowed;transform:none}
 
+
+
 .exam-lock-overlay{
   position:fixed;inset:0;z-index:300;
-  background:rgba(30,27,75,.5);
-  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  background:rgba(30,27,75,.65);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   display:none;align-items:center;justify-content:center;
-  padding:16px;animation:fadeInOverlay .3s ease;
+  padding:0;animation:fadeInOverlay .3s ease;
+  width:100vw;height:100vh;height:100dvh;
 }
 .exam-lock-overlay.active{display:flex}
 .exam-lock-card{
-  width:100%;max-width:600px;max-height:90vh;overflow-y:auto;
-  background:#fff;border-radius:24px;box-shadow:0 40px 100px rgba(0,0,0,.25);
+  position:relative;
+  width:100%;height:100vh;height:100dvh;
+  max-width:none;max-height:none;
+  background:#fff;border-radius:0;box-shadow:none;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
   animation:modalSlideUp .35s cubic-bezier(.22,.68,0,1);
+  padding-top:env(safe-area-inset-top);
+  padding-bottom:env(safe-area-inset-bottom);
 }
+.el-header,.el-body,.el-footer{max-width:640px;margin:0 auto}
+.el-close-btn{
+  position:absolute;top:14px;right:14px;z-index:5;
+  width:42px;height:42px;border:none;border-radius:50%;
+  background:rgba(244,63,94,.1);color:var(--rose);
+  font-size:18px;display:flex;align-items:center;justify-content:center;
+  transition:all .2s;box-shadow:0 4px 14px rgba(244,63,94,.25);
+}
+.el-close-btn:hover{background:var(--rose);color:#fff;transform:rotate(90deg)}
+.el-close-btn:active{transform:scale(.9)}
+
 .el-header{
   text-align:center;padding:30px 24px 20px;
   background:linear-gradient(135deg,rgba(0,104,56,.04),rgba(124,58,237,.04));
@@ -631,21 +650,40 @@ textarea{resize:vertical}
 }
 @keyframes pulseRed{0%,100%{opacity:1}50%{opacity:.3}}
 
+
+
+
 .net-pause-overlay{
   position:fixed;inset:0;z-index:750;
-  background:rgba(30,27,75,.75);
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  background:rgba(30,27,75,.8);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   display:none;align-items:center;justify-content:center;
-  padding:16px;animation:fadeInOverlay .3s ease;
+  padding:0;animation:fadeInOverlay .3s ease;
+  width:100vw;height:100vh;height:100dvh;
 }
 .net-pause-overlay.active{display:flex}
 .net-pause-card{
-  width:100%;max-width:420px;
-  background:#fff;border-radius:24px;
-  box-shadow:0 40px 100px rgba(0,0,0,.3);
+  position:relative;
+  width:100%;height:100vh;height:100dvh;
+  max-width:none;
+  background:#fff;border-radius:0;box-shadow:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
   animation:modalSlideUp .35s cubic-bezier(.22,.68,0,1);
-  text-align:center;padding:32px 26px;
+  text-align:center;padding:max(32px,env(safe-area-inset-top)) 26px max(32px,env(safe-area-inset-bottom));
 }
+.np-inner{max-width:420px;width:100%}
+.np-close-btn{
+  position:absolute;top:14px;right:14px;z-index:5;
+  width:42px;height:42px;border:none;border-radius:50%;
+  background:rgba(244,63,94,.1);color:var(--rose);
+  font-size:18px;display:flex;align-items:center;justify-content:center;
+  transition:all .2s;box-shadow:0 4px 14px rgba(244,63,94,.25);
+}
+.np-close-btn:hover{background:var(--rose);color:#fff;transform:rotate(90deg)}
+.np-close-btn:active{transform:scale(.9)}
+
+
 .net-pause-card .np-icon{
   width:72px;height:72px;border-radius:50%;
   background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);
@@ -826,18 +864,24 @@ textarea{resize:vertical}
   text-align:center;padding:0 20px 20px;
 }
 
+
+
+
 .ai-modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 550;
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   display: none;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   padding: 0;
   animation: fadeInOverlay .25s ease;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
 }
 
 .ai-modal-overlay.active {
@@ -846,26 +890,18 @@ textarea{resize:vertical}
 
 .ai-modal {
   width: 100%;
-  max-width: 650px;
+  max-width: none;
+  height: 100vh;
   height: 100dvh;
   display: flex;
   flex-direction: column;
   background: #ffffff;
   border-radius: 0;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: none;
   animation: modalSlideUp .3s cubic-bezier(.16, 1, .3, 1);
   overflow: hidden;
-}
-
-@media (min-width: 640px) {
-  .ai-modal-overlay {
-    align-items: center;
-    padding: 16px;
-  }
-  .ai-modal {
-    height: 90vh;
-    border-radius: 24px;
-  }
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .ai-modal .ai-header {
@@ -1101,7 +1137,7 @@ textarea{resize:vertical}
   .payment-card{margin:8px;border-radius:18px}
   .course-select-card{margin:8px;border-radius:18px}
   .pay-get-card{margin:8px;border-radius:18px}
-  .net-pause-card{margin:8px;border-radius:18px;padding:26px 20px}
+  
   .exam-main{padding:14px 16px}
   .exam-q-text{font-size:16px}
   .exam-panel{display:none}
@@ -1264,7 +1300,15 @@ textarea{resize:vertical}
 
 
 
-
+.cs-close-btn{
+  position:absolute;top:14px;right:14px;z-index:5;
+  width:40px;height:40px;border:none;border-radius:50%;
+  background:rgba(244,63,94,.1);color:var(--rose);
+  font-size:17px;display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
+}
+.cs-close-btn:hover{background:var(--rose);color:#fff;transform:rotate(90deg)}
+.cs-close-btn:active{transform:scale(.9)}
 
 </style>
 </head>
@@ -1357,6 +1401,7 @@ textarea{resize:vertical}
   <div class="course-select-card">
     <div class="cs-header">
       <div class="cs-icon"><i class="fas fa-graduation-cap"></i></div>
+      <button class="cs-close-btn" id="csCloseBtn"><i class="fas fa-xmark"></i></button>
       <h2>Choose Your Course Department</h2>
       <p>Select the department that matches your desired course. You can change it anytime before payment.</p>
     </div>
@@ -1488,6 +1533,9 @@ textarea{resize:vertical}
 
 <div class="exam-lock-overlay" id="examLockOverlay">
   <div class="exam-lock-card">
+      
+      <button class="el-close-btn" id="examLockCloseBtn"><i 
+      class="fas fa-xmark"></i></button>
     <div class="el-header">
       <div class="el-icon"><i class="fas fa-pencil"></i></div>
       <h2>Final JAMB Mock Examination</h2>
@@ -1501,7 +1549,7 @@ textarea{resize:vertical}
       <div class="el-info-row"><span class="eil">Marking</span><span class="eir">2.22 per question</span></div>
       <div class="el-info-row"><span class="eil">Negative Marking</span><span class="eir">None</span></div>
       <div style="margin-top:16px;padding:12px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:10px;font-size:13px;color:var(--muted);line-height:1.6">
-        <strong style="color:var(--amber);font-weight:700">Important:</strong> You must score at least 200 to pass. If you fail, you can retry after 24 hours. Your camera is required and will remain active during the exam. Make sure you are in a well-lit environment. Copying exam content or switching screens is strictly monitored.
+        <strong style="color:var(--amber);font-weight:700">Important:</strong> You must score at least 200 to pass. If you fail, you can retry after 25 hours. Your camera is required and will remain active during the exam. Make sure you are in a well-lit environment. Copying exam content or switching screens is strictly monitored.
       </div>
       <div id="cooldownDisplay" class="hidden" style="text-align:center;margin-top:14px">
         <p style="color:var(--rose);font-weight:600;font-size:14px">You can retry in:</p>
@@ -1570,15 +1618,18 @@ textarea{resize:vertical}
 
 
 <div class="net-pause-overlay" id="netPauseOverlay">
+    
   <div class="net-pause-card">
-    <div class="np-icon"><i class="fas fa-wifi"></i></div>
-    <h2>Connection Lost</h2>
-    <div class="np-timer" id="netPauseTimer">02:00</div>
-    <div class="np-locked hidden" id="netPauseLocked">Your 2 minutes are over. Click Continue to resume your exam.</div>
-    <p class="np-msg">Your exam time is paused. Reconnect your internet to continue automatically, or press the button below when you are ready.</p>
-    <div class="np-time-left">Remaining exam time: <strong id="netPauseTimeLeft">--:--:--</strong></div>
-    <button class="net-pause-btn hidden" id="netPauseContinue"><i class="fas fa-play"></i> Continue Exam</button>
-  </div>
+    <button class="np-close-btn" id="netPauseCloseBtn"><i class="fas fa-xmark"></i></button>
+<div class="np-inner">
+  <div class="np-icon"><i class="fas fa-wifi"></i></div>
+  <h2>Connection Lost</h2>
+  <div class="np-timer" id="netPauseTimer">02:00</div>
+  <div class="np-locked hidden" id="netPauseLocked">Your 2 minutes are over. Click Continue to resume your exam.</div>
+  <p class="np-msg">Your exam time is paused. Reconnect your internet to continue automatically, or press the button below when you are ready.</p>
+  <div class="np-time-left">Remaining exam time: <strong id="netPauseTimeLeft">--:--:--</strong></div>
+  <button class="net-pause-btn hidden" id="netPauseContinue"><i class="fas fa-play"></i> Continue Exam</button>
+</div>
 </div>
 
 <div class="results-overlay" id="resultsOverlay">
@@ -1650,22 +1701,22 @@ textarea{resize:vertical}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
-const aiInput = document.getElementById('aiInput');
-const aiBody = document.querySelector('.ai-modal .ai-body');
+const aiInputInline = document.getElementById('aiInput');
+const aiBodyInline = document.querySelector('.ai-modal .ai-body');
 
-if (aiInput) {
-  aiInput.addEventListener('input', function () {
+if (aiInputInline) {
+  aiInputInline.addEventListener('input', function () {
     this.style.height = 'auto';
     this.style.height = (this.scrollHeight) + 'px';
   });
 }
 
 function scrollToBottom() {
-  if (aiBody) {
-    aiBody.scrollTop = aiBody.scrollHeight;
+  if (aiBodyInline) {
+    aiBodyInline.scrollTop = aiBodyInline.scrollHeight;
   }
 }
 </script>
-<script type="module" src="jambDash.js"></script>
+<script type="module" src="jambDash13.js"></script>
 </body>
 </html>
