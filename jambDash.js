@@ -170,6 +170,7 @@ let netPaused = false;
 let netDeadline = null;
 let netCountdownInterval = null;
 let screenSwitchCount = 0;
+let examCooldownInterval = null;
 
 function escapeHtml(str) {
   return String(str == null ? '' : str).replace(/[&<>"']/g, function(ch) {
@@ -956,8 +957,8 @@ function showTopic(index) {
 
   el.tvContent.innerHTML = topic.text || '<p>No content available for this topic.</p>';
 
-  el.tvBackBtn.disabled = index <= 0;
- el.tvNextBtn.disabled = index >= total - 1;
+ el.tvBackBtn.disabled = index <= 0;
+  el.tvNextBtn.disabled = false;
 
   const progress = getStoredProgress();
   if (!progress.completed) progress.completed = [];
@@ -994,11 +995,13 @@ el.tvNextBtn.addEventListener('click', function() {
   const progress = getStoredProgress();
   if (currentTopicIndex < topics.length - 1) {
     showTopic(currentTopicIndex + 1);
+  } else if (progress.completed && progress.completed.length >= topics.length && isExamUnlocked(progress)) {
+    el.topicViewer.style.display = 'none';
+    el.allComplete.style.display = 'block';
+    if (el.refBackToLearningBtn) el.refBackToLearningBtn.classList.remove('hidden');
+    el.allComplete.scrollIntoView({ behavior: 'smooth' });
   } else {
-    if (progress.completed && progress.completed.length >= topics.length && isExamUnlocked(progress)) {
-      el.topicViewer.style.display = 'none';
-      el.allComplete.style.display = 'block';
-    }
+    showToast('Please complete all topics, including the final topic, to unlock the exam.', 'info', 5000);
   }
 });
 
@@ -1034,6 +1037,64 @@ el.backToLearningBtn.addEventListener('click', backToLearning);
 el.refBackToLearningBtn.addEventListener('click', backToLearning);
 
 
+
+
+const EXAM_COOLDOWN_MS = 25 * 60 * 60 * 1000;
+
+async function saveExamFailTime(userId, ts) {
+  try {
+    const { data } = await supabase
+      .from('update')
+      .select('uset_update')
+      .eq('id', userId)
+      .maybeSingle();
+    const ud = (data && data.uset_update && typeof data.uset_update === 'object') ? data.uset_update : {};
+    ud.exam_failed_at = ts;
+    const { error } = await supabase
+      .from('update')
+      .upsert({ id: userId, uset_update: ud });
+    if (error) throw error;
+  } catch (err) {
+    console.error('saveExamFailTime error:', err);
+  }
+}
+
+async function getExamFailTime(userId) {
+  let cloudTs = 0;
+  try {
+    const { data } = await supabase
+      .from('update')
+      .select('uset_update')
+      .eq('id', userId)
+      .maybeSingle();
+    if (data && data.uset_update && data.uset_update.exam_failed_at) {
+      cloudTs = Number(data.uset_update.exam_failed_at) || 0;
+    }
+  } catch (err) {
+    cloudTs = 0;
+  }
+  let localTs = 0;
+  try {
+    localTs = parseInt(localStorage.getItem('idt_exam_failed_' + userId), 10) || 0;
+  } catch (e) {
+    localTs = 0;
+  }
+  return Math.max(cloudTs, localTs);
+}
+
+function clearExamCooldownUi() {
+  if (examCooldownInterval) {
+    clearInterval(examCooldownInterval);
+    examCooldownInterval = null;
+  }
+  el.cooldownDisplay.classList.add('hidden');
+  el.startExamBtn.disabled = false;
+  el.startExamBtn.innerHTML = '<i class="fas fa-play"></i> Start Exam Now';
+}
+
+
+
+
 async function openExamLock() {
   const u = getLocalUser();
   if (!u) return;
@@ -1042,42 +1103,26 @@ async function openExamLock() {
     showToast('You must finish reading all topics, including the final topic, before the exam is unlocked.', 'warning', 6000);
     return;
   }
-  const lastFailed = localStorage.getItem('idt_exam_failed_' + u.id);
-  el.cooldownDisplay.classList.add('hidden');
-  el.startExamBtn.disabled = false;
-  el.startExamBtn.innerHTML = '<i class="fas fa-play"></i> Start Exam Now';
-  if (lastFailed) {
-    const failTime = parseInt(lastFailed, 10);
-    const now = Date.now();
-    const diff = failTime + 86400000 - now;
-    if (diff > 0) {
-      el.startExamBtn.disabled = true;
-      el.cooldownDisplay.classList.remove('hidden');
-      updateCooldownTimer(diff);
-      const ci = setInterval(function() {
-        const rem = failTime + 86400000 - Date.now();
-        if (rem <= 0) {
-          clearInterval(ci);
-          el.cooldownDisplay.classList.add('hidden');
-          el.startExamBtn.disabled = false;
-          el.startExamBtn.innerHTML = '<i class="fas fa-play"></i> Start Exam Now';
-          localStorage.removeItem('idt_exam_failed_' + u.id);
-        } else {
-          updateCooldownTimer(rem);
-        }
-      }, 1000);
-    } else {
-      localStorage.removeItem('idt_exam_failed_' + u.id);
-    }
+  clearExamCooldownUi();
+  showLoading(true);
+  const failTime = await getExamFailTime(u.id);
+  showLoading(false);
+  const diff = failTime + EXAM_COOLDOWN_MS - Date.now();
+  if (failTime && diff > 0) {
+    el.startExamBtn.disabled = true;
+    el.cooldownDisplay.classList.remove('hidden');
+    updateCooldownTimer(diff);
+    examCooldownInterval = setInterval(function() {
+      const rem = failTime + EXAM_COOLDOWN_MS - Date.now();
+      if (rem <= 0) {
+        clearExamCooldownUi();
+        localStorage.removeItem('idt_exam_failed_' + u.id);
+      } else {
+        updateCooldownTimer(rem);
+      }
+    }, 1000);
   }
   el.examLockOverlay.classList.add('active');
-}
-
-function updateCooldownTimer(ms) {
-  const h = Math.floor(ms / 3600000);
-  const m = Math.floor((ms % 3600000) / 60000);
-  const s = Math.floor(ms % 60000 / 1000);
-  el.cooldownTimer.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
 }
 
 el.startExamBtn.addEventListener('click', async function() {
@@ -1118,6 +1163,7 @@ el.startExamBtn.addEventListener('click', async function() {
   el.examLockOverlay.classList.remove('active');
   startExam();
 });
+
 
 
 
@@ -1650,9 +1696,13 @@ function showExamResults(data) {
   el.resultsOverlay.classList.add('active');
   document.body.style.overflow = 'hidden';
 
-  if (!passed) {
+ if (!passed) {
     const u = getLocalUser();
-    if (u) localStorage.setItem('idt_exam_failed_' + u.id, String(Date.now()));
+    if (u) {
+      const failTs = Date.now();
+      localStorage.setItem('idt_exam_failed_' + u.id, String(failTs));
+      saveExamFailTime(u.id, failTs);
+    }
   }
 
   $('#downloadPdfBtn').addEventListener('click', function() { downloadResultsPdf(data); });
@@ -1752,6 +1802,10 @@ function resetExamState() {
   examTimeLeft = 7200;
   examStarted = false;
   screenSwitchCount = 0;
+  if (examCooldownInterval) {
+    clearInterval(examCooldownInterval);
+    examCooldownInterval = null;
+  }
 }
 
 function downloadResultsPdf(data) {
@@ -2025,6 +2079,59 @@ function initExamVisibilityGuards() {
     }
   });
 }
+
+
+const csCloseBtn = $('#csCloseBtn');
+if (csCloseBtn) {
+  csCloseBtn.addEventListener('click', function() {
+    el.courseSelectOverlay.classList.remove('active');
+    if (el.deptLoading) el.deptLoading.classList.add('hidden');
+  });
+}
+
+const examLockCloseBtn = $('#examLockCloseBtn');
+if (examLockCloseBtn) {
+  examLockCloseBtn.addEventListener('click', function() {
+    el.examLockOverlay.classList.remove('active');
+    clearExamCooldownUi();
+  });
+}
+
+const netPauseCloseBtn = $('#netPauseCloseBtn');
+if (netPauseCloseBtn) {
+  netPauseCloseBtn.addEventListener('click', function() {
+    if (netPaused && netDeadline && Date.now() >= netDeadline) {
+      resumeExamFromNetwork();
+    } else if (netPaused) {
+      resumeExamFromNetwork();
+    }
+  });
+}
+
+el.aiSendBtn.addEventListener('click', function() {
+  sendAIMessage();
+});
+
+el.aiInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendAIMessage();
+  }
+});
+
+window.addEventListener('popstate', function() {
+  if (el.aiModalOverlay.classList.contains('active')) {
+    el.aiModalOverlay.classList.remove('active');
+    document.body.style.overflow = '';
+  } else if (el.courseSelectOverlay.classList.contains('active')) {
+    el.courseSelectOverlay.classList.remove('active');
+    if (el.deptLoading) el.deptLoading.classList.add('hidden');
+  } else if (el.examLockOverlay.classList.contains('active')) {
+    el.examLockOverlay.classList.remove('active');
+    clearExamCooldownUi();
+  }
+});
+
 
 async function init() {
   showLoading(true);
