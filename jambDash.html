@@ -478,16 +478,16 @@ textarea{resize:vertical}
   padding-bottom:env(safe-area-inset-bottom);
 }
 .el-close-btn{
-  position:fixed;top:calc(14px + env(safe-area-inset-top));right:14px;z-index:10;
-  width:42px;height:42px;border:none;border-radius:50%;
-  background:rgba(244,63,94,.12);color:var(--rose);
-  font-size:18px;display:flex;align-items:center;justify-content:center;
-  transition:all .2s;box-shadow:0 4px 14px rgba(244,63,94,.3);
+  position:absolute;top:14px;right:14px;z-index:10;
+  width:40px;height:40px;border:none;border-radius:50%;
+  background:rgba(244,63,94,.1);color:var(--rose);
+  font-size:17px;display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
 }
 .el-close-btn:hover{background:var(--rose);color:#fff;transform:rotate(90deg)}
 .el-close-btn:active{transform:scale(.9)}
 .el-header{
-  text-align:center;padding:64px 24px 20px;
+  text-align:center;padding:30px 24px 20px;
   background:linear-gradient(135deg,rgba(0,104,56,.04),rgba(124,58,237,.04));
   flex-shrink:0;
 }
@@ -507,26 +507,8 @@ textarea{resize:vertical}
 .el-info-row .eir{font-weight:700;color:var(--ink)}
 
 
-.el-header{
-  text-align:center;padding:30px 24px 20px;
-  background:linear-gradient(135deg,rgba(0,104,56,.04),rgba(124,58,237,.04));
-  border-radius:24px 24px 0 0;
-}
-.el-header .el-icon{font-size:48px;color:var(--amber);margin-bottom:10px}
-.el-header h2{font-size:22px;font-weight:800;color:var(--ink)}
-.el-header p{color:var(--muted);font-size:14px;margin-top:6px}
-.el-body{padding:24px}
-.el-info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
-.el-info-row .eil{color:var(--muted)}
-.el-info-row .eir{font-weight:700;color:var(--ink)}
-.el-footer{text-align:center;padding:20px 24px;border-top:1px solid var(--line)}
-.btn-exam-start{
-  padding:16px 44px;border:none;border-radius:14px;
-  background:linear-gradient(135deg,var(--jamb-green),var(--violet));
-  color:#fff;font-size:16px;font-weight:700;letter-spacing:.3px;
-  display:inline-flex;align-items:center;gap:12px;
-  transition:all .3s;
-}
+
+
 .btn-exam-start:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(0,104,56,.25)}
 .cooldown-timer{font-size:14px;color:var(--rose);font-weight:600;margin-top:10px}
 
@@ -1332,6 +1314,9 @@ textarea{resize:vertical}
 .cs-close-btn:hover{background:var(--rose);color:#fff;transform:rotate(90deg)}
 .cs-close-btn:active{transform:scale(.9)}
 
+.ai-modal-overlay{z-index:850}
+.toast-container{z-index:950}
+
 </style>
 </head>
 <body>
@@ -1584,6 +1569,11 @@ textarea{resize:vertical}
   </div>
 </div>
 
+
+<div class="exam-warning hidden" id="examWarning">
+  <i class="fas fa-triangle-exclamation"></i>
+  <span></span>
+</div>
 <div class="exam-screen" id="examScreen">
   <div class="exam-topbar">
     <div class="exam-subjects" id="examSubjects"></div>
