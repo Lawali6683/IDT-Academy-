@@ -463,20 +463,22 @@ textarea{resize:vertical}
   animation:fadeInOverlay .3s ease;
 }
 .exam-lock-overlay.active{display:flex}
+
+
+
 .exam-lock-card{
   position:relative;
-  width:100%;max-width:none;
-  height:100%;
-  min-height:100vh;
-  min-height:100dvh;
-  background:#fff;
-  border-radius:0;box-shadow:none;margin:0;
+  width:100%;height:100%;
+  min-height:100vh;min-height:100dvh;
+  background:#fff;border-radius:0;box-shadow:none;margin:0;
   display:flex;flex-direction:column;
   overflow-y:auto;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
   animation:modalSlideUp .35s cubic-bezier(.22,.68,0,1);
   padding-top:env(safe-area-inset-top);
   padding-bottom:env(safe-area-inset-bottom);
 }
+
 .el-close-btn{
   position:absolute;top:14px;right:14px;z-index:10;
   width:40px;height:40px;border:none;border-radius:50%;
@@ -495,10 +497,13 @@ textarea{resize:vertical}
 .el-header h2{font-size:22px;font-weight:800;color:var(--ink)}
 .el-header p{color:var(--muted);font-size:14px;margin-top:6px}
 .el-body{padding:24px;flex:1 0 auto;max-width:640px;width:100%;margin:0 auto}
+
 .el-footer{
-  position:sticky;bottom:0;left:0;right:0;
-  text-align:center;padding:16px 24px calc(16px + env(safe-area-inset-bottom));
-  border-top:1px solid var(--line);
+  position:sticky;top:0;z-index:5;
+  order:-1;
+  text-align:center;
+  padding:14px 24px;
+  border-bottom:1px solid var(--line);
   background:#fff;flex-shrink:0;
   max-width:640px;width:100%;margin:0 auto;
 }
@@ -1628,7 +1633,7 @@ font-size: 0.95em;
 
 
 <div class="exam-lock-overlay" id="examLockOverlay">
-  <div class="exam-lock-car">
+  <div class="exam-lock-card">
       
       <button class="el-close-btn" id="examLockCloseBtn"><i 
       class="fas fa-xmark"></i></button>
@@ -1719,23 +1724,27 @@ font-size: 0.95em;
 
 
 <div class="net-pause-overlay" id="netPauseOverlay">
-    
   <div class="net-pause-card">
     <button class="np-close-btn" id="netPauseCloseBtn"><i class="fas fa-xmark"></i></button>
-<div class="np-inner">
-  <div class="np-icon"><i class="fas fa-wifi"></i></div>
-  <h2>Connection Lost</h2>
-  <div class="np-timer" id="netPauseTimer">02:00</div>
-  <div class="np-locked hidden" id="netPauseLocked">Your 2 minutes are over. Click Continue to resume your exam.</div>
-  <p class="np-msg">Your exam time is paused. Reconnect your internet to continue automatically, or press the button below when you are ready.</p>
-  <div class="np-time-left">Remaining exam time: <strong id="netPauseTimeLeft">--:--:--</strong></div>
-  <button class="net-pause-btn hidden" id="netPauseContinue"><i class="fas fa-play"></i> Continue Exam</button>
-</div>
+    <div class="np-inner">
+      <div class="np-icon"><i class="fas fa-wifi"></i></div>
+      <h2>Connection Lost</h2>
+      <div class="np-timer" id="netPauseTimer">02:00</div>
+      <div class="np-locked hidden" id="netPauseLocked">Your 2 minutes are over. Click Continue to resume your exam.</div>
+      <p class="np-msg">Your exam time is paused. Reconnect your internet to continue automatically, or press the button below when you are ready.</p>
+      <div class="np-time-left">Remaining exam time: <strong id="netPauseTimeLeft">--:--:--</strong></div>
+      <button class="net-pause-btn hidden" id="netPauseContinue"><i class="fas fa-play"></i> Continue Exam</button>
+    </div>
+  </div>
 </div>
 
 <div class="results-overlay" id="resultsOverlay">
+    
+    
   <div class="results-card" id="resultsCard"></div>
 </div>
+
+
 
 <div class="certificate-overlay" id="certificateOverlay">
   <div class="certificate-card" id="certificateCard">
