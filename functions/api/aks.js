@@ -1,7 +1,7 @@
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey'
 };
 
 const PRIMARY_GEMINI_MODEL = 'gemini-2.5-flash';
@@ -10,26 +10,13 @@ const FALLBACK_OPENROUTER_MODEL = 'openai/gpt-4o-mini';
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', ...CORS }
-  });
-}
-
-function escapeHtml(str) {
-  return String(str || '').replace(/[&<>"']/g, function(ch) {
-    return { 
-      '&': '&amp;', 
-      '<': '&lt;', 
-      '>': '&gt;', 
-      '"': '&quot;', 
-      "'": '&#39;' 
-    }[ch];
+    headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS }
   });
 }
 
 async function fetchUserFromSupabase(env, userId) {
   try {
     if (!userId || !env.SUPABASE_SERVICE_ROLE_KEY) return null;
-    
     const res = await fetch('https://orhgklhfltsfdumrrhup.supabase.co/rest/v1/user_profiles?id=eq.' + encodeURIComponent(userId) + '&select=user_data', {
       headers: {
         'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
@@ -37,7 +24,6 @@ async function fetchUserFromSupabase(env, userId) {
         'Content-Type': 'application/json'
       }
     });
-
     if (!res.ok) return null;
     const data = await res.json();
     if (data && data[0] && data[0].user_data) return data[0].user_data;
@@ -49,7 +35,7 @@ async function fetchUserFromSupabase(env, userId) {
 
 async function callGemini(env, systemText, messages) {
   const ctrl = new AbortController();
-  const timer = setTimeout(function() { ctrl.abort(); }, 40000);
+  const timer = setTimeout(function() { ctrl.abort(); }, 60000);
 
   try {
     const contents = typeof messages === 'string'
@@ -59,27 +45,44 @@ async function callGemini(env, systemText, messages) {
     const payload = {
       systemInstruction: { parts: [{ text: systemText }] },
       contents: contents,
-      generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
+      generationConfig: {
+        temperature: 0.7,
+        topP: 0.9,
+        maxOutputTokens: 8192,
+        thinkingConfig: { thinkingBudget: 0 }
+      },
+      safetySettings: [
+        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+      ]
     };
 
-    const res = await fetch('https://generativelanguage.googleapis.com/v1/models/' + PRIMARY_GEMINI_MODEL + ':generateContent?key=' + encodeURIComponent(env.GEMINI_API_KEY), {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + PRIMARY_GEMINI_MODEL + ':generateContent?key=' + encodeURIComponent(env.GEMINI_API_KEY), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       signal: ctrl.signal
     });
 
-    const data = await res.json();
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (err) {
+      data = null;
+    }
 
     if (!res.ok) {
       const msg = (data && data.error && data.error.message) ? data.error.message : ('Gemini Error code ' + res.status);
       throw new Error(msg);
     }
 
-    const text = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] ? data.candidates[0].content.parts[0].text : '';
+    const text = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts ? data.candidates[0].content.parts.map(function(p) { return p.text || ''; }).join('') : '';
 
     if (!text) {
-      const reason = data && data.promptFeedback && data.promptFeedback.blockReason ? data.promptFeedback.blockReason : 'Gemini response empty';
+      const finish = data && data.candidates && data.candidates[0] && data.candidates[0].finishReason ? data.candidates[0].finishReason : '';
+      const reason = data && data.promptFeedback && data.promptFeedback.blockReason ? data.promptFeedback.blockReason : (finish ? ('Gemini blocked: ' + finish) : 'Gemini response empty');
       throw new Error(reason);
     }
 
@@ -90,12 +93,8 @@ async function callGemini(env, systemText, messages) {
 }
 
 async function callOpenRouter(env, systemText, messages) {
-  if (!env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is not set');
-  }
-
   const ctrl = new AbortController();
-  const timer = setTimeout(function() { ctrl.abort(); }, 40000);
+  const timer = setTimeout(function() { ctrl.abort(); }, 60000);
 
   try {
     const openRouterMessages = [
@@ -109,7 +108,7 @@ async function callOpenRouter(env, systemText, messages) {
         const role = msg.role === 'model' ? 'assistant' : 'user';
         let contentText = '';
         if (msg.parts && Array.isArray(msg.parts)) {
-          contentText = msg.parts.map(p => p.text || '').join('\n');
+          contentText = msg.parts.map(function(p) { return p.text || ''; }).join('\n');
         } else {
           contentText = String(msg.content || '');
         }
@@ -138,7 +137,12 @@ async function callOpenRouter(env, systemText, messages) {
       signal: ctrl.signal
     });
 
-    const data = await res.json();
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (err) {
+      data = null;
+    }
 
     if (!res.ok) {
       const msg = (data && data.error && data.error.message) ? data.error.message : ('OpenRouter Error code ' + res.status);
@@ -158,23 +162,25 @@ async function callOpenRouter(env, systemText, messages) {
 }
 
 async function generateAIResponse(env, systemText, messages) {
-  try {
-    return await callGemini(env, systemText, messages);
-  } catch (geminiError) {
+  if (env.GEMINI_API_KEY) {
+    try {
+      return await callGemini(env, systemText, messages);
+    } catch (geminiError) {}
+  }
+
+  if (env.OPENROUTER_API_KEY) {
     try {
       return await callOpenRouter(env, systemText, messages);
     } catch (openRouterError) {
-      throw new Error('AI service currently unavailable');
+      throw new Error('AI service currently unavailable. ' + openRouterError.message);
     }
   }
+
+  throw new Error('No valid AI API keys configured');
 }
 
-
-
-
 async function handleAsk(env, body, userData) {
-  const studentName = (userData && userData.full_name) || (body.full_name) || 'Student';
-  const lang = String(body.preferred_lang || 'English').trim() || 'English';
+  const studentName = (userData && userData.full_name) || body.full_name || 'Student';
   const courseName = String(body.course_name || '');
   const topicName = String(body.topic_name || '');
   const topicText = String(body.topic_text || '').slice(0, 4000);
@@ -197,6 +203,7 @@ async function handleAsk(env, body, userData) {
 
   if (topicName || topicText) {
     contents.push({ role: 'user', parts: [{ text: 'I am reading "' + topicName + '" in "' + courseName + '".\n\nNotes:\n' + (topicText || 'No notes yet.') }] });
+    contents.push({ role: 'model', parts: [{ text: 'Understood. I will use these notes to answer.' }] });
   }
 
   const history = Array.isArray(body.history) ? body.history.slice(-8) : [];
@@ -212,12 +219,8 @@ async function handleAsk(env, body, userData) {
   return json({ success: true, answer: answer, message: answer });
 }
 
-
-
-
-
 async function handleExplain(env, body, userData) {
-  const studentName = (userData && userData.full_name) || 'Student';
+  const studentName = (userData && userData.full_name) || body.full_name || 'Student';
   const dual = body.explain_mode === 'dual';
   const userLang = String(body.target_lang || body.preferred_lang || 'English').trim() || 'English';
   const lang = dual ? ('English + ' + userLang) : 'English';
@@ -245,9 +248,24 @@ async function handleExplain(env, body, userData) {
   return json({ success: true, explanation: text, language: lang, lang_detected: lang });
 }
 
+async function parseJsonArray(text) {
+  try {
+    const cleaned = text.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) return parsed;
+  } catch (err) {}
+  const matches = text.match(/\[[\s\S]*\]/);
+  if (matches) {
+    try {
+      const parsed = JSON.parse(matches[0]);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (err) {}
+  }
+  return [];
+}
 
 async function handleGetAssessment(env, body, userData) {
-  const studentName = (userData && userData.full_name) || 'Student';
+  const studentName = (userData && userData.full_name) || body.full_name || 'Student';
   const courseName = String(body.course_name || '');
   const topics = Array.isArray(body.topics) ? body.topics : [];
 
@@ -262,23 +280,11 @@ async function handleGetAssessment(env, body, userData) {
   }).join('\n\n') + '\n\nCreate 5 questions. Return ONLY valid JSON array.';
 
   const text = await generateAIResponse(env, system, prompt);
-  let questions;
-
-  try {
-    const cleaned = text.replace(/```json\s*/i, '').replace(/```\s*$/, '').trim();
-    questions = JSON.parse(cleaned);
-    if (!Array.isArray(questions)) throw new Error('Not an array');
-  } catch (err) {
-    questions = [];
-    const matches = text.match(/\[[\s\S]*?\]/);
-    if (matches) {
-      try { questions = JSON.parse(matches[0]); } catch (e) { questions = []; }
-    }
-  }
+  let questions = parseJsonArray(text);
 
   if (!questions.length) {
     questions = [];
-    for (var i = 0; i < 5; i++) {
+    for (let i = 0; i < 5; i++) {
       questions.push({ question: 'Explain what you learned about this topic.', options: [], type: 'write', correct: '' });
     }
   }
@@ -288,7 +294,7 @@ async function handleGetAssessment(env, body, userData) {
 }
 
 async function handleGradeAssessment(env, body, userData) {
-  const studentName = (userData && userData.full_name) || 'Student';
+  const studentName = (userData && userData.full_name) || body.full_name || 'Student';
   const courseName = String(body.course_name || '');
   const questions = Array.isArray(body.questions) ? body.questions : [];
 
@@ -303,18 +309,7 @@ async function handleGradeAssessment(env, body, userData) {
     }).join('\n\n') + '\n\nReturn ONLY valid JSON array of grading results. Be fair and encouraging.';
 
   const text = await generateAIResponse(env, system, prompt);
-  let results;
-
-  try {
-    const cleaned = text.replace(/```json\s*/i, '').replace(/```\s*$/, '').trim();
-    results = JSON.parse(cleaned);
-  } catch (err) {
-    results = [];
-    const matches = text.match(/\[[\s\S]*?\]/);
-    if (matches) {
-      try { results = JSON.parse(matches[0]); } catch (e) { results = []; }
-    }
-  }
+  let results = parseJsonArray(text);
 
   if (!results.length) {
     results = questions.map(function(q, i) {
@@ -322,10 +317,10 @@ async function handleGradeAssessment(env, body, userData) {
     });
   }
 
-  var score = 0;
+  let score = 0;
   results.forEach(function(r) { if (r.is_correct === true) score++; });
-  var pct = Math.round((score / Math.max(1, results.length)) * 100);
-  var passed = pct >= 60;
+  const pct = Math.round((score / Math.max(1, results.length)) * 100);
+  const passed = pct >= 60;
 
   return json({
     success: true,
@@ -338,8 +333,6 @@ async function handleGradeAssessment(env, body, userData) {
       : 'Good effort, ' + studentName + '! You scored ' + score + '/' + results.length + ' (' + pct + '%). Read the topics once more and try again. You can do it!'
   });
 }
-
-
 
 async function handleCreatePayment(env, body, userData) {
   const amount = Number(body.price || 0);
@@ -359,32 +352,31 @@ async function handleCreatePayment(env, body, userData) {
   });
 }
 
-
 async function handleVerifyPayment(env, body, userData) {
   await new Promise(function(resolve) { setTimeout(resolve, 2000); });
   return json({ success: true, status: 'pending', paid: false, message: 'Payment verification pending. Please check the dashboard after making your transfer.' });
 }
 
 export const onRequestPost = async function(context) {
-  var env = context.env;
+  const env = context.env;
 
   try {
-    var body;
-    try { 
-      body = await context.request.json(); 
-    } catch (err) { 
-      return json({ success: false, error: 'Invalid JSON' }, 400); 
+    let body;
+    try {
+      body = await context.request.json();
+    } catch (err) {
+      return json({ success: false, error: 'Invalid JSON' }, 400);
     }
 
     if (!env.GEMINI_API_KEY && !env.OPENROUTER_API_KEY) {
       return json({ success: false, error: 'Neither GEMINI_API_KEY nor OPENROUTER_API_KEY is configured' }, 500);
     }
 
-    var userId = body.user_id || body.userId || '';
-    var userData = null;
+    const userId = String(body.user_id || body.userId || '').trim();
+    let userData = null;
     if (userId) userData = await fetchUserFromSupabase(env, userId);
 
-    var action = String(body.action || 'ask').trim();
+    const action = String(body.action || 'ask').trim();
 
     switch (action) {
       case 'explain':
@@ -413,10 +405,10 @@ export const onRequestPost = async function(context) {
     }
 
   } catch (err) {
-    return json({ 
-      success: false, 
-      error: err.message || 'Server error', 
-      message: 'Sorry, something went wrong. Please try again.' 
+    return json({
+      success: false,
+      error: err.message || 'Server error',
+      message: 'Sorry, something went wrong. Please try again.'
     }, 500);
   }
 };
