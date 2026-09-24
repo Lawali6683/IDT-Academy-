@@ -1,6 +1,6 @@
 import { supabase } from './supabase.js';
 
-const ASK_API = '/api/ask';
+const ASK_API = '/api/aks';
 const PAYSTACK_API = '/api/paystack';
 const EMAIL_API = '/api/sendEmail';
 
