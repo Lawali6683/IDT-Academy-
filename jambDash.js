@@ -1199,7 +1199,13 @@ async function openExamLock() {
   }
   clearExamCooldownUi();
   showLoading(true);
-  const failTime = await getExamFailTime(u.id);
+  let failTime = 0;
+  try {
+    failTime = await withTimeout(getExamFailTime(u.id), 15000, 'cooldown check timeout');
+  } catch (e) {
+    failTime = 0;
+    try { failTime = parseInt(localStorage.getItem('idt_exam_failed_' + u.id), 10) || 0; } catch (err2) {}
+  }
   showLoading(false);
   const diff = failTime + EXAM_COOLDOWN_MS - Date.now();
   if (failTime && diff > 0) {
@@ -1221,28 +1227,38 @@ async function openExamLock() {
 
 
 
-
-
-async function fetchWithTimeout(url, opts, ms) {
+function fetchWithTimeout(url, opts, ms) {
   const ctrl = new AbortController();
   const t = setTimeout(function() { ctrl.abort(); }, ms);
-  try {
-    return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal }));
-  } finally {
-    clearTimeout(t);
-  }
+  return fetch(url, Object.assign({}, opts, { signal: ctrl.signal })).finally(function() { clearTimeout(t); });
 }
+
+function withTimeout(promise, ms, failMsg) {
+  return Promise.race([
+    promise,
+    new Promise(function(resolve, reject) {
+      setTimeout(function() { reject(new Error(failMsg || 'timeout')); }, ms);
+    })
+  ]);
+}
+
+
+
+
 
 async function generateExamQuestions() {
   showLoading(true);
   try {
     let raw = null;
     try {
-      const { data, error } = await supabase
+      const qPromise = supabase
         .from('jamb')
         .select('jamb_questions')
         .eq('id', 'jamb_questions')
         .maybeSingle();
+      const result = await withTimeout(qPromise, 20000, 'supabase timeout');
+      const data = result.data;
+      const error = result.error;
       if (!error && data && data.jamb_questions) {
         raw = Array.isArray(data.jamb_questions)
           ? data.jamb_questions
@@ -1315,6 +1331,10 @@ async function generateExamQuestions() {
 
 
 
+
+
+
+
 el.startExamBtn.addEventListener('click', async function() {
   if (this.disabled) return;
   const btn = this;
@@ -1327,11 +1347,13 @@ el.startExamBtn.addEventListener('click', async function() {
   }
 
   setBtnLoading(btn, 'Preparing...');
+  const safety = setTimeout(function() { showLoading(false); }, 120000);
 
   try {
     const ok = await generateExamQuestions();
 
     if (!ok) {
+      clearTimeout(safety);
       resetBtnLoading(btn);
       showToast('Could not start the exam right now. Please click "Start Exam Now" again.', 'error', 7000);
       return;
@@ -1339,6 +1361,7 @@ el.startExamBtn.addEventListener('click', async function() {
 
     setBtnLoading(btn, 'Requesting camera...');
     const camOk = await requireCamera();
+    clearTimeout(safety);
 
     if (!camOk) {
       resetBtnLoading(btn);
@@ -1351,13 +1374,14 @@ el.startExamBtn.addEventListener('click', async function() {
     startExam();
 
   } catch (err) {
+    clearTimeout(safety);
     console.error('startExamBtn error:', err);
     showToast('An error occurred while preparing the exam. Please try again.', 'error', 7000);
     stopCamera();
     resetBtnLoading(btn);
+    showLoading(false);
   }
 });
-
 
 function enableCamDrag() {
   const widget = el.camFloatingWidget;
@@ -1415,7 +1439,14 @@ function enableCamDrag() {
 
 async function requireCamera() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      return false;
+    }
+    const stream = await withTimeout(
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } }),
+      30000,
+      'camera timeout'
+    );
     camStream = stream;
     if (el.camVideo) el.camVideo.srcObject = stream;
     if (el.camFloatVideo) el.camFloatVideo.srcObject = stream;
@@ -1432,6 +1463,7 @@ async function requireCamera() {
     return false;
   }
 }
+
 
 function startExam() {
   if (!examQuestions || examQuestions.length === 0) {
