@@ -987,7 +987,7 @@ function renderLearning() {
   if (!topics || topics.length === 0) {
     el.tvContent.innerHTML = '<p style="text-align:center;color:var(--muted);padding:30px">No topics available yet. Check back later.</p>';
     el.topicViewer.style.display = 'none';
-    el.allComplete.style.display = 'none';
+    el.allComplete.classList.add('hidden');
     if (el.refBackToLearningBtn) el.refBackToLearningBtn.classList.add('hidden');
     if (el.progressFill) el.progressFill.style.width = '0%';
     if (el.progressText) el.progressText.textContent = '0%';
@@ -1008,7 +1008,7 @@ function renderLearning() {
 
   if (completedCount >= totalCount && isExamUnlocked(progress)) {
     el.topicViewer.style.display = 'none';
-    el.allComplete.style.display = 'block';
+    el.allComplete.classList.remove('hidden');
     if (el.refBackToLearningBtn) el.refBackToLearningBtn.classList.remove('hidden');
     return;
   }
@@ -1017,8 +1017,9 @@ function renderLearning() {
   showLearningView();
 }
 
+
 function showLearningView() {
-  el.allComplete.style.display = 'none';
+  el.allComplete.classList.add('hidden');
   el.topicViewer.style.display = 'block';
   const progress = getStoredProgress();
   let targetIdx = progress.current;
@@ -1054,7 +1055,7 @@ function showTopic(index) {
  el.tvBackBtn.disabled = index <= 0;
   el.tvNextBtn.disabled = false;
 
-  const progress = getStoredProgress();
+ const progress = getStoredProgress();
   if (!progress.completed) progress.completed = [];
   if (progress.completed.indexOf(topic.id) === -1) {
     progress.completed.push(topic.id);
@@ -1068,13 +1069,11 @@ function showTopic(index) {
     el.topicCount.textContent = completedCount + '/' + total;
     if (completedCount >= total && isExamUnlocked(progress)) {
       el.topicViewer.style.display = 'none';
-      el.allComplete.style.display = 'block';
+      el.allComplete.classList.remove('hidden');
       if (el.refBackToLearningBtn) el.refBackToLearningBtn.classList.remove('hidden');
     }
   }
 }
-
-
 function extractYouTubeId(url) {
   if (!url) return null;
   const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -1085,13 +1084,14 @@ el.tvBackBtn.addEventListener('click', function() {
   if (currentTopicIndex > 0) showTopic(currentTopicIndex - 1);
 });
 
+
 el.tvNextBtn.addEventListener('click', function() {
   const progress = getStoredProgress();
   if (currentTopicIndex < topics.length - 1) {
     showTopic(currentTopicIndex + 1);
   } else if (progress.completed && progress.completed.length >= topics.length && isExamUnlocked(progress)) {
     el.topicViewer.style.display = 'none';
-    el.allComplete.style.display = 'block';
+    el.allComplete.classList.remove('hidden');
     if (el.refBackToLearningBtn) el.refBackToLearningBtn.classList.remove('hidden');
     el.allComplete.scrollIntoView({ behavior: 'smooth' });
   } else {
