@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -453,6 +452,26 @@ textarea{resize:vertical}
 .btn-nav:hover{background:var(--violet);color:#fff;border-color:var(--violet)}
 .btn-nav:disabled{opacity:.4;cursor:not-allowed;transform:none}
 
+.all-complete-box{
+  text-align:center;padding:30px 20px;
+}
+.all-complete-box i{font-size:48px;color:var(--green);margin-bottom:12px}
+.all-complete-box h3{font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px}
+.all-complete-box p{color:var(--muted);font-size:14px;margin-bottom:16px}
+.all-complete-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+
+.referral-card{
+  background:rgba(212,160,23,.04);border-color:rgba(212,160,23,.15);
+}
+.referral-card .section-body{
+  padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+}
+.referral-card .rc-label{font-size:13px;color:var(--muted);font-weight:500}
+.referral-card .rc-title{font-size:14px;font-weight:700;color:var(--ink)}
+.referral-actions{display:flex;gap:10px;flex-wrap:wrap}
+.referral-actions .btn-exam-start.hidden-btn{padding:10px 22px;font-size:13px}
+.referral-actions .btn-exam-start.gold-btn{padding:10px 22px;font-size:13px;background:linear-gradient(135deg,var(--jamb-gold),var(--amber))}
+
 .exam-lock-overlay{
   position:fixed;top:0;left:0;right:0;bottom:0;
   z-index:300;
@@ -463,8 +482,6 @@ textarea{resize:vertical}
   animation:fadeInOverlay .3s ease;
 }
 .exam-lock-overlay.active{display:flex}
-
-
 
 .exam-lock-card{
   position:relative;
@@ -499,11 +516,10 @@ textarea{resize:vertical}
 .el-body{padding:24px;flex:1 0 auto;max-width:640px;width:100%;margin:0 auto}
 
 .el-footer{
-  position:sticky;top:0;z-index:5;
-  order:-1;
+  position:sticky;bottom:0;z-index:5;
   text-align:center;
   padding:14px 24px;
-  border-bottom:1px solid var(--line);
+  border-top:1px solid var(--line);
   background:#fff;flex-shrink:0;
   max-width:640px;width:100%;margin:0 auto;
 }
@@ -511,8 +527,15 @@ textarea{resize:vertical}
 .el-info-row .eil{color:var(--muted)}
 .el-info-row .eir{font-weight:700;color:var(--ink)}
 
-
-
+.el-note{
+  margin-top:16px;padding:12px;background:rgba(245,158,11,.06);
+  border:1px solid rgba(245,158,11,.15);border-radius:10px;
+  font-size:13px;color:var(--muted);line-height:1.6;
+}
+.el-note strong{color:var(--amber);font-weight:700}
+.cooldown-display{text-align:center;margin-top:14px}
+.cooldown-display p{color:var(--rose);font-weight:600;font-size:14px}
+.cooldown-display .cd-timer{font-size:28px;font-weight:800;color:var(--ink)}
 
 .btn-exam-start:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(0,104,56,.25)}
 .cooldown-timer{font-size:14px;color:var(--rose);font-weight:600;margin-top:10px}
@@ -659,9 +682,6 @@ textarea{resize:vertical}
 }
 @keyframes pulseRed{0%,100%{opacity:1}50%{opacity:.3}}
 
-
-
-
 .net-pause-overlay{
   position:fixed;inset:0;z-index:750;
   background:rgba(30,27,75,.8);
@@ -691,7 +711,6 @@ textarea{resize:vertical}
 }
 .np-close-btn:hover{background:var(--rose);color:#fff;transform:rotate(90deg)}
 .np-close-btn:active{transform:scale(.9)}
-
 
 .net-pause-card .np-icon{
   width:72px;height:72px;border-radius:50%;
@@ -801,12 +820,10 @@ textarea{resize:vertical}
 }
 .rc-footer .btn-rc-close:hover{background:var(--rose);color:#fff}
 
-
 .rc-footer .btn-rc-back{
   background:rgba(0,104,56,.08);color:var(--jamb-green);
 }
 .rc-footer .btn-rc-back:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,104,56,.2)}
-
 
 .certificate-overlay{
   position:fixed;inset:0;z-index:800;
@@ -873,236 +890,8 @@ textarea{resize:vertical}
   text-align:center;padding:0 20px 20px;
 }
 
-
-
-
-.ai-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 550;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  animation: fadeInOverlay .25s ease;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
-}
-
-.ai-modal-overlay.active {
-  display: flex;
-}
-
-.ai-modal {
-  width: 100%;
-  max-width: none;
-  height: 100vh;
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  background: #ffffff;
-  border-radius: 0;
-  box-shadow: none;
-  animation: modalSlideUp .3s cubic-bezier(.16, 1, .3, 1);
-  overflow: hidden;
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.ai-modal .ai-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--line, #e2e8f0);
-  background: #ffffff;
-  flex-shrink: 0;
-}
-
-.ai-modal .ai-header h3 {
-  font-size: 16px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-}
-
-.ai-modal .ai-header h3 i {
-  color: var(--jamb-green, #006838);
-}
-
-.ai-modal .ai-header .ai-close {
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(124, 58, 237, 0.08);
-  color: var(--muted, #64748b);
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all .2s;
-}
-
-.ai-modal .ai-header .ai-close:hover {
-  background: var(--rose, #e11d48);
-  color: #ffffff;
-}
-
-.ai-modal .ai-lang-select {
-  display: flex;
-  gap: 6px;
-  padding: 10px 18px;
-  background: #f8fafc;
-  border-bottom: 1px solid var(--line, #e2e8f0);
-  overflow-x: auto;
-  flex-shrink: 0;
-}
-
-.ai-modal .ai-lang-select button {
-  padding: 6px 14px;
-  border: 1px solid var(--line, #cbd5e1);
-  border-radius: 20px;
-  background: #ffffff;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted, #475569);
-  white-space: nowrap;
-  cursor: pointer;
-  transition: all .2s;
-}
-
-.ai-modal .ai-lang-select button.active {
-  background: var(--violet, #7c3aed);
-  color: #ffffff;
-  border-color: var(--violet, #7c3aed);
-}
-
-.ai-modal .ai-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  background: #f8fafc;
-}
-
-#aiChatArea {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.ai-modal .ai-msg {
-  max-width: 82%;
-  padding: 12px 16px;
-  border-radius: 18px;
-  font-size: 14px;
-  line-height: 1.5;
-  word-break: break-word;
-  animation: fadeInMsg .2s ease;
-}
-
-.ai-modal .ai-msg.bot {
-  align-self: flex-start;
-  background: #ffffff;
-  border: 1px solid var(--line-g, #e2e8f0);
-  color: var(--ink, #0f172a);
-  border-bottom-left-radius: 4px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-}
-
-.ai-modal .ai-msg.user {
-  align-self: flex-end;
-  background: linear-gradient(135deg, var(--jamb-green, #006838), var(--violet, #7c3aed));
-  color: #ffffff;
-  border-bottom-right-radius: 4px;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
-}
-
-.ai-modal .ai-msg .ai-msg-label {
-  font-size: 10px;
-  font-weight: 700;
-  opacity: 0.7;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-
-.ai-modal .ai-input-area {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 12px 16px;
-  background: #ffffff;
-  border-top: 1px solid var(--line, #e2e8f0);
-  flex-shrink: 0;
-}
-
-.ai-modal .ai-input-area textarea {
-  flex: 1;
-  min-height: 44px;
-  max-height: 120px;
-  padding: 11px 16px;
-  border: 1.5px solid var(--line, #cbd5e1);
-  border-radius: 22px;
-  font-size: 14px;
-  line-height: 1.4;
-  outline: none;
-  resize: none;
-  font-family: inherit;
-  transition: border-color .2s;
-  background: #f8fafc;
-}
-
-.ai-modal .ai-input-area textarea:focus {
-  border-color: var(--violet, #7c3aed);
-  background: #ffffff;
-}
-
-.ai-modal .ai-input-area button {
-  width: 44px;
-  height: 44px;
-  border: none;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--jamb-green, #006838), var(--violet, #7c3aed));
-  color: #ffffff;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: transform .2s, box-shadow .2s;
-}
-
-.ai-modal .ai-input-area button:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 104, 56, 0.25);
-}
-
-@keyframes fadeInOverlay {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes modalSlideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
-
-@keyframes fadeInMsg {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-
 .toast-container{
-  position:fixed;bottom:24px;right:24px;z-index:900;
+  position:fixed;bottom:24px;right:24px;z-index:950;
   display:flex;flex-direction:column;gap:10px;max-width:400px;width:100%;
   pointer-events:none;
 }
@@ -1146,7 +935,6 @@ textarea{resize:vertical}
   .payment-card{margin:8px;border-radius:18px}
   .course-select-card{margin:8px;border-radius:18px}
   .pay-get-card{margin:8px;border-radius:18px}
-  
   .exam-main{padding:14px 16px}
   .exam-q-text{font-size:16px}
   .exam-panel{display:none}
@@ -1162,7 +950,6 @@ textarea{resize:vertical}
   .toast-container{left:16px;right:16px;bottom:16px;max-width:none}
   .ai-modal{margin:8px;border-radius:18px}
   .results-card{margin:8px;border-radius:18px}
-
   .pgh-course-box .pgh-course-amount{font-size:24px}
   .net-pause-card .np-timer{font-size:34px}
 }
@@ -1200,7 +987,6 @@ textarea{resize:vertical}
   background: var(--jamb-green, #006838);
   color: #ffffff;
 }
-
 
 .ai-security-popup {
   position: fixed;
@@ -1243,8 +1029,6 @@ textarea{resize:vertical}
   50% { transform: translateX(calc(-50% - 12px)); }
   75% { transform: translateX(calc(-50% + 12px)); }
 }
-
-
 
 .cam-floating-widget {
   position: fixed;
@@ -1306,9 +1090,6 @@ textarea{resize:vertical}
   to { opacity: 1; transform: translateX(-50%) scale(1); }
 }
 
-
-
-
 .cs-close-btn{
   position:absolute;top:14px;right:14px;z-index:5;
   width:40px;height:40px;border:none;border-radius:50%;
@@ -1319,98 +1100,340 @@ textarea{resize:vertical}
 .cs-close-btn:hover{background:var(--rose);color:#fff;transform:rotate(90deg)}
 .cs-close-btn:active{transform:scale(.9)}
 
-.ai-modal-overlay{z-index:850}
-.toast-container{z-index:950}
-
 :root {
---jamb-gold: #d4a017;
---amber: #f59e0b;
---green: #10b981;
---ink: #1e293b;
---muted: #64748b;
-}
-
-.hidden {
-display: none !important;
+  --jamb-gold: #d4a017;
+  --amber: #f59e0b;
+  --green: #10b981;
+  --ink: #1e293b;
+  --muted: #64748b;
 }
 
 .btn-exam-start {
-display: inline-flex;
-align-items: center;
-justify-content: center;
-gap: 8px;
-padding: 12px 24px;
-background: linear-gradient(135deg, #10b981, #059669);
-color: #ffffff;
-border: none;
-border-radius: 12px;
-font-size: 14px;
-font-weight: 700;
-cursor: pointer;
-transition: all 0.25s ease;
-box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
-outline: none;
-text-decoration: none;
-font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  outline: none;
+  text-decoration: none;
+  font-family: inherit;
 }
 
 .btn-exam-start:hover {
-transform: translateY(-2px);
-box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
-opacity: 0.96;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+  opacity: 0.96;
 }
 
 .btn-exam-start:active {
-transform: translateY(0);
-box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
-}
-
-.btn-nav {
-display: inline-flex;
-align-items: center;
-justify-content: center;
-gap: 8px;
-padding: 14px 28px;
-background: #ffffff;
-color: var(--ink, #1e293b);
-border: 1.5px solid rgba(0, 0, 0, 0.08);
-border-radius: 14px;
-font-size: 14px;
-font-weight: 700;
-cursor: pointer;
-transition: all 0.25s ease;
-box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-outline: none;
-text-decoration: none;
-font-family: inherit;
-}
-
-.btn-nav:hover {
-background: #f8fafc;
-border-color: rgba(0, 0, 0, 0.15);
-transform: translateY(-2px);
-box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.btn-nav:active {
-transform: translateY(0);
-box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
 }
 
 #referralPageBtn {
-color: #1e293b;
-box-shadow: 0 4px 12px rgba(212, 160, 23, 0.25);
+  color: #1e293b;
+  box-shadow: 0 4px 12px rgba(212, 160, 23, 0.25);
 }
 
 #referralPageBtn:hover {
-box-shadow: 0 6px 16px rgba(212, 160, 23, 0.38);
+  box-shadow: 0 6px 16px rgba(212, 160, 23, 0.38);
 }
 
 .btn-exam-start i,
 .btn-nav i {
-font-size: 0.95em;
+  font-size: 0.95em;
 }
 
+.ai-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 999999;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.ai-modal-overlay.active {
+  display: flex !important;
+  opacity: 1;
+  visibility: visible;
+}
+
+.ai-modal {
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  max-width: 100%;
+  max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 0;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.ai-modal-overlay.active .ai-modal {
+  transform: translateY(0);
+}
+
+.ai-modal .ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  background: #ffffff;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.ai-modal .ai-header h3 {
+  font-size: 17px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--ink);
+}
+
+.ai-modal .ai-header h3 img {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.ai-modal .ai-header .ai-close {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: var(--muted);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ai-modal .ai-header .ai-close:hover {
+  background: var(--rose);
+  color: #ffffff;
+  transform: rotate(90deg);
+}
+
+.ai-modal .ai-lang-select {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--bg-subtle, #f8fafc);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ai-modal .ai-lang-select::-webkit-scrollbar {
+  display: none;
+}
+
+.ai-modal .ai-lang-select button {
+  padding: 7px 16px;
+  border: 1px solid var(--line-g);
+  border-radius: 20px;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.ai-modal .ai-lang-select button:hover {
+  border-color: var(--violet);
+  color: var(--violet);
+}
+
+.ai-modal .ai-lang-select button.active {
+  background: linear-gradient(135deg, var(--jamb-green), var(--violet));
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 3px 10px rgba(124, 58, 237, 0.3);
+}
+
+.ai-modal .ai-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--bg-subtle, #f8fafc);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+#aiChatArea {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.ai-modal .ai-msg {
+  max-width: 85%;
+  padding: 14px 18px;
+  border-radius: 20px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  word-break: break-word;
+  animation: fadeInMsg 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.ai-modal .ai-msg.bot {
+  align-self: flex-start;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-top-left-radius: 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+.ai-modal .ai-msg.user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, var(--jamb-green), var(--violet));
+  color: #ffffff;
+  border-top-right-radius: 4px;
+  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.25);
+}
+
+.ai-modal .ai-msg .ai-msg-label {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.ai-modal .ai-input-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #ffffff;
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+  max-width: 100%;
+}
+
+.ai-modal .ai-input-area textarea {
+  flex: 1;
+  min-height: 46px;
+  max-height: 120px;
+  padding: 12px 18px;
+  border: 1.5px solid var(--line-g);
+  border-radius: 24px;
+  font-size: 14.5px;
+  line-height: 1.4;
+  outline: none;
+  resize: none;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  background: var(--bg-subtle, #f8fafc);
+  color: var(--ink);
+}
+
+.ai-modal .ai-input-area textarea:focus {
+  border-color: var(--violet);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
+}
+
+.ai-modal .ai-input-area button {
+  width: 46px;
+  height: 46px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--jamb-green), var(--violet));
+  color: #ffffff;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 104, 56, 0.2);
+}
+
+.ai-modal .ai-input-area button:hover {
+  transform: scale(1.06);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.35);
+}
+
+.ai-modal .ai-input-area button:active {
+  transform: scale(0.95);
+}
+
+@keyframes fadeInMsg {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 768px) {
+  .ai-modal {
+    width: 90%;
+    max-width: 750px;
+    height: 85vh;
+    height: 85dvh;
+    border-radius: 24px;
+  }
+  .ai-modal-overlay {
+    padding: 20px;
+  }
+}
 </style>
 </head>
 <body>
@@ -1457,6 +1480,211 @@ font-size: 0.95em;
     <button class="btn-logout" id="logoutBtn"><i class="fas fa-right-from-bracket"></i></button>
   </div>
 </header>
+
+<div id="dashboardContent" class="dashboard-content hidden">
+  <div class="welcome-card">
+    <div class="welcome-left">
+      <h2>Welcome, <span id="welcomeName">Student</span>!</h2>
+      <p>Continue your JAMB preparation journey. You're making great progress.</p>
+    </div>
+    <div class="welcome-right">
+      <div class="welcome-stat">
+        <div class="num" id="progressPercent">0%</div>
+        <div class="lbl">Progress</div>
+      </div>
+      <div class="welcome-stat">
+        <div class="num" id="topicCount">0</div>
+        <div class="lbl">Topics Done</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-card">
+    <div class="section-header">
+      <h2><i class="fas fa-ad"></i> Announcements</h2>
+    </div>
+    <div class="section-body" style="padding:12px 16px">
+      <div class="ad-slider" id="adSlider">
+        <div class="ad-empty"><i class="fas fa-bullhorn" style="margin-right:8px"></i> No announcements</div>
+      </div>
+      <div class="ad-dots" id="adDots"></div>
+    </div>
+  </div>
+
+  <div class="section-card">
+    <div class="section-header">
+      <h2><i class="fas fa-graduation-cap"></i> Learning Progress</h2>
+      <span style="font-size:12px;color:var(--muted)">Topic <span id="currentTopicNum">0</span> of <span id="totalTopicNum">0</span></span>
+    </div>
+    <div class="section-body" id="learningSection">
+      <div class="progress-bar-wrap">
+        <span style="font-size:12px;font-weight:600;color:var(--muted)">Progress</span>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <span class="progress-text" id="progressText">0%</span>
+      </div>
+      <div class="topic-viewer" id="topicViewer">
+        <div class="tv-header">
+          <span class="tv-num" id="tvNum">Topic 1</span>
+          <span class="tv-title" id="tvTitle">Loading...</span>
+        </div>
+        <div class="tv-video" id="tvVideo">
+          <iframe id="tvVideoIframe" src="about:blank" allowfullscreen loading="lazy"></iframe>
+        </div>
+        <div class="tv-content" id="tvContent">
+          <p>Loading topic content...</p>
+        </div>
+        <div class="tv-actions">
+          <button class="btn-nav" id="tvBackBtn" disabled><i class="fas fa-chevron-left"></i> Back</button>
+          <button class="btn-question" id="tvQuestionBtn"><i class="fas fa-question-circle"></i> Ask Question</button>
+          <button class="btn-explain" id="tvExplainBtn"><i class="fas fa-language"></i> Explain More</button>
+          <button class="btn-nav" id="tvNextBtn">Next <i class="fas fa-chevron-right"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="all-complete-box hidden" id="allComplete">
+    <i class="fas fa-check-circle"></i>
+    <h3>All Topics Completed!</h3>
+    <p>You have finished all learning topics. Take the final JAMB exam now.</p>
+    <div class="all-complete-actions">
+      <button class="btn-exam-start" id="finalExamBtn"><i class="fas fa-pencil"></i> Start Final Exam</button>
+      <button class="btn-nav" id="backToLearningBtn" style="padding:14px 28px;border-radius:14px;font-size:14px;font-weight:700"><i class="fas fa-book-open"></i> Back to Learning</button>
+    </div>
+  </div>
+
+  <div class="section-card referral-card">
+    <div class="section-body">
+      <div>
+        <p class="rc-label">Earn ₦1,500 per referral</p>
+        <p class="rc-title">Refer your friends to IDT Academy</p>
+      </div>
+      <div class="referral-actions">
+        <button class="btn-exam-start hidden" id="refBackToLearningBtn"><i class="fas fa-book-open"></i> Back to Learning</button>
+        <button class="btn-exam-start" id="referralPageBtn"><i class="fas fa-link"></i> Go to Referral</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="exam-lock-overlay" id="examLockOverlay">
+  <div class="exam-lock-card">
+    <button class="el-close-btn" id="examLockCloseBtn"><i class="fas fa-xmark"></i></button>
+    <div class="el-header">
+      <div class="el-icon"><i class="fas fa-pencil"></i></div>
+      <h2>Final JAMB Mock Examination</h2>
+      <p>You have completed all topics. Time to test your knowledge!</p>
+    </div>
+    <div class="el-body">
+      <div class="el-info-row"><span class="eil">Total Questions</span><span class="eir">180</span></div>
+      <div class="el-info-row"><span class="eil">Duration</span><span class="eir">2 Hours (120 minutes)</span></div>
+      <div class="el-info-row"><span class="eil">Maximum Score</span><span class="eir">400</span></div>
+      <div class="el-info-row"><span class="eil">Pass Mark</span><span class="eir">200+ (50%)</span></div>
+      <div class="el-info-row"><span class="eil">Marking</span><span class="eir">2.22 Mark one question</span></div>
+      <div class="el-info-row"><span class="eil">Negative Marking</span><span class="eir">None</span></div>
+      <div class="el-note">
+        <strong>Important:</strong> You must score at least 200 to pass. If you fail, you can retry after 25 hours. Your camera is required and will remain active during the exam. Make sure you are in a well-lit environment. Copying exam content or switching screens is strictly monitored.
+      </div>
+      <div id="cooldownDisplay" class="cooldown-display hidden">
+        <p>You can retry in:</p>
+        <p class="cd-timer" id="cooldownTimer">24:00:00</p>
+      </div>
+    </div>
+    <div class="el-footer">
+      <button class="btn-exam-start" id="startExamBtn"><i class="fas fa-play"></i> Start Exam Now</button>
+    </div>
+  </div>
+</div>
+
+<div class="exam-warning hidden" id="examWarning">
+  <i class="fas fa-triangle-exclamation"></i>
+  <span></span>
+</div>
+
+<div class="exam-screen" id="examScreen">
+  <div class="exam-topbar">
+    <div class="exam-subjects" id="examSubjects"></div>
+    <div class="exam-timer"><i class="fas fa-hourglass-half"></i> <span id="examTimerDisplay">02:00:00</span></div>
+  </div>
+  <div class="exam-body">
+    <div class="exam-main" id="examMainArea">
+      <div class="exam-q-num" id="examQNum">Question 1 of 180</div>
+      <div class="exam-q-text" id="examQText">Loading question...</div>
+      <div class="exam-options" id="examOptions"></div>
+      <div class="exam-nav-buttons">
+        <button id="examPrevBtn"><i class="fas fa-chevron-left"></i> Previous</button>
+        <button id="examNextBtn">Next <i class="fas fa-chevron-right"></i></button>
+      </div>
+    </div>
+    <div class="exam-panel" id="examPanel">
+      <h4>Question Navigator</h4>
+      <div class="q-grid" id="examQGrid"></div>
+      <div class="q-legend">
+        <span><span class="sq" style="background:var(--jamb-green)"></span> Answered</span>
+        <span><span class="sq" style="background:var(--line)"></span> Unanswered</span>
+      </div>
+    </div>
+  </div>
+  <div class="submit-bar">
+    <button class="btn-submit-exam" id="submitExamBtn"><i class="fas fa-check-double"></i> Submit Exam</button>
+  </div>
+</div>
+
+<div class="camera-overlay" id="cameraOverlay">
+  <div class="cam-indicator"><span class="pulse-dot"></span> Recording</div>
+  <div class="cam-view">
+    <video id="camVideo" autoplay muted playsinline></video>
+    <div class="cam-mask"></div>
+    <div class="exam-main-cam" id="examMainCam">
+      <div class="exam-q-num" style="color:rgba(255,255,255,.6)" id="camQNum">Question 1 of 180</div>
+      <div class="exam-q-text" style="color:#fff" id="camQText">Loading question...</div>
+      <div class="exam-options" id="camOptions"></div>
+      <div class="exam-nav-buttons" style="border-top-color:rgba(255,255,255,.1)">
+        <button style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2)" id="camPrevBtn"><i class="fas fa-chevron-left"></i> Previous</button>
+        <button style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2)" id="camNextBtn">Next <i class="fas fa-chevron-right"></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="cam-floating-widget hidden" id="camFloatingWidget">
+  <div class="cam-drag-handle"><i class="fas fa-grip-lines"></i></div>
+  <video id="camFloatVideo" autoplay muted playsinline></video>
+  <span class="cam-rec-dot"></span>
+</div>
+
+<div class="net-pause-overlay" id="netPauseOverlay">
+  <div class="net-pause-card">
+    <button class="np-close-btn" id="netPauseCloseBtn"><i class="fas fa-xmark"></i></button>
+    <div class="np-inner">
+      <div class="np-icon"><i class="fas fa-wifi"></i></div>
+      <h2>Connection Lost</h2>
+      <div class="np-timer" id="netPauseTimer">02:00</div>
+      <div class="np-locked hidden" id="netPauseLocked">Your 2 minutes are over. Click Continue to resume your exam.</div>
+      <p class="np-msg">Your exam time is paused. Reconnect your internet to continue automatically, or press the button below when you are ready.</p>
+      <div class="np-time-left">Remaining exam time: <strong id="netPauseTimeLeft">--:--:--</strong></div>
+      <button class="net-pause-btn hidden" id="netPauseContinue"><i class="fas fa-play"></i> Continue Exam</button>
+    </div>
+  </div>
+</div>
+
+<div class="results-overlay" id="resultsOverlay">
+  <div class="results-card" id="resultsCard"></div>
+</div>
+
+<div class="certificate-overlay" id="certificateOverlay">
+  <div class="certificate-card" id="certificateCard">
+    <div style="text-align:right;padding:12px 16px">
+      <button class="cert-close-btn" id="certCloseBtn"><i class="fas fa-xmark"></i> Close</button>
+    </div>
+    <div id="certificateContent"></div>
+    <div class="cert-actions">
+      <button class="cert-download-btn" id="certDownloadBtn"><i class="fas fa-file-pdf"></i> Download Certificate PDF</button>
+    </div>
+  </div>
+</div>
 
 <div id="paymentOverlay" class="payment-overlay">
   <div class="payment-card">
@@ -1543,233 +1771,12 @@ font-size: 0.95em;
   </div>
 </div>
 
-<div id="dashboardContent" class="dashboard-content hidden">
-  <div class="welcome-card">
-    <div class="welcome-left">
-      <h2>Welcome, <span id="welcomeName">Student</span>!</h2>
-      <p>Continue your JAMB preparation journey. You're making great progress.</p>
-    </div>
-    <div class="welcome-right">
-      <div class="welcome-stat">
-        <div class="num" id="progressPercent">0%</div>
-        <div class="lbl">Progress</div>
-      </div>
-      <div class="welcome-stat">
-        <div class="num" id="topicCount">0</div>
-        <div class="lbl">Topics Done</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section-card">
-    <div class="section-header">
-      <h2><i class="fas fa-ad"></i> Announcements</h2>
-    </div>
-    <div class="section-body" style="padding:12px 16px">
-      <div class="ad-slider" id="adSlider">
-        <div class="ad-empty"><i class="fas fa-bullhorn" style="margin-right:8px"></i> No announcements</div>
-      </div>
-      <div class="ad-dots" id="adDots"></div>
-    </div>
-  </div>
-
-  <div class="section-card">
-    <div class="section-header">
-      <h2><i class="fas fa-graduation-cap"></i> Learning Progress</h2>
-      <span style="font-size:12px;color:var(--muted)">Topic <span id="currentTopicNum">0</span> of <span id="totalTopicNum">0</span></span>
-    </div>
-    <div class="section-body" id="learningSection">
-      <div class="progress-bar-wrap">
-        <span style="font-size:12px;font-weight:600;color:var(--muted)">Progress</span>
-        <div class="progress-bar-track">
-          <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
-        </div>
-        <span class="progress-text" id="progressText">0%</span>
-      </div>
-      <div class="topic-viewer" id="topicViewer">
-        <div class="tv-header">
-          <span class="tv-num" id="tvNum">Topic 1</span>
-          <span class="tv-title" id="tvTitle">Loading...</span>
-        </div>
-        <div class="tv-video" id="tvVideo">
-          <iframe id="tvVideoIframe" src="about:blank" allowfullscreen loading="lazy"></iframe>
-        </div>
-        <div class="tv-content" id="tvContent">
-          <p>Loading topic content...</p>
-        </div>
-        <div class="tv-actions">
-          <button class="btn-nav" id="tvBackBtn" disabled><i class="fas fa-chevron-left"></i> Back</button>
-          <button class="btn-question" id="tvQuestionBtn"><i class="fas fa-question-circle"></i> Ask Question</button>
-          <button class="btn-explain" id="tvExplainBtn"><i class="fas fa-language"></i> Explain More</button>
-          <button class="btn-nav" id="tvNextBtn">Next <i class="fas fa-chevron-right"></i></button>
-        </div>
-      </div>
-      
-      
-      <div style="text-align:center;padding:30px 20px;display:none" id="allComplete">
-  <i class="fas fa-check-circle" style="font-size:48px;color:var(--green);margin-bottom:12px"></i>
-  <h3 style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px">All Topics Completed!</h3>
-  <p style="color:var(--muted);font-size:14px;margin-bottom:16px">You have finished all learning topics. Take the final JAMB exam now.</p>
-  <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-    <button class="btn-exam-start" id="finalExamBtn"><i class="fas fa-pencil"></i> Start Final Exam</button>
-    <button class="btn-nav" id="backToLearningBtn" style="padding:14px 28px;border-radius:14px;font-size:14px;font-weight:700"><i class="fas fa-book-open"></i> Back to Learning</button>
-  </div>
-</div>
-
-  <div class="section-card" style="background:rgba(212,160,23,.04);border-color:rgba(212,160,23,.15)">
-  <div class="section-body" style="padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-    <div>
-      <p style="font-size:13px;color:var(--muted);font-weight:500">Earn ₦1,500 per referral</p>
-      <p style="font-size:14px;font-weight:700;color:var(--ink)">Refer your friends to IDT Academy</p>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn-exam-start hidden" id="refBackToLearningBtn" style="padding:10px 22px;font-size:13px"><i class="fas fa-book-open"></i> Back to Learning</button>
-      <button class="btn-exam-start" id="referralPageBtn" style="padding:10px 22px;font-size:13px;background:linear-gradient(135deg,var(--jamb-gold),var(--amber))">
-        <i class="fas fa-link"></i> Go to Referral
-      </button>
-    </div>
-  </div>
-</div>
-
-
-<div class="exam-lock-overlay" id="examLockOverlay">
-  <div class="exam-lock-card">
-      
-      <button class="el-close-btn" id="examLockCloseBtn"><i 
-      class="fas fa-xmark"></i></button>
-    <div class="el-header">
-      <div class="el-icon"><i class="fas fa-pencil"></i></div>
-      <h2>Final JAMB Mock Examination</h2>
-      <p>You have completed all topics. Time to test your knowledge!</p>
-    </div>
-    <div class="el-body">
-      <div class="el-info-row"><span class="eil">Total Questions</span><span class="eir">180</span></div>
-      <div class="el-info-row"><span class="eil">Duration</span><span class="eir">2 Hours (120 minutes)</span></div>
-      <div class="el-info-row"><span class="eil">Maximum Score</span><span class="eir">400</span></div>
-      <div class="el-info-row"><span class="eil">Pass Mark</span><span class="eir">200+ (50%)</span></div>
-      <div class="el-info-row"><span class="eil">Marking</span><span class="eir">2.22 Mark one question</span></div>
-      <div class="el-info-row"><span class="eil">Negative Marking</span><span class="eir">None</span></div>
-      <div style="margin-top:16px;padding:12px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:10px;font-size:13px;color:var(--muted);line-height:1.6">
-        <strong style="color:var(--amber);font-weight:700">Important:</strong> You must score at least 200 to pass. If you fail, you can retry after 25 hours. Your camera is required and will remain active during the exam. Make sure you are in a well-lit environment. Copying exam content or switching screens is strictly monitored.
-      </div>
-      <div id="cooldownDisplay" class="hidden" style="text-align:center;margin-top:14px">
-        <p style="color:var(--rose);font-weight:600;font-size:14px">You can retry in:</p>
-        <p style="font-size:28px;font-weight:800;color:var(--ink)" id="cooldownTimer">24:00:00</p>
-      </div>
-    </div>
-    <div class="el-footer">
-      <button class="btn-exam-start" id="startExamBtn"><i class="fas fa-play"></i> Start Exam Now</button>
-    </div>
-  </div>
-</div>
-
-
-<div class="exam-warning hidden" id="examWarning">
-  <i class="fas fa-triangle-exclamation"></i>
-  <span></span>
-</div>
-<div class="exam-screen" id="examScreen">
-  <div class="exam-topbar">
-    <div class="exam-subjects" id="examSubjects"></div>
-    <div class="exam-timer"><i class="fas fa-hourglass-half"></i> <span id="examTimerDisplay">02:00:00</span></div>
-  </div>
-  <div class="exam-body">
-    <div class="exam-main" id="examMainArea">
-      <div class="exam-q-num" id="examQNum">Question 1 of 180</div>
-      <div class="exam-q-text" id="examQText">Loading question...</div>
-      <div class="exam-options" id="examOptions"></div>
-      <div class="exam-nav-buttons">
-        <button id="examPrevBtn"><i class="fas fa-chevron-left"></i> Previous</button>
-        <button id="examNextBtn">Next <i class="fas fa-chevron-right"></i></button>
-      </div>
-    </div>
-    <div class="exam-panel" id="examPanel">
-      <h4>Question Navigator</h4>
-      <div class="q-grid" id="examQGrid"></div>
-      <div class="q-legend">
-        <span><span class="sq" style="background:var(--jamb-green)"></span> Answered</span>
-        <span><span class="sq" style="background:var(--line)"></span> Unanswered</span>
-      </div>
-    </div>
-  </div>
-  <div class="submit-bar">
-    <button class="btn-submit-exam" id="submitExamBtn"><i class="fas fa-check-double"></i> Submit Exam</button>
-  </div>
-</div>
-
-
-
-<div class="camera-overlay" id="cameraOverlay">
-  <div class="cam-indicator"><span class="pulse-dot"></span> Recording</div>
-  <div class="cam-view">
-    <video id="camVideo" autoplay muted playsinline></video>
-    <div class="cam-mask"></div>
-    <div class="exam-main-cam" id="examMainCam">
-      <div class="exam-q-num" style="color:rgba(255,255,255,.6)" id="camQNum">Question 1 of 180</div>
-      <div class="exam-q-text" style="color:#fff" id="camQText">Loading question...</div>
-      <div class="exam-options" id="camOptions"></div>
-      <div class="exam-nav-buttons" style="border-top-color:rgba(255,255,255,.1)">
-        <button style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2)" id="camPrevBtn"><i class="fas fa-chevron-left"></i> Previous</button>
-        <button style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2)" id="camNextBtn">Next <i class="fas fa-chevron-right"></i></button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="cam-floating-widget hidden" id="camFloatingWidget">
-  <div class="cam-drag-handle"><i class="fas fa-grip-lines"></i></div>
-  <video id="camFloatVideo" autoplay muted playsinline></video>
-  <span class="cam-rec-dot"></span>
-</div>
-
-
-<div class="net-pause-overlay" id="netPauseOverlay">
-  <div class="net-pause-card">
-    <button class="np-close-btn" id="netPauseCloseBtn"><i class="fas fa-xmark"></i></button>
-    <div class="np-inner">
-      <div class="np-icon"><i class="fas fa-wifi"></i></div>
-      <h2>Connection Lost</h2>
-      <div class="np-timer" id="netPauseTimer">02:00</div>
-      <div class="np-locked hidden" id="netPauseLocked">Your 2 minutes are over. Click Continue to resume your exam.</div>
-      <p class="np-msg">Your exam time is paused. Reconnect your internet to continue automatically, or press the button below when you are ready.</p>
-      <div class="np-time-left">Remaining exam time: <strong id="netPauseTimeLeft">--:--:--</strong></div>
-      <button class="net-pause-btn hidden" id="netPauseContinue"><i class="fas fa-play"></i> Continue Exam</button>
-    </div>
-  </div>
-</div>
-
-<div class="results-overlay" id="resultsOverlay">
-    
-    
-  <div class="results-card" id="resultsCard"></div>
-</div>
-
-
-
-<div class="certificate-overlay" id="certificateOverlay">
-  <div class="certificate-card" id="certificateCard">
-    <div style="text-align:right;padding:12px 16px">
-      <button class="cert-close-btn" id="certCloseBtn"><i class="fas fa-xmark"></i> Close</button>
-    </div>
-    <div id="certificateContent"></div>
-    <div class="cert-actions">
-      <button class="cert-download-btn" id="certDownloadBtn"><i class="fas fa-file-pdf"></i> Download Certificate PDF</button>
-    </div>
-  </div>
-</div>
-
-
-
-
-
 <div class="ai-modal-overlay" id="aiModalOverlay">
   <div class="ai-modal">
-
     <div class="ai-header">
-      <h3><img src="https://i.imgur.com/DPrM9ZJ.png" alt="AI" style="width:26px;height:26px;border-radius:50%;object-fit:cover"> IDT AI Tutor</h3>
+      <h3><img src="https://i.imgur.com/DPrM9ZJ.png" alt="AI" style="width:28px;height:28px;border-radius:50%;object-fit:cover"> IDT AI Tutor</h3>
       <button class="ai-close" id="aiModalClose"><i class="fas fa-xmark"></i></button>
     </div>
-
     <div class="ai-lang-select" id="aiLangSelect">
       <button data-lang="english" class="active">English</button>
       <button data-lang="english+hausa">English + Hausa</button>
@@ -1778,27 +1785,20 @@ font-size: 0.95em;
       <button data-lang="english+pidgin">English + Pidgin</button>
       <button data-lang="other" id="aiOtherLang">Other...</button>
     </div>
-
     <div class="ai-body">
-   <div id="aiChatArea">
-  <div class="ai-msg bot">
-    <div class="ai-msg-label"><span class="ai-msg-icon"><img src="https://i.imgur.com/DPrM9ZJ.png" alt="AI" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>AI Tutor</div>
-    <p>Hello! I am your IDT Academy AI tutor. Ask me any question about your JAMB topics, and I will explain in the language you choose.</p>
-  </div>
-</div>
+      <div id="aiChatArea">
+        <div class="ai-msg bot">
+          <div class="ai-msg-label"><span class="ai-msg-icon"><img src="https://i.imgur.com/DPrM9ZJ.png" alt="AI" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>AI Tutor</div>
+          <p>Hello! I am your IDT Academy AI tutor. Ask me any question about your JAMB topics, and I will explain in the language you choose.</p>
+        </div>
+      </div>
     </div>
-
     <div class="ai-input-area">
       <textarea id="aiInput" placeholder="Type your question here..." rows="1"></textarea>
       <button id="aiSendBtn"><i class="fas fa-paper-plane"></i></button>
     </div>
-
   </div>
 </div>
-
-
-
-
 
 <div class="ai-security-popup" id="aiSecurityPopup">
   <img src="https://i.imgur.com/rMW6FMN.png" alt="AI Security">
