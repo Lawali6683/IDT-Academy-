@@ -411,7 +411,89 @@ function isCourseMissing(ud) {
 }
 
 
+function renderSessionClock(baseTotal) {
+  const total = Number(baseTotal || 0) + sessionSeconds;
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  const el = $('sessionTime');
+  if (el) el.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
 
+function flushSession() {
+  if (!user || sessionSeconds <= 0) return;
+  const baseTotal = Number((updateData && updateData.study_seconds) || 0);
+  saveUpdate({
+    study_seconds: baseTotal + sessionSeconds,
+    last_active: new Date().toISOString(),
+    reading_history: readingHistory,
+    watched: watchedMap
+  }).catch(() => {});
+}
+
+async function startSessionClock() {
+  sessionSeconds = 0;
+  if (sessionTimer) clearInterval(sessionTimer);
+  const baseTotal = Number((updateData && updateData.study_seconds) || 0);
+  renderSessionClock(baseTotal);
+  sessionTimer = setInterval(() => {
+    sessionSeconds++;
+    renderSessionClock(baseTotal);
+    if (sessionSeconds % 120 === 0) {
+      saveUpdate({
+        study_seconds: baseTotal + sessionSeconds,
+        last_active: new Date().toISOString()
+      }).catch(() => {});
+    }
+  }, 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) flushSession();
+  });
+  window.addEventListener('pagehide', flushSession);
+}
+
+async function saveUpdate(patch, retries) {
+  const maxRetries = Number(retries == null ? 2 : retries);
+  try {
+    if (!updateData) updateData = {};
+    Object.assign(updateData, patch);
+    let lastErr = null;
+    for (let i = 0; i <= maxRetries; i++) {
+      const { error } = await supabase
+        .from('update')
+        .upsert({ id: user.id, uset_update: updateData }, { onConflict: 'id' });
+      if (!error) return;
+      lastErr = error;
+      await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+    }
+    throw lastErr;
+  } catch (err) {
+    showToast('error', 'Save Failed', 'Could not save your progress. It will retry next time.', err.message || String(err));
+  }
+}
+
+function pruneUpdateData() {
+  try {
+    const cutoff = Date.now() - RETRY_DIPLOMA_MS - WEEK_MS;
+    Object.keys(lastAssessFail).forEach((k) => {
+      if (!lastAssessFail[k] || lastAssessFail[k] < cutoff) delete lastAssessFail[k];
+    });
+    Object.keys(passedBatches).forEach((k) => {
+      if (!Array.isArray(passedBatches[k])) { delete passedBatches[k]; return; }
+      if (passedBatches[k].length > 30) passedBatches[k] = passedBatches[k].slice(-30);
+    });
+    Object.keys(chatHistories).forEach((k) => {
+      if (!Array.isArray(chatHistories[k])) { delete chatHistories[k]; return; }
+      if (chatHistories[k].length > 12) chatHistories[k] = chatHistories[k].slice(-12);
+    });
+    Object.keys(watchedMap).forEach((k) => {
+      if (!isValidCourseId(k) || !Array.isArray(watchedMap[k])) { delete watchedMap[k]; return; }
+      if (watchedMap[k].length > 400) watchedMap[k] = watchedMap[k].slice(-400);
+    });
+    Object.keys(readingHistory).forEach((k) => {
+      if (!isValidCourseId(k) || typeof readingHistory[k] !== 'number') delete readingHistory[k];
+    });
+  } catch (_) {}
+}
 
 
 function collectCourses(ud) {
@@ -482,14 +564,23 @@ async function loadUpdateTable() {
     } else {
       updateData = {};
     }
-    watchedMap = updateData.watched || {};
+   watchedMap = updateData.watched || {};
     readingHistory = updateData.reading_history || {};
     chatHistories = updateData.chat_history || {};
     passedBatches = updateData.passed_batches || {};
     lastAssessFail = updateData.last_assess_fail || {};
     preferredLang = updateData.preferred_lang || 'English';
+    if (!updateData.study_seconds) updateData.study_seconds = 0;
+    pruneUpdateData();
+    await saveUpdate({
+      watched: watchedMap,
+      reading_history: readingHistory,
+      chat_history: chatHistories,
+      passed_batches: passedBatches,
+      last_assess_fail: lastAssessFail
+    });
   } catch (err) {
-    updateData = {};
+    updateData = { study_seconds: 0 };
     watchedMap = {};
     readingHistory = {};
     chatHistories = {};
@@ -498,18 +589,6 @@ async function loadUpdateTable() {
   }
 }
 
-async function saveUpdate(patch) {
-  try {
-    if (!updateData) updateData = {};
-    Object.assign(updateData, patch);
-    const { error } = await supabase
-      .from('update')
-      .upsert({ id: user.id, uset_update: updateData }, { onConflict: 'id' });
-    if (error) throw error;
-  } catch (err) {
-    showToast('error', 'Save Failed', 'Could not save your progress.', err.message || String(err));
-  }
-}
 
 
 async function refreshProfile() {
@@ -576,21 +655,11 @@ function isWatched(topicIdx) {
   return arr.indexOf(topicIdx) !== -1;
 }
 
-function renderSessionClock() {
-  const m = Math.floor(sessionSeconds / 60);
-  const s = sessionSeconds % 60;
-  const el = $('sessionTime');
-  if (el) el.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-}
 
-function startSessionClock() {
-  sessionSeconds = 0;
-  if (sessionTimer) clearInterval(sessionTimer);
-  sessionTimer = setInterval(() => {
-    sessionSeconds++;
-    renderSessionClock();
-  }, 1000);
-}
+
+
+
+
 
 function renderUserIdBadge() {
   const n = $('userIdName');
@@ -2792,13 +2861,10 @@ domReady(() => {
     
       const link = buildReferralLink();
       const text = 'Join me at IDT Academy! Learn modern skills online. Use my referral link: ' + link;
-      if (chip.classList.contains('wa')) {
+     if (chip.classList.contains('wa')) {
         window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
         return;
-      const dualBtn = $('btnDualLang');
-if (dualBtn) {
-  dualBtn.addEventListener('click', () => handleExplain(getPreferredLang(), true));
-}
+      }
    }   
       
       if (chip.classList.contains('x')) {
@@ -2866,6 +2932,9 @@ if (dualBtn) {
   });
 
   on('chatForm', 'submit', handleChatSubmit);
+  on('btnDualLang', 'click', () => {
+    handleExplain(getPreferredLang(), true);
+  
 
   on('btnExplainLang', 'click', () => {
     const otherRow = $('otherLangRow');
