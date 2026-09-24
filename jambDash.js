@@ -178,6 +178,85 @@ function escapeHtml(str) {
   });
 }
 
+
+function setBtnLoading(btn, label) {
+  if (!btn) return;
+  if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + escapeHtml(label || 'Loading...');
+}
+
+function resetBtnLoading(btn) {
+  if (!btn) return;
+  btn.disabled = false;
+  if (btn.dataset.originalHtml) btn.innerHTML = btn.dataset.originalHtml;
+  delete btn.dataset.originalHtml;
+}
+
+let cloudProgress = null;
+const progressSyncTimers = {};
+
+async function fetchCloudProgress(userId) {
+  try {
+    const { data, error } = await supabase
+      .from('update')
+      .select('uset_update')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) throw error;
+    if (data && data.uset_update && data.uset_update.jamb_progress) {
+      cloudProgress = data.uset_update.jamb_progress;
+    } else {
+      cloudProgress = null;
+    }
+  } catch (err) {
+    cloudProgress = null;
+  }
+}
+
+function mergeProgress(local, cloud) {
+  const merged = local || { current: 0, completed: [] };
+  if (!Array.isArray(merged.completed)) merged.completed = [];
+  if (typeof merged.current !== 'number') merged.current = 0;
+  if (cloud && typeof cloud === 'object') {
+    const cloudCurrent = Number(cloud.current) || 0;
+    if (cloudCurrent > merged.current) merged.current = cloudCurrent;
+    const cloudCompleted = Array.isArray(cloud.completed) ? cloud.completed : [];
+    cloudCompleted.forEach(function(id) {
+      if (merged.completed.indexOf(id) === -1) merged.completed.push(id);
+    });
+  }
+  return merged;
+}
+
+function saveProgress(progress) {
+  const uid = currentUser && currentUser.id ? currentUser.id : '';
+  localStorage.setItem('idt_progress_' + uid, JSON.stringify(progress));
+  if (!uid) return;
+  if (progressSyncTimers[uid]) clearTimeout(progressSyncTimers[uid]);
+  progressSyncTimers[uid] = setTimeout(async function() {
+    try {
+      const { data, error } = await supabase
+        .from('update')
+        .select('uset_update')
+        .eq('id', uid)
+        .maybeSingle();
+      if (error) throw error;
+      const ud = (data && data.uset_update && typeof data.uset_update === 'object') ? data.uset_update : {};
+      ud.jamb_progress = {
+        current: progress.current,
+        completed: progress.completed.slice(-5)
+      };
+      await supabase
+        .from('update')
+        .upsert({ id: uid, uset_update: ud });
+    } catch (err) {
+      console.error('saveProgress sync error:', err);
+    }
+  }, 1500);
+}
+
+
 function checkDevice() {
   isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
 }
@@ -559,22 +638,26 @@ function showCourseSelect() {
 
 
 
+
+
+
 async function selectDepartment(dept, btn) {
   const u = getLocalUser();
   if (!u) return;
 
+  setBtnLoading(btn, 'Saving...');
   if (el.deptLoading) el.deptLoading.classList.remove('hidden');
   hidePayGetError();
 
   try {
-    const res = await fetch('/api/jambData', {
+    const res = await fetchWithTimeout('/api/jambData', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         user_id: u.id,
         department_id: dept.id
       })
-    });
+    }, 60000);
 
     let data = null;
     try {
@@ -611,9 +694,11 @@ async function selectDepartment(dept, btn) {
     console.error('jambData error:', err);
     showToast('Network connection error. Please check your internet and try again.', 'error', 6000);
   } finally {
+    resetBtnLoading(btn);
     if (el.deptLoading) el.deptLoading.classList.add('hidden');
   }
 }
+
 
 el.changeCourseBtn.addEventListener('click', showCourseSelect);
 
@@ -631,12 +716,11 @@ el.payNowBtn.addEventListener('click', async function() {
     return;
   }
 
-  this.disabled = true;
-  if (el.payNowLoading) el.payNowLoading.classList.remove('hidden');
+  setBtnLoading(this, 'Processing payment...');
   hidePayGetError();
 
   try {
-    const res = await fetch('/api/paystack', {
+    const res = await fetchWithTimeout('/api/paystack', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -644,7 +728,7 @@ el.payNowBtn.addEventListener('click', async function() {
         email: u.email,
         price: 3500
       })
-    });
+    }, 60000);
 
     let data = null;
     try {
@@ -691,8 +775,7 @@ el.payNowBtn.addEventListener('click', async function() {
     showPayGetError('Network connection error. Please verify your internet connection and try again.');
     showToast('Network error while connecting to payment service.', 'error');
   } finally {
-    this.disabled = false;
-    if (el.payNowLoading) el.payNowLoading.classList.add('hidden');
+    resetBtnLoading(this);
     if (!hasCourseData(getLocalUser())) {
       this.disabled = true;
       this.innerHTML = '<i class="fas fa-lock"></i> Select Department to Enable Payment';
@@ -719,10 +802,14 @@ function startPayTimer() {
   }, 1000);
 }
 
-el.payRefreshBtn.addEventListener('click', function() {
+
+
+el.payRefreshBtn.addEventListener('click', async function() {
+  setBtnLoading(this, 'Refreshing...');
   el.payTimerCount.classList.remove('hidden');
   el.payTimerExpired.classList.add('hidden');
-  requestPaymentDetails();
+  await requestPaymentDetails();
+  resetBtnLoading(this);
   showToast('Payment details refreshed.', 'success');
 });
 
@@ -761,11 +848,14 @@ async function checkAndInitUser() {
 
 
 
+
 async function initDashboard() {
   const u = getLocalUser();
   if (!u) { window.location.href = 'jamb.html'; return; }
   userData = u;
   currentUser = u;
+  cloudProgress = null;
+  await fetchCloudProgress(u.id);
   el.dashUserName.textContent = u.full_name || 'Student';
   el.dashUserDept.textContent = u.jambCourseName || 'JAMB Student';
   el.welcomeName.textContent = u.full_name || 'Student';
@@ -774,6 +864,8 @@ async function initDashboard() {
   renderLearning();
   fetchAds();
 }
+
+
 
 async function fetchTopics() {
   try {
@@ -874,16 +966,18 @@ function showAd(index) {
 
 function getStoredProgress() {
   try {
-    const data = JSON.parse(localStorage.getItem('idt_progress_' + (currentUser && currentUser.id ? currentUser.id : '')));
-    if (!data || typeof data !== 'object') return { current: 0, completed: [] };
-    if (!Array.isArray(data.completed)) data.completed = [];
-    if (typeof data.current !== 'number') data.current = 0;
-    return data;
-  } catch(e) { return { current: 0, completed: [] }; }
-}
-
-function saveProgress(progress) {
-  localStorage.setItem('idt_progress_' + (currentUser && currentUser.id ? currentUser.id : ''), JSON.stringify(progress));
+    const uid = currentUser && currentUser.id ? currentUser.id : '';
+    const data = JSON.parse(localStorage.getItem('idt_progress_' + uid));
+    let local = { current: 0, completed: [] };
+    if (data && typeof data === 'object') {
+      if (!Array.isArray(data.completed)) data.completed = [];
+      if (typeof data.current !== 'number') data.current = 0;
+      local = data;
+    }
+    return mergeProgress(local, cloudProgress);
+  } catch (e) {
+    return mergeProgress({ current: 0, completed: [] }, cloudProgress);
+  }
 }
 
 
@@ -1127,6 +1221,18 @@ async function openExamLock() {
 
 
 
+
+
+async function fetchWithTimeout(url, opts, ms) {
+  const ctrl = new AbortController();
+  const t = setTimeout(function() { ctrl.abort(); }, ms);
+  try {
+    return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal }));
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function generateExamQuestions() {
   showLoading(true);
   try {
@@ -1148,16 +1254,22 @@ async function generateExamQuestions() {
 
     if (!raw || raw.length === 0) {
       const u = getLocalUser();
-      const res = await fetch('/api/jambai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'generate_exam',
-          user_id: u ? u.id : '',
-          jambCourseId: u ? (u.jambCourseId || '') : '',
-          jambCourseSubjects: u ? (u.jambCourseSubjects || []) : []
-        })
-      });
+      let res = null;
+      try {
+        res = await fetchWithTimeout('/api/jambai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'generate_exam',
+            user_id: u ? u.id : '',
+            jambCourseId: u ? (u.jambCourseId || '') : '',
+            jambCourseSubjects: u ? (u.jambCourseSubjects || []) : []
+          })
+        }, 90000);
+      } catch (netErr) {
+        showToast('Loading questions is taking too long. Please check your internet and try again.', 'error', 7000);
+        return false;
+      }
       if (res.status !== 200) {
         const apiMsg = await readApiError(res);
         showToast('Failed to load exam questions (' + (apiMsg || ('HTTP ' + res.status)) + '). Please check your internet and try again.', 'error', 7000);
@@ -1201,10 +1313,11 @@ async function generateExamQuestions() {
   }
 }
 
+
+
 el.startExamBtn.addEventListener('click', async function() {
   if (this.disabled) return;
   const btn = this;
-  const originalHtml = btn.innerHTML;
 
   const progress = getStoredProgress();
   if (!isExamUnlocked(progress)) {
@@ -1213,40 +1326,37 @@ el.startExamBtn.addEventListener('click', async function() {
     return;
   }
 
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
+  setBtnLoading(btn, 'Preparing...');
 
   try {
     const ok = await generateExamQuestions();
 
     if (!ok) {
+      resetBtnLoading(btn);
       showToast('Could not start the exam right now. Please click "Start Exam Now" again.', 'error', 7000);
       return;
     }
 
-    showLoading(true);
+    setBtnLoading(btn, 'Requesting camera...');
     const camOk = await requireCamera();
-    showLoading(false);
 
     if (!camOk) {
+      resetBtnLoading(btn);
       showToast('Camera access is required before starting the exam. Please enable your camera and try again.', 'error', 6000);
       return;
     }
 
     el.examLockOverlay.classList.remove('active');
+    resetBtnLoading(btn);
     startExam();
 
   } catch (err) {
     console.error('startExamBtn error:', err);
     showToast('An error occurred while preparing the exam. Please try again.', 'error', 7000);
     stopCamera();
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = originalHtml;
-    showLoading(false);
+    resetBtnLoading(btn);
   }
 });
-
 
 
 function enableCamDrag() {
@@ -1857,7 +1967,12 @@ function showExamResults(data) {
 }
 
 
-el.submitExamBtn.addEventListener('click', function() { submitExam(false); });
+el.submitExamBtn.addEventListener('click', async function() {
+  if (!confirm('Are you sure you want to submit? You cannot change your answers after submission.')) return;
+  setBtnLoading(this, 'Submitting...');
+  await submitExam(false);
+  resetBtnLoading(this);
+});
 
 function saveExamToHistory(data) {
   const u = getLocalUser();
