@@ -1438,6 +1438,11 @@ textarea{resize:vertical}
 .results-card .rc-footer{position:sticky;bottom:0;z-index:5;background:#fff;border-top:1px solid var(--line);box-shadow:0 -6px 18px rgba(0,0,0,.08)}
 .results-card .rc-header{position:sticky;top:0;z-index:6;background:#fff;border-bottom:1px solid var(--line)}
 
+
+#allCompleteCooldown{margin:14px auto 4px}
+#allCompleteCooldown p{color:var(--rose);font-weight:600;font-size:14px}
+#allCompleteCooldown .cd-timer{font-size:26px;font-weight:800;color:var(--ink);font-family:monospace}
+
 </style>
 </head>
 <body>
@@ -1550,14 +1555,18 @@ textarea{resize:vertical}
   </div>
 
   <div class="all-complete-box hidden" id="allComplete">
-    <i class="fas fa-check-circle"></i>
-    <h3>All Topics Completed!</h3>
-    <p>You have finished all learning topics. Take the final JAMB exam now.</p>
-    <div class="all-complete-actions">
-      <button class="btn-exam-start" id="finalExamBtn"><i class="fas fa-pencil"></i> Start Final Exam</button>
-      <button class="btn-nav" id="backToLearningBtn" style="padding:14px 28px;border-radius:14px;font-size:14px;font-weight:700"><i class="fas fa-book-open"></i> Back to Learning</button>
-    </div>
+  <i class="fas fa-check-circle"></i>
+  <h3>All Topics Completed!</h3>
+  <p>You have finished all learning topics. Take the final JAMB exam now.</p>
+  <div id="allCompleteCooldown" class="cooldown-display hidden">
+    <p>You can retry the exam in:</p>
+    <p class="cd-timer" id="allCompleteCooldownTimer">00:00:00</p>
   </div>
+  <div class="all-complete-actions">
+    <button class="btn-exam-start" id="finalExamBtn"><i class="fas fa-pencil"></i> Start Final Exam</button>
+    <button class="btn-nav" id="backToLearningBtn" style="padding:14px 28px;border-radius:14px;font-size:14px;font-weight:700"><i class="fas fa-book-open"></i> Back to Learning</button>
+  </div>
+</div>
 
   <div class="section-card referral-card">
     <div class="section-body">
