@@ -1263,6 +1263,7 @@ async function generateExamQuestions() {
         raw = Array.isArray(data.jamb_questions)
           ? data.jamb_questions
           : (data.jamb_questions && Array.isArray(data.jamb_questions.questions) ? data.jamb_questions.questions : null);
+        if (raw && raw.length < 180) raw = null;
       }
     } catch (e) {
       console.error('Supabase questions fetch error:', e);
@@ -1270,30 +1271,65 @@ async function generateExamQuestions() {
 
     if (!raw || raw.length === 0) {
       const u = getLocalUser();
-      let res = null;
+      const basePayload = {
+        user_id: u ? u.id : '',
+        jambCourseId: u ? (u.jambCourseId || '') : '',
+        jambCourseSubjects: u ? (u.jambCourseSubjects || []) : []
+      };
+
+      let subjects = null;
       try {
-        res = await fetchWithTimeout('/api/jambai', {
+        const sres = await fetchWithTimeout('/api/jambai', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'generate_exam',
-            user_id: u ? u.id : '',
-            jambCourseId: u ? (u.jambCourseId || '') : '',
-            jambCourseSubjects: u ? (u.jambCourseSubjects || []) : []
-          })
-        }, 90000);
-      } catch (netErr) {
-        showToast('Loading questions is taking too long. Please check your internet and try again.', 'error', 7000);
-        return false;
+          body: JSON.stringify(Object.assign({ action: 'get_subjects' }, basePayload))
+        }, 30000);
+        if (sres.status === 200) {
+          const sdata = await sres.json();
+          if (sdata.success && Array.isArray(sdata.subjects) && sdata.subjects.length > 0) {
+            subjects = sdata.subjects;
+          }
+        }
+      } catch (sErr) {
+        console.error('get_subjects error:', sErr);
       }
-      if (res.status !== 200) {
-        const apiMsg = await readApiError(res);
-        showToast('Failed to load exam questions (' + (apiMsg || ('HTTP ' + res.status)) + '). Please check your internet and try again.', 'error', 7000);
-        return false;
-      }
-      const rdata = await res.json();
-      if (rdata.success && Array.isArray(rdata.questions) && rdata.questions.length > 0) {
-        raw = rdata.questions;
+      if (!subjects || subjects.length === 0) subjects = ['Use of English', 'Mathematics', 'Physics', 'Chemistry'];
+
+      raw = [];
+
+      for (let i = 0; i < subjects.length; i++) {
+        const subject = subjects[i];
+        const count = subject.toLowerCase().indexOf('english') !== -1 ? 60 : 40;
+        let subjectQs = [];
+
+        for (let attempt = 0; attempt < 4 && subjectQs.length < count; attempt++) {
+          try {
+            const res = await fetchWithTimeout('/api/jambai', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(Object.assign({
+                action: 'generate_exam_subject',
+                subject: subject,
+                count: count
+              }, basePayload))
+            }, 120000);
+
+            if (res.status !== 200) continue;
+
+            const d = await res.json();
+            if (d.success && Array.isArray(d.questions) && d.questions.length > 0) {
+              subjectQs = d.questions;
+            }
+          } catch (reqErr) {
+            console.error('generate_exam_subject error (' + subject + '):', reqErr);
+          }
+        }
+
+        if (subjectQs.length === 0) {
+          throw new Error('Failed to load questions for ' + subject + ' after multiple attempts');
+        }
+
+        raw = raw.concat(subjectQs);
       }
     }
 
@@ -1307,8 +1343,8 @@ async function generateExamQuestions() {
       .map(function(q) {
         return {
           subject: String(q.subject || 'General'),
-          text: String(q.text || q.question || ''),
-          options: Array.isArray(q.options) ? q.options.map(String) : [],
+          text: String(q.text || q.question || '').substring(0, 300),
+          options: Array.isArray(q.options) ? q.options.map(function(o) { return String(o).substring(0, 120); }) : [],
           correct: Number(q.correct) || 0
         };
       })
@@ -1322,17 +1358,12 @@ async function generateExamQuestions() {
 
   } catch (err) {
     console.error('generateExamQuestions error:', err);
-    showToast('Network error while loading questions. Please check your internet and try again.', 'error', 7000);
+    showToast('Could not load exam questions' + (err && err.message ? ' (' + err.message + ')' : '') + '. Please check your internet and try again.', 'error', 7000);
     return false;
   } finally {
     showLoading(false);
   }
 }
-
-
-
-
-
 
 
 el.startExamBtn.addEventListener('click', async function() {
