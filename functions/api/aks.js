@@ -188,16 +188,14 @@ async function handleAsk(env, body, userData) {
 
   if (!question) return json({ success: false, error: 'question is required' }, 400);
 
-  const system = 'You are the official AI Teacher at IDT Academy (Intelligent Digital Technology Academy, www.idtacademy.com.ng). ' +
-    'You understand and can reply in every language in the world including Arabic, Hausa, Yoruba, Igbo, French, Spanish, Swahili and more. ' +
-    'The student\'s name is ' + studentName + '. Always call them by their name and be warm, encouraging and patient. ' +
-    'Default explanation language is English. ' +
-    'Detect the language of the student\'s question automatically. If they asked in a language other than English, answer mainly in that language and include key terms in English too. ' +
-    'If the student requests two languages, answer first in English then repeat the key points in the second language. ' +
-    'Use **bold** for important words. Use bullet points for steps. Use short code blocks only when showing code. ' +
-    'Include simple diagrams using text when helpful (like tables, flowcharts). ' +
-    'Encourage the student by praising their effort and curiosity. End by asking if they understood or if they have another question. ' +
-    'Never invent facts. Use only the lesson notes provided. If you do not know, say so honestly and suggest what to do next.';
+  const system = 'You are the official AI Teacher at IDT Academy (Intelligent Digital Technology Academy, www.idtacademy.com.ng). '
+    + 'You understand and can reply in every language in the world including Hausa, Yoruba, Igbo, Arabic, French, Spanish and Swahili. '
+    + 'The student\'s name is ' + studentName + '. Always call them by name, be warm, encouraging and patient. '
+    + 'Detect the language of the student\'s question automatically. If they asked in a language other than English, answer mainly in that language but keep difficult technical words in English, explaining each one in simple local words like a good teacher. '
+    + 'If the student requests two languages, answer first in English then repeat the key points in the second language. '
+    + 'FORMATTING RULES (VERY IMPORTANT): Do NOT use markdown symbols anywhere. Never use asterisks *, hashes #, backticks, or underscores. Write plain clean text only. Use line breaks and numbered steps for structure. '
+    + 'If the language requested is one you cannot write properly, say honestly that it is not available and offer English or another language. ';
+    + 'Never invent facts. Use only the lesson notes provided. If you do not know, say so honestly and suggest what to do next.';
 
   const contents = [];
 
@@ -219,34 +217,49 @@ async function handleAsk(env, body, userData) {
   return json({ success: true, answer: answer, message: answer });
 }
 
+
+
 async function handleExplain(env, body, userData) {
   const studentName = (userData && userData.full_name) || body.full_name || 'Student';
   const dual = body.explain_mode === 'dual';
   const userLang = String(body.target_lang || body.preferred_lang || 'English').trim() || 'English';
-  const lang = dual ? ('English + ' + userLang) : 'English';
   const courseName = String(body.course_name || '');
   const topicName = String(body.topic_name || '');
   const topicText = String(body.topic_text || '').slice(0, 4000);
 
-  let system = 'You are the official AI Teacher at IDT Academy. You understand every language in the world including Arabic. ';
+  let system = 'You are a warm, patient expert teacher at IDT Academy teaching ' + studentName + '. ';
+  system += 'FIRST RULE: Before anything, check if you can write correctly and fluently in the language "' + userLang + '". If you cannot write properly in that language, respond with ONLY this exact marker and nothing else: LANGUAGE_NOT_AVAILABLE ';
   if (dual) {
-    system += 'The student ' + studentName + ' wants this lesson explained in TWO languages: first English, then ' + userLang + '. ' +
-      'Structure: Part 1 explain fully in English. Part 2 titled "In ' + userLang + '" repeat the key points in ' + userLang + ' with the English terms in parentheses. ' +
-      'Every important term must appear in both languages. ';
+    system += 'Otherwise, explain the lesson in TWO parts. Part 1: explain fully in English. Part 2 with the heading "In ' + userLang + '": explain the same key points in ' + userLang + '. ';
   } else {
-    system += 'The student ' + studentName + ' wants this lesson explained in ' + lang + '. ' +
-      'Explain the lesson clearly step by step in ' + lang + '. For every important term, write it in **' + lang + '** first, then show the English term in parentheses. ';
+    system += 'Otherwise, explain the lesson mainly in ' + userLang + '. ';
   }
-  system += 'Use **bold** for key words. Use bullet points. Use short tables or text-diagrams when helpful. ' +
-    'Include 1 simple example from real life. End with one short question to check understanding. ' +
-    'Be warm, call them by name, praise their effort.';
+  system += 'TEACHING RULES: '
+    + '1. For every difficult or technical word, write it in English first, then immediately explain its meaning in ' + userLang + ' in simple words, like this style: "Boys yana nufin yara maza da yawa". '
+    + '2. Explain step by step, slowly, like a real classroom teacher, with simple everyday examples from real life that a student in Nigeria can relate to. '
+    + '3. Use simple numbered steps and short paragraphs. '
+    + '4. If the topic has something visible or drawable, add one short line at the end titled "Image to look at:" describing a simple picture or diagram the student should imagine or search online. '
+    + '5. At the very end, ask exactly TWO short questions in ' + userLang + ' (or in English if dual) to check if the student understood, and tell them to answer with the Ask Question button. '
+    + '6. Be encouraging: praise the student, call them by name, and tell them they are doing well. '
+    + 'FORMATTING RULES (VERY IMPORTANT): Do NOT use markdown symbols anywhere. Never use asterisks *, hashes #, backticks, or underscores for emphasis. Write plain clean text only. Use line breaks and numbered steps for structure.';
 
   const text = await generateAIResponse(env, system,
-    'Lesson from "' + courseName + '"\nTopic: ' + topicName + '\n\nNotes:\n' + (topicText || 'No notes provided.') + '\n\nPlease explain this fully. Be clear, use examples, and encourage ' + studentName + '.'
+    'Lesson from "' + courseName + '"\nTopic: ' + topicName + '\n\nNotes:\n' + (topicText || 'No notes provided.') + '\n\nExplain this lesson fully to ' + studentName + ' in ' + userLang + ' following all the teaching rules. Make it clear, enjoyable and easy to understand.'
   );
 
-  return json({ success: true, explanation: text, language: lang, lang_detected: lang });
+  if (text.trim().toUpperCase().indexOf('LANGUAGE_NOT_AVAILABLE') !== -1) {
+    return json({
+      success: true,
+      language_available: false,
+      language: userLang,
+      message: userLang + ' is not available yet. Our AI teacher cannot write in this language for now. Please try another language.'
+    });
+  }
+
+  return json({ success: true, explanation: text, language: dual ? ('English + ' + userLang) : userLang, lang_detected: userLang, language_available: true });
 }
+
+
 
 async function parseJsonArray(text) {
   try {
@@ -264,20 +277,54 @@ async function parseJsonArray(text) {
   return [];
 }
 
+
+function detectTopicLanguage(text) {
+  const t = String(text || '').toLowerCase();
+  if (!t.trim()) return 'English';
+  if (/[\u0600-\u06FF]/.test(String(text || ''))) return 'Arabic';
+  const scores = { Hausa: 0, Yoruba: 0, Igbo: 0, French: 0, Spanish: 0 };
+  const hausa = [' yana ', ' kuma ', ' wannan ', ' domin ', ' nufin ', ' yara ', ' abin ', ' kana ', ' kamar ', ' sai ', ' zai ', ' mutane ', ' gaskiya ', ' abin '];
+  const yoruba = [' nitori ', ' pupo ', ' jare ', ' ejo ', ' ko ni ', ' ti o ', ' fun ', ' won ', ' mo fe '];
+  const igbo = [' nke ', ' maka ', ' anyi ', ' biko ', ' oma ', ' gi na '];
+  const french = [' le ', ' la ', ' les ', ' une ', ' est ', ' pour ', ' avec ', ' vous ', ' nous '];
+  const spanish = [' una ', ' es ', ' para ', ' usted ', ' nosotros ', ' que es '];
+  const count = (list) => list.reduce((n, w) => n + (t.split(w).length - 1), 0);
+  scores.Hausa = count(hausa);
+  scores.Yoruba = count(yoruba);
+  scores.Igbo = count(igbo);
+  scores.French = count(french);
+  scores.Spanish = count(spanish);
+  let best = 'English';
+  let bestScore = 2;
+  Object.keys(scores).forEach((lang) => {
+    if (scores[lang] > bestScore) {
+      bestScore = scores[lang];
+      best = lang;
+    }
+  });
+  return best;
+}
+
+
+
+
 async function handleGetAssessment(env, body, userData) {
   const studentName = (userData && userData.full_name) || body.full_name || 'Student';
   const courseName = String(body.course_name || '');
   const topics = Array.isArray(body.topics) ? body.topics : [];
+  const topicLang = detectTopicLanguage(topics.map(function(t) { return t.topic_text || ''; }).join(' '));
 
-  const system = 'You are an assessment creator at IDT Academy. Create exactly 5 questions to test if ' + studentName + ' understood the topics below. ' +
-    'Each question must have 4 options (A, B, C, D) with one correct answer marked by index (0-based). ' +
-    'Make 3 questions multiple-choice and 2 questions that require a written short answer (set type: "write" and options: []). ' +
-    'Questions should be practical and based ONLY on the notes below. Write questions in English. ' +
-    'Return ONLY valid JSON array with no extra text: [{"question": "...", "options": ["A", "B", "C", "D"], "type": "mcq", "correct": 0}, ...]';
+  const system = 'You are an assessment creator at IDT Academy. Create exactly 5 questions to test if ' + studentName + ' understood the topics below. '
+    + 'LANGUAGE RULE (MOST IMPORTANT): Every question, every option and every expected answer MUST be written ONLY in ' + topicLang + '. Do not mix English into the questions unless a technical term has no ' + topicLang + ' translation, in which case keep that single term in English. '
+    + 'Each question must have 4 options (A, B, C, D) with one correct answer marked by index (0-based). '
+    + 'Make 3 questions multiple-choice and 2 questions that require a written short answer (set type: "write" and options: []). '
+    + 'Questions should be practical and based ONLY on the notes below. '
+    + 'Write all question text, options, explanations and correct answers in plain clean text with no markdown symbols like *, #, or backticks. '
+    + 'Return ONLY valid JSON array with no extra text: [{"question": "...", "options": ["A", "B", "C", "D"], "type": "mcq", "correct": 0}, ...]';
 
   const prompt = 'Course: ' + courseName + '\n\nTopics:\n' + topics.map(function(t, i) {
     return 'Topic ' + (i + 1) + ': ' + (t.topic_name || '') + '\n' + String(t.topic_text || '').slice(0, 1500);
-  }).join('\n\n') + '\n\nCreate 5 questions. Return ONLY valid JSON array.';
+  }).join('\n\n') + '\n\nCreate 5 questions written ONLY in ' + topicLang + '. Return ONLY valid JSON array.';
 
   const text = await generateAIResponse(env, system, prompt);
   let questions = parseJsonArray(text);
@@ -290,18 +337,23 @@ async function handleGetAssessment(env, body, userData) {
   }
 
   const assessmentId = 'as_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-  return json({ success: true, questions: questions, assessment_id: assessmentId });
+  return json({ success: true, questions: questions, assessment_id: assessmentId, topic_language: topicLang });
 }
+
+
+
 
 async function handleGradeAssessment(env, body, userData) {
   const studentName = (userData && userData.full_name) || body.full_name || 'Student';
   const courseName = String(body.course_name || '');
   const questions = Array.isArray(body.questions) ? body.questions : [];
 
-  const system = 'You are a fair and encouraging teacher at IDT Academy. Grade ' + studentName + '\'s answers for the course "' + courseName + '". ' +
-    'For each question: if the student\'s answer shows understanding even with spelling mistakes, give partial or full credit. ' +
-    'Only mark as wrong if the answer is completely irrelevant or nonsense. Be generous but honest. ' +
-    'Return ONLY valid JSON array with no extra text: [{"number": 1, "question": "...", "is_correct": true, "user_answer": "...", "correct_answer": "...", "explanation": "..."}]';
+  const system = 'You are a fair and encouraging teacher at IDT Academy. Grade ' + studentName + '\'s answers for the course "' + courseName + '". '
+    + 'For each question: if the student\'s answer shows understanding even with spelling mistakes, give partial or full credit. '
+    + 'Only mark as wrong if the answer is completely irrelevant or nonsense. Be generous but honest. '
+    + 'Write the correct_answer and explanation in the same language the questions and the student\'s answers are written in. '
+    + 'Do NOT use markdown symbols like *, #, or backticks anywhere. Plain clean text only. '
+    + 'Return ONLY valid JSON array with no extra text: [{"number": 1, "question": "...", "is_correct": true, "user_answer": "...", "correct_answer": "...", "explanation": "..."}]';
 
   const prompt = 'Grade these ' + questions.length + ' answers for ' + studentName + ':\n\n' +
     questions.map(function(q, i) {
@@ -330,9 +382,10 @@ async function handleGradeAssessment(env, body, userData) {
     results: results,
     message: passed
       ? 'Excellent work, ' + studentName + '! You scored ' + score + '/' + results.length + ' (' + pct + '%). You understood the topics well. Keep going!'
-      : 'Good effort, ' + studentName + '! You scored ' + score + '/' + results.length + ' (' + pct + '%). Read the topics once more and try again. You can do it!'
+      : 'Good effort, ' + studentName + '! You scored ' + score + '/' + results.length + ' (' + pct + '%). Read the topics once more and try again after 2 hours. You can do it!'
   });
 }
+
 
 async function handleCreatePayment(env, body, userData) {
   const amount = Number(body.price || 0);
