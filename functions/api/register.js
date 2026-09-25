@@ -27,7 +27,7 @@ function generateAcademyId() {
   for (let i = 0; i < 6; i++) {
     num += digits[Math.floor(Math.random() * digits.length)];
   }
-  return 'IDTA/V3/' + num;
+  return 'IDTA/23/' + num;
 }
 
 function normalizeEmail(email) {
