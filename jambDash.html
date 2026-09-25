@@ -1434,6 +1434,10 @@ textarea{resize:vertical}
     padding: 20px;
   }
 }
+
+.results-card .rc-footer{position:sticky;bottom:0;z-index:5;background:#fff;border-top:1px solid var(--line);box-shadow:0 -6px 18px rgba(0,0,0,.08)}
+.results-card .rc-header{position:sticky;top:0;z-index:6;background:#fff;border-bottom:1px solid var(--line)}
+
 </style>
 </head>
 <body>
@@ -1562,8 +1566,10 @@ textarea{resize:vertical}
         <p class="rc-title">Refer your friends to IDT Academy</p>
       </div>
       <div class="referral-actions">
-        <button class="btn-exam-start hidden" id="refBackToLearningBtn"><i class="fas fa-book-open"></i> Back to Learning</button>
+       
         <button class="btn-exam-start" id="referralPageBtn"><i class="fas fa-link"></i> Go to Referral</button>
+        
+         <button class="btn-exam-start hidden" id="refBackToLearningBtn"><i class="fas fa-book-open"></i> Back to Learning</button>
       </div>
     </div>
   </div>
