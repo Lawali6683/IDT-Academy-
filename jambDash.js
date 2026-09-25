@@ -1100,9 +1100,87 @@ el.tvNextBtn.addEventListener('click', function() {
   }
 });
 
-el.finalExamBtn.addEventListener('click', function() {
+
+
+let allCompleteCooldownInterval = null;
+
+function formatCooldownText(ms) {
+  const totalSecs = Math.max(0, Math.ceil(ms / 1000));
+  const h = Math.floor(totalSecs / 3600);
+  const m = Math.floor((totalSecs % 3600) / 60);
+  const s = totalSecs % 60;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function stopAllCompleteCooldown() {
+  if (allCompleteCooldownInterval) {
+    clearInterval(allCompleteCooldownInterval);
+    allCompleteCooldownInterval = null;
+  }
+  const box = document.getElementById('allCompleteCooldown');
+  if (box) box.classList.add('hidden');
+}
+
+async function startAllCompleteCooldown(userId) {
+  stopAllCompleteCooldown();
+  let failTime = 0;
+  try {
+    failTime = await withTimeout(getExamFailTime(userId), 10000, 'cooldown check timeout');
+  } catch (e) {
+    try { failTime = parseInt(localStorage.getItem('idt_exam_failed_' + userId), 10) || 0; } catch (err) {}
+  }
+  const rem = failTime + EXAM_COOLDOWN_MS - Date.now();
+  if (!failTime || rem <= 0) return;
+  const box = document.getElementById('allCompleteCooldown');
+  const timer = document.getElementById('allCompleteCooldownTimer');
+  if (!box || !timer) return;
+  box.classList.remove('hidden');
+  timer.textContent = formatCooldownText(rem);
+  allCompleteCooldownInterval = setInterval(function() {
+    const r = failTime + EXAM_COOLDOWN_MS - Date.now();
+    if (r <= 0) {
+      stopAllCompleteCooldown();
+      localStorage.removeItem('idt_exam_failed_' + userId);
+      showToast('Cooldown finished. You can now start your exam!', 'success', 6000);
+    } else {
+      timer.textContent = formatCooldownText(r);
+    }
+  }, 1000);
+}
+
+el.finalExamBtn.addEventListener('click', async function() {
+  if (this.dataset.busy === '1') return;
+  const btn = this;
+  const u = getLocalUser();
+  if (!u) return;
+
+  btn.dataset.busy = '1';
+  setBtnLoading(btn, 'Checking...');
+
+  let failTime = 0;
+  try {
+    failTime = await withTimeout(getExamFailTime(u.id), 10000, 'cooldown check timeout');
+  } catch (e) {
+    try { failTime = parseInt(localStorage.getItem('idt_exam_failed_' + u.id), 10) || 0; } catch (err) {}
+  }
+  const rem = failTime + EXAM_COOLDOWN_MS - Date.now();
+  if (failTime && rem > 0) {
+    const totalMin = Math.ceil(rem / 60000);
+    const hrs = Math.floor(rem / 3600000);
+    const mins = Math.floor((rem % 3600000) / 60000);
+    resetBtnLoading(btn);
+    delete btn.dataset.busy;
+    showToast('Please wait: ' + hrs + ' hour' + (hrs !== 1 ? 's' : '') + ' ' + mins + ' minute' + (mins !== 1 ? 's' : '') + ' remaining before you can retake the exam.', 'warning', 8000);
+    startAllCompleteCooldown(u.id);
+    return;
+  }
+
+  btn.dataset.busy = '0';
   openExamLock();
+  resetBtnLoading(btn);
+  delete btn.dataset.busy;
 });
+
 
 
 
@@ -1125,6 +1203,8 @@ function backToLearning() {
   } else {
     showLearningView();
   }
+  const uid = currentUser && currentUser.id ? currentUser.id : (getLocalUser() || {}).id;
+  if (uid) startAllCompleteCooldown(uid);
   el.learningSection.scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -1185,11 +1265,8 @@ function clearExamCooldownUi() {
   el.cooldownDisplay.classList.add('hidden');
   el.startExamBtn.disabled = false;
   el.startExamBtn.innerHTML = '<i class="fas fa-play"></i> Start Exam Now';
+  stopAllCompleteCooldown();
 }
-
-
-
-
 
 
 function fetchWithTimeout(url, opts, ms) {
