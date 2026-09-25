@@ -739,19 +739,7 @@ textarea{resize:vertical}
 }
 .net-pause-btn:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(0,104,56,.25)}
 
-.results-overlay{
-  position:fixed;inset:0;z-index:700;
-  background:rgba(30,27,75,.5);
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  display:none;align-items:center;justify-content:center;
-  padding:16px;animation:fadeInOverlay .3s ease;
-}
-.results-overlay.active{display:flex}
-.results-card{
-  width:100%;max-width:720px;max-height:92vh;overflow-y:auto;
-  background:#fff;border-radius:24px;box-shadow:0 40px 100px rgba(0,0,0,.25);
-  animation:modalSlideUp .35s cubic-bezier(.22,.68,0,1);
-}
+
 .results-card .rc-header{
   text-align:center;padding:30px 24px 20px;
   background:linear-gradient(135deg,rgba(0,104,56,.04),rgba(124,58,237,.04));
@@ -949,7 +937,7 @@ textarea{resize:vertical}
   .certificate .cert-name{font-size:20px}
   .toast-container{left:16px;right:16px;bottom:16px;max-width:none}
   .ai-modal{margin:8px;border-radius:18px}
-  .results-card{margin:8px;border-radius:18px}
+ 
   .pgh-course-box .pgh-course-amount{font-size:24px}
   .net-pause-card .np-timer{font-size:34px}
 }
@@ -1435,14 +1423,88 @@ textarea{resize:vertical}
   }
 }
 
-.results-card .rc-footer{position:sticky;bottom:0;z-index:5;background:#fff;border-top:1px solid var(--line);box-shadow:0 -6px 18px rgba(0,0,0,.08)}
-.results-card .rc-header{position:sticky;top:0;z-index:6;background:#fff;border-bottom:1px solid var(--line)}
 
 
 #allCompleteCooldown{margin:14px auto 4px}
 #allCompleteCooldown p{color:var(--rose);font-weight:600;font-size:14px}
 #allCompleteCooldown .cd-timer{font-size:26px;font-weight:800;color:var(--ink);font-family:monospace}
 
+
+
+.results-overlay{
+  position:fixed;inset:0;z-index:700;
+  background:rgba(30,27,75,.6);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  display:none;align-items:stretch;justify-content:center;
+  padding:0;animation:fadeInOverlay .3s ease;
+}
+.results-overlay.active{display:flex}
+.results-card{
+  width:100%;height:100vh;height:100dvh;
+  max-width:100%;max-height:none;
+  background:#fff;border-radius:0;box-shadow:none;
+  display:flex;flex-direction:column;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  animation:modalSlideUp .35s cubic-bezier(.22,.68,0,1);
+  padding-top:env(safe-area-inset-top);
+  padding-bottom:env(safe-area-inset-bottom);
+  box-sizing:border-box;
+}
+.results-card .rc-header{
+  position:sticky;top:0;z-index:6;background:#fff;
+  border-bottom:1px solid var(--line);
+  text-align:center;padding:24px 20px 16px;flex-shrink:0;
+}
+.results-card .rc-header .rc-icon{font-size:44px;margin-bottom:8px}
+.results-card .rc-header .rc-icon.pass{color:var(--green)}
+.results-card .rc-header .rc-icon.fail{color:var(--rose)}
+.results-card .rc-header h2{font-size:20px;font-weight:800;color:var(--ink)}
+.results-card .rc-header p{color:var(--muted);font-size:13px;margin-top:4px}
+.results-card .rc-body{padding:18px 16px 24px;flex:1 0 auto;width:100%;max-width:720px;margin:0 auto;box-sizing:border-box}
+.results-card .rc-footer{
+  position:sticky;bottom:0;z-index:5;background:#fff;
+  border-top:1px solid var(--line);
+  box-shadow:0 -6px 18px rgba(0,0,0,.08);
+  display:flex;align-items:center;justify-content:center;
+  gap:10px;flex-wrap:wrap;
+  padding:14px 16px;
+  padding-bottom:max(14px,env(safe-area-inset-bottom));
+  max-width:720px;width:100%;margin:0 auto;box-sizing:border-box;flex-shrink:0;
+}
+.results-card .rc-footer button{
+  flex:1 1 130px;max-width:180px;
+  padding:12px 16px;border:none;border-radius:12px;
+  font-size:13px;font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  transition:all .2s;cursor:pointer;
+}
+.results-card .rc-footer .btn-rc-pdf{background:var(--jamb-green);color:#fff}
+.results-card .rc-footer .btn-rc-pdf:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,104,56,.2)}
+.results-card .rc-footer .btn-rc-ai{background:var(--violet);color:#fff}
+.results-card .rc-footer .btn-rc-ai:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(124,58,237,.2)}
+.results-card .rc-footer .btn-rc-back{background:rgba(0,104,56,.08);color:var(--jamb-green)}
+.results-card .rc-footer .btn-rc-back:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,104,56,.2)}
+.results-card .rc-footer .btn-rc-close{background:rgba(124,58,237,.06);color:var(--muted)}
+.results-card .rc-footer .btn-rc-close:hover{background:var(--rose);color:#fff}
+.exam-no-copy{
+  -webkit-user-select:none!important;
+  -moz-user-select:none!important;
+  -ms-user-select:none!important;
+  user-select:none!important;
+  -webkit-touch-callout:none!important;
+}
+.exam-no-copy *{
+  -webkit-user-select:none!important;
+  -moz-user-select:none!important;
+  -ms-user-select:none!important;
+  user-select:none!important;
+}
+@media(max-width:768px){
+  .results-card .rc-footer button{flex:1 1 100px;max-width:none;padding:11px 10px;font-size:12px}
+  .results-card .rc-header h2{font-size:17px}
+  .results-card .rc-body{padding:14px 12px 20px}
+}
 </style>
 </head>
 <body>
@@ -1508,14 +1570,12 @@ textarea{resize:vertical}
     </div>
   </div>
 
-  <div class="section-card">
+  <div class="section-card hidden" id="adSectionCard">
     <div class="section-header">
       <h2><i class="fas fa-ad"></i> Announcements</h2>
     </div>
     <div class="section-body" style="padding:12px 16px">
-      <div class="ad-slider" id="adSlider">
-        <div class="ad-empty"><i class="fas fa-bullhorn" style="margin-right:8px"></i> No announcements</div>
-      </div>
+      <div class="ad-slider" id="adSlider"></div>
       <div class="ad-dots" id="adDots"></div>
     </div>
   </div>
@@ -1824,6 +1884,9 @@ textarea{resize:vertical}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
 const aiInput = document.getElementById('aiInput');
