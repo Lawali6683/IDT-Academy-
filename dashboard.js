@@ -197,12 +197,13 @@ const $ = (id) => document.getElementById(id);
 let toastWrap = null;
 
 const PASS_MARK = 3;
-const RETRY_REGULAR_MS = 42 * 60 * 60 * 1000;
+const RETRY_REGULAR_MS = 2 * 60 * 60 * 1000;
 const RETRY_DIPLOMA_MS = 7 * 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const REGULAR_WATCH_SECONDS = 90;
 const ASSESS_BATCH_SIZE = 3;
 const STATUS_POLL_MS = 4000;
+const DATA_TTL_MS = 60 * 24 * 60 * 60 * 1000;
 const QUIZ_SECONDS = 180;
 
 let user = null;
@@ -469,6 +470,8 @@ function getPrimaryCourse() {
   return { course_id: '', course_name: '', course_number: '', course_price: 0, valid: false };
 }
 
+
+
 async function loadUpdateTable() {
   try {
     const { data, error } = await supabase
@@ -489,6 +492,7 @@ async function loadUpdateTable() {
     passedBatches = updateData.passed_batches || {};
     lastAssessFail = updateData.last_assess_fail || {};
     preferredLang = updateData.preferred_lang || 'English';
+    sessionSeconds = Number(updateData.reading_seconds) || 0;
   } catch (err) {
     updateData = {};
     watchedMap = {};
@@ -496,6 +500,7 @@ async function loadUpdateTable() {
     chatHistories = {};
     passedBatches = {};
     lastAssessFail = {};
+    sessionSeconds = 0;
   }
 }
 
@@ -577,19 +582,33 @@ function isWatched(topicIdx) {
   return arr.indexOf(topicIdx) !== -1;
 }
 
+
 function renderSessionClock() {
-  const m = Math.floor(sessionSeconds / 60);
-  const s = sessionSeconds % 60;
   const el = $('sessionTime');
-  if (el) el.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  if (!el) return;
+  const h = Math.floor(sessionSeconds / 3600);
+  const m = Math.floor((sessionSeconds % 3600) / 60);
+  const s = sessionSeconds % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  el.textContent = h > 0 ? h + ':' + pad(m) + ':' + pad(s) : pad(m) + ':' + pad(s);
+  const daysEl = $('sessionDays');
+  if (daysEl) {
+    const reg = regDate || (userData && userData.date_registered);
+    const days = weeksSince(reg);
+    daysEl.textContent = days > 0 ? (days + (days === 1 ? ' week' : ' weeks') + ' 🏢') : 'First week';
+  }
 }
 
 function startSessionClock() {
-  sessionSeconds = 0;
+  sessionSeconds = Number((updateData && updateData.reading_seconds) || 0);
+  renderSessionClock();
   if (sessionTimer) clearInterval(sessionTimer);
   sessionTimer = setInterval(() => {
     sessionSeconds++;
     renderSessionClock();
+    if (sessionSeconds % 60 === 0) {
+      saveUpdate({ reading_seconds: sessionSeconds, last_active: new Date().toISOString() });
+    }
   }, 1000);
 }
 
@@ -1037,6 +1056,73 @@ function renderProgress() {
   }
 }
 
+
+function detectTopicLanguageLocal(text) {
+  const t = String(text || '').toLowerCase();
+  if (!t.trim()) return 'English';
+  const scores = { Hausa: 0, Yoruba: 0, Igbo: 0, French: 0, Spanish: 0 };
+  const hausa = [' yana ', ' kuma ', ' wannan ', ' domin ', ' nufin ', ' yara ', ' abin ', ' kana ', ' kamar ', ' sai ', ' zai ', ' mutane ', ' abin ', ' gaskiya '];
+  const yoruba = [' nitori ', ' pupo ', ' jare ', ' ejo ', ' ko ni ', ' ti o ', ' fun ', ' won ', ' mo fe '];
+  const igbo = [' na ', ' nke ', ' maka ', ' anyi ', ' gi ', ' ha ', ' oma ', ' biko '];
+  const french = [' le ', ' la ', ' les ', ' une ', ' est ', ' pour ', ' avec ', ' vous ', ' nous '];
+  const spanish = [' el ', ' la ', ' los ', ' una ', ' es ', ' para ', ' con ', ' usted ', ' nosotros '];
+  const count = (list) => list.reduce((n, w) => n + (t.split(w).length - 1), 0);
+  scores.Hausa = count(hausa);
+  scores.Yoruba = count(yoruba);
+  scores.Igbo = count(igbo);
+  scores.French = count(french);
+  scores.Spanish = count(spanish);
+  let best = 'English';
+  let bestScore = 2;
+  Object.keys(scores).forEach((lang) => {
+    if (scores[lang] > bestScore) {
+      bestScore = scores[lang];
+      best = lang;
+    }
+  });
+  return best;
+}
+
+async function cleanupOldSupabaseData() {
+  try {
+    const cutoff = Date.now() - DATA_TTL_MS;
+    let changed = false;
+    if (Array.isArray(userData.assessment_grade) && userData.assessment_grade.length) {
+      const keep = userData.assessment_grade.filter((g) => {
+        const ts = g && g.date ? new Date(g.date).getTime() : Date.now();
+        return isFinite(ts) && ts >= cutoff;
+      });
+      if (keep.length !== userData.assessment_grade.length) {
+        userData.assessment_grade = keep;
+        changed = true;
+      }
+    }
+    Object.keys(lastAssessFail).forEach((k) => {
+      if (!lastAssessFail[k] || lastAssessFail[k] < cutoff) {
+        delete lastAssessFail[k];
+        changed = true;
+      }
+    });
+    Object.keys(passedBatches).forEach((k) => {
+      if (!Array.isArray(passedBatches[k]) || passedBatches[k].length === 0) {
+        delete passedBatches[k];
+        changed = true;
+      }
+    });
+    Object.keys(chatHistories).forEach((k) => {
+      if (Array.isArray(chatHistories[k]) && chatHistories[k].length === 0) {
+        delete chatHistories[k];
+        changed = true;
+      }
+    });
+    if (changed) {
+      await saveUpdate({ passed_batches: passedBatches, last_assess_fail: lastAssessFail, chat_history: chatHistories });
+      try {
+        await saveUserData();
+      } catch (_) {}
+    }
+  } catch (_) {}
+}
 
 
 function renderDiplomaLock() {
@@ -1604,7 +1690,7 @@ function flagAntiCheat(msg) {
   if (quizState.flags >= 2) {
     submitQuiz(true);
   } else {
-    showToast('error', 'Warning!', msg + ' This is recorded.', 'Flag ' + quizState.flags + '/2');
+    showToast('error', 'Keep Going!', 'You scored ' + score + '/' + qs.length + '. Read the topics again and retry in 2 hours.');
   }
 }
 
@@ -2197,15 +2283,17 @@ async function emailResult() {
 }
 
 function markdownToHtml(md) {
-  let html = escapeHtml(String(md || ''));
+  let text = String(md || '');
+  text = text.replace(/^\s*#{1,6}\s*/gm, '');
+  let html = escapeHtml(text);
   html = html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-  html = html.replace(/\*(.+?)\*/g, '<i>$1</i>');
-  html = html.replace(/`(.+?)\`/g, '<code>$1</code>');
+  html = html.replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,!?:;]|$)/g, '$1<i>$2</i>');
+  html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  html = html.replace(/^\s*[-•]\s+/gm, '&bull; ');
+  html = html.replace(/^\s*(\d+)[.)]\s+/gm, '<b>$1.</b> ');
   html = html.replace(/\n/g, '<br>');
   return html;
 }
-
-
 
 
 
@@ -2300,6 +2388,7 @@ function openChat() {
  
  
  
+ 
 async function handleExplain(lang, dual) {
   if (!currentTopic) return;
   const grid = $('langGrid');
@@ -2321,25 +2410,29 @@ async function handleExplain(lang, dual) {
       course_id: activeCourseId,
       course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
       topic_name: currentTopic.topic_name || '',
-      topic_text: String(currentTopic.topic_text || '').slice(0, 3000),
+      topic_text: String(currentTopic.topic_text || '').slice(0, 4000),
       target_lang: lang,
       explain_mode: dual ? 'dual' : 'single'
     });
+    if (res.language_available === false) {
+      miniHide();
+      showToast('error', 'Language Not Available', (res.message || (lang + ' is not available yet. Please try another language.')), '');
+      return;
+    }
     const explanation = res.explanation || res.message || 'No explanation returned.';
     if (result) {
       result.innerHTML = '<b style="display:block;color:#a78bfa;margin-bottom:8px">' + aiIconHtml() + ' Explanation in ' + escapeHtml(dual ? 'English + ' + lang : lang) + '</b>' + markdownToHtml(explanation);
       result.classList.remove('hidden');
     }
     if (note) note.textContent = 'You can also ask questions about this explanation using "Ask Question".';
-    if (!dual) setPreferredLang(lang);
+    setPreferredLang(lang);
     miniHide();
-    showToast('success', 'Explanation Ready', 'Here is your explanation.');
+    showToast('success', 'Explanation Ready', 'Here is your explanation in ' + lang + '.');
   } catch (err) {
     miniHide();
     showToast('error', 'Explain Failed', 'Could not create the explanation. Please try again.', err.message || String(err));
   }
 }
-
 
 function startCountdown() {
   if (!paymentState) return;
@@ -2564,15 +2657,13 @@ async function startPayment() {
 
 
 
-
-
-
 async function loadDashboard() {
   showLoading();
   try {
     await loadCourseInfos();
     await refreshProfile();
     await loadUpdateTable();
+    await cleanupOldSupabaseData();
     const cleanUd = sanitizeUserData(userData);
     courseList = collectCourses(cleanUd);
     for (const c of courseList) {
@@ -2788,20 +2879,16 @@ domReady(() => {
     window.location.href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent((userData && userData.referral_code) || '');
   });
 
+ 
+ 
   document.querySelectorAll('.social-chip').forEach((chip) => {
     chip.addEventListener('click', async () => {
-    
       const link = buildReferralLink();
       const text = 'Join me at IDT Academy! Learn modern skills online. Use my referral link: ' + link;
       if (chip.classList.contains('wa')) {
         window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
         return;
-      const dualBtn = $('btnDualLang');
-if (dualBtn) {
-  dualBtn.addEventListener('click', () => handleExplain(getPreferredLang(), true));
-}
-   }   
-      
+      }
       if (chip.classList.contains('x')) {
         window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
         return;
@@ -2819,6 +2906,8 @@ if (dualBtn) {
     });
   });
 
+  on('btnDualLang', 'click', () => handleExplain(getPreferredLang(), true));
+  
   on('userAvatar', 'click', openMyCourses);
 
   on('pendingCourseBox', 'click', () => {
@@ -2865,6 +2954,22 @@ if (dualBtn) {
     const o = $('chatOverlay');
     if (o) o.classList.remove('open');
   });
+
+function openExplainOverlay() {
+    const otherRow = $('otherLangRow');
+    const grid = $('langGrid');
+    const result = $('explainResult');
+    const note = $('explainNote');
+    const overlay = $('explainOverlay');
+    if (otherRow) otherRow.classList.add('hidden');
+    if (grid) grid.classList.remove('hidden');
+    if (result) result.classList.add('hidden');
+    if (note) note.textContent = '';
+    if (overlay) overlay.classList.add('open');
+  }
+
+  on('btnExplainLang', 'click', openExplainOverlay);
+  on('videoExplainFloat', 'click', openExplainOverlay);
 
   on('chatForm', 'submit', handleChatSubmit);
 
