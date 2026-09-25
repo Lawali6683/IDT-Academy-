@@ -1,3 +1,4 @@
+
 import { supabase } from './supabase.js';
 
 const $ = (sel, ctx) => (ctx || document).querySelector(sel);
@@ -1189,42 +1190,6 @@ function clearExamCooldownUi() {
 
 
 
-async function openExamLock() {
-  const u = getLocalUser();
-  if (!u) return;
-  const progress = getStoredProgress();
-  if (!isExamUnlocked(progress)) {
-    showToast('You must finish reading all topics, including the final topic, before the exam is unlocked.', 'warning', 6000);
-    return;
-  }
-  clearExamCooldownUi();
-  showLoading(true);
-  let failTime = 0;
-  try {
-    failTime = await withTimeout(getExamFailTime(u.id), 15000, 'cooldown check timeout');
-  } catch (e) {
-    failTime = 0;
-    try { failTime = parseInt(localStorage.getItem('idt_exam_failed_' + u.id), 10) || 0; } catch (err2) {}
-  }
-  showLoading(false);
-  const diff = failTime + EXAM_COOLDOWN_MS - Date.now();
-  if (failTime && diff > 0) {
-    el.startExamBtn.disabled = true;
-    el.cooldownDisplay.classList.remove('hidden');
-    updateCooldownTimer(diff);
-    examCooldownInterval = setInterval(function() {
-      const rem = failTime + EXAM_COOLDOWN_MS - Date.now();
-      if (rem <= 0) {
-        clearExamCooldownUi();
-        localStorage.removeItem('idt_exam_failed_' + u.id);
-      } else {
-        updateCooldownTimer(rem);
-      }
-    }, 1000);
-  }
-  el.examLockOverlay.classList.add('active');
-}
-
 
 
 function fetchWithTimeout(url, opts, ms) {
@@ -1366,9 +1331,61 @@ async function generateExamQuestions() {
 }
 
 
+
+
+async function openExamLock() {
+  const u = getLocalUser();
+  if (!u) return;
+  const progress = getStoredProgress();
+  if (!isExamUnlocked(progress)) {
+    showToast('You must finish reading all topics, including the final topic, before the exam is unlocked.', 'warning', 6000);
+    return;
+  }
+  clearExamCooldownUi();
+  showLoading(true);
+  let failTime = 0;
+  try {
+    failTime = await withTimeout(getExamFailTime(u.id), 15000, 'cooldown check timeout');
+  } catch (e) {
+    failTime = 0;
+    try { failTime = parseInt(localStorage.getItem('idt_exam_failed_' + u.id), 10) || 0; } catch (err2) {}
+  }
+  showLoading(false);
+  const diff = failTime + EXAM_COOLDOWN_MS - Date.now();
+  if (failTime && diff > 0) {
+    el.cooldownDisplay.classList.remove('hidden');
+    updateCooldownTimer(diff);
+    examCooldownInterval = setInterval(function() {
+      const rem = failTime + EXAM_COOLDOWN_MS - Date.now();
+      if (rem <= 0) {
+        clearExamCooldownUi();
+        localStorage.removeItem('idt_exam_failed_' + u.id);
+      } else {
+        updateCooldownTimer(rem);
+      }
+    }, 1000);
+  }
+  el.examLockOverlay.classList.add('active');
+}
+
 el.startExamBtn.addEventListener('click', async function() {
-  if (this.disabled) return;
+  if (this.dataset.busy === '1') return;
   const btn = this;
+
+  const uLock = getLocalUser();
+  let failTime = 0;
+  try {
+    failTime = await withTimeout(getExamFailTime(uLock.id), 15000, 'cooldown check timeout');
+  } catch (e) {
+    try { failTime = parseInt(localStorage.getItem('idt_exam_failed_' + uLock.id), 10) || 0; } catch (err) {}
+  }
+  const rem = failTime + EXAM_COOLDOWN_MS - Date.now();
+  if (failTime && rem > 0) {
+    const hrs = Math.floor(rem / 3600000);
+    const mins = Math.floor((rem % 3600000) / 60000);
+    showToast('You can retry the exam in ' + hrs + ' hour' + (hrs !== 1 ? 's' : '') + ' ' + mins + ' minute' + (mins !== 1 ? 's' : '') + '. Please wait for the countdown to finish.', 'warning', 8000);
+    return;
+  }
 
   const progress = getStoredProgress();
   if (!isExamUnlocked(progress)) {
@@ -1377,6 +1394,7 @@ el.startExamBtn.addEventListener('click', async function() {
     return;
   }
 
+  btn.dataset.busy = '1';
   setBtnLoading(btn, 'Preparing...');
   const safety = setTimeout(function() { showLoading(false); }, 120000);
 
@@ -1386,6 +1404,7 @@ el.startExamBtn.addEventListener('click', async function() {
     if (!ok) {
       clearTimeout(safety);
       resetBtnLoading(btn);
+      delete btn.dataset.busy;
       showToast('Could not start the exam right now. Please click "Start Exam Now" again.', 'error', 7000);
       return;
     }
@@ -1396,12 +1415,14 @@ el.startExamBtn.addEventListener('click', async function() {
 
     if (!camOk) {
       resetBtnLoading(btn);
+      delete btn.dataset.busy;
       showToast('Camera access is required before starting the exam. Please enable your camera and try again.', 'error', 6000);
       return;
     }
 
     el.examLockOverlay.classList.remove('active');
     resetBtnLoading(btn);
+    delete btn.dataset.busy;
     startExam();
 
   } catch (err) {
@@ -1410,6 +1431,7 @@ el.startExamBtn.addEventListener('click', async function() {
     showToast('An error occurred while preparing the exam. Please try again.', 'error', 7000);
     stopCamera();
     resetBtnLoading(btn);
+    delete btn.dataset.busy;
     showLoading(false);
   }
 });
@@ -1483,9 +1505,11 @@ async function requireCamera() {
     if (el.camFloatVideo) el.camFloatVideo.srcObject = stream;
     if (el.camFloatingWidget) {
       el.camFloatingWidget.classList.remove('hidden');
-      el.camFloatingWidget.style.top = '70px';
-      el.camFloatingWidget.style.right = '12px';
-      el.camFloatingWidget.style.left = 'auto';
+      const w = el.camFloatingWidget.offsetWidth || 110;
+      const h = el.camFloatingWidget.offsetHeight || 110;
+      el.camFloatingWidget.style.right = 'auto';
+      el.camFloatingWidget.style.left = Math.max(0, (window.innerWidth / 2) - (w / 2)) + 'px';
+      el.camFloatingWidget.style.top = Math.max(0, window.innerHeight - h - 96) + 'px';
       enableCamDrag();
     }
     return true;
@@ -1494,7 +1518,6 @@ async function requireCamera() {
     return false;
   }
 }
-
 
 function startExam() {
   if (!examQuestions || examQuestions.length === 0) {
@@ -1524,6 +1547,38 @@ function startExam() {
 }
 
 
+function allQuestionsAnswered() {
+  return examQuestions.length > 0 && examAnswers.every(function(a) { return a !== null && a !== undefined; });
+}
+
+function updateSubmitButton() {
+  if (!el.submitExamBtn) return;
+  if (allQuestionsAnswered()) {
+    el.submitExamBtn.disabled = false;
+    el.submitExamBtn.innerHTML = '<i class="fas fa-check-double"></i> Submit Exam';
+  } else {
+    el.submitExamBtn.disabled = true;
+    el.submitExamBtn.innerHTML = '<i class="fas fa-lock"></i> Answer All Questions to Submit';
+  }
+}
+
+function showConfirmToast(msg, onConfirm) {
+  if (!el.toastContainer) {
+    if (confirm(msg)) onConfirm();
+    return;
+  }
+  const t = document.createElement('div');
+  t.className = 'toast warning';
+  t.style.flexDirection = 'column';
+  t.style.alignItems = 'stretch';
+  t.innerHTML = '<div style="display:flex;align-items:center;gap:12px"><span class="toast-icon"><i class="fas fa-circle-question"></i></span><span class="toast-text">' + escapeHtml(msg) + '</span></div><div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px"><button class="ct-cancel" style="padding:9px 18px;border:1.5px solid var(--line);border-radius:10px;background:transparent;color:var(--ink);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button><button class="ct-ok" style="padding:9px 18px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--jamb-green),var(--violet));color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Submit Exam</button></div>';
+  el.toastContainer.appendChild(t);
+  t.querySelector('.ct-cancel').onclick = function() { removeToast(t); };
+  t.querySelector('.ct-ok').onclick = function() { removeToast(t); onConfirm(); };
+  setTimeout(function() { removeToast(t); }, 15000);
+}
+
+
 function startExamTimer() {
   if (examTimerInterval) clearInterval(examTimerInterval);
   examTimerInterval = setInterval(function() {
@@ -1550,20 +1605,7 @@ function stopExamTimer() {
   }
 }
 
-function examKeyHandler(e) {
-  if (netPaused) return;
-  const key = e.key.toUpperCase();
-  if (key === 'A' || key === 'B' || key === 'C' || key === 'D') {
-    const idx = key.charCodeAt(0) - 65;
-    selectExamOption(idx);
-  } else if (key === 'N') {
-    goExamNext();
-  } else if (key === 'P') {
-    goExamPrev();
-  } else if (key === 'S') {
-    if (confirm('Submit exam? You cannot change answers after submission.')) submitExam();
-  }
-}
+
 
 
 
@@ -1606,10 +1648,12 @@ function renderExamQuestion(index) {
   });
 
   renderExamGrid();
+  updateSubmitButton();
   $$('.es-btn', el.examSubjects).forEach(function(b) {
     b.classList.toggle('active', b.dataset.subject === q.subject);
   });
 }
+
 
 function selectExamOption(optIndex) {
   if (!examStarted || netPaused) return;
@@ -1622,9 +1666,21 @@ function goExamPrev() {
   if (currentExamQ > 0) renderExamQuestion(currentExamQ - 1);
 }
 
+
 function goExamNext() {
   if (netPaused) return;
-  if (currentExamQ < examQuestions.length - 1) renderExamQuestion(currentExamQ + 1);
+  if (currentExamQ < examQuestions.length - 1) {
+    renderExamQuestion(currentExamQ + 1);
+    return;
+  }
+  const unanswered = examQuestions.length - examAnswers.filter(function(a) { return a !== null && a !== undefined; }).length;
+  if (unanswered > 0) {
+    showToast(unanswered + ' question(s) are still unanswered. Answer all questions before submitting.', 'warning', 6000);
+    return;
+  }
+  showConfirmToast('This is the last question. Do you want to submit your exam? You cannot change your answers after submission.', function() {
+    submitExam(false);
+  });
 }
 
 el.examPrevBtn.addEventListener('click', goExamPrev);
@@ -1667,13 +1723,21 @@ function showAiSecurityWarning() {
 }
 
 
+
+
+
+
+
+
+
+
+
 function preventCopy(e) {
   e.preventDefault();
   e.stopPropagation();
   showAiSecurityWarning();
   return false;
 }
-
 
 function preventScreenshotAttempt() {
   showAiSecurityWarning();
@@ -1697,8 +1761,6 @@ function enableExamProtection() {
   document.body.classList.add('exam-no-copy');
   document.addEventListener('copy', preventCopy, true);
   document.addEventListener('cut', preventCopy, true);
-  document.addEventListener('contextmenu', preventCopy, true);
-  document.addEventListener('selectstart', preventCopy, true);
   document.addEventListener('keyup', blockPrintScreen, true);
   document.addEventListener('keydown', blockPrintScreen, true);
   document.addEventListener('visibilitychange', screenshotVisibilityGuard, true);
@@ -1719,14 +1781,11 @@ function disableExamProtection() {
   document.body.classList.remove('exam-no-copy');
   document.removeEventListener('copy', preventCopy, true);
   document.removeEventListener('cut', preventCopy, true);
-  document.removeEventListener('contextmenu', preventCopy, true);
-  document.removeEventListener('selectstart', preventCopy, true);
   document.removeEventListener('keyup', blockPrintScreen, true);
   document.removeEventListener('keydown', blockPrintScreen, true);
   document.removeEventListener('visibilitychange', screenshotVisibilityGuard, true);
   window.removeEventListener('blur', screenshotBlurGuard, true);
 }
-
 
 
 
@@ -1805,8 +1864,34 @@ window.addEventListener('offline', function() {
   pauseExamForNetwork();
 });
 
+
+
+
+
+function examKeyHandler(e) {
+  if (netPaused) return;
+  const key = e.key.toUpperCase();
+  if (key === 'A' || key === 'B' || key === 'C' || key === 'D') {
+    const idx = key.charCodeAt(0) - 65;
+    selectExamOption(idx);
+  } else if (key === 'N') {
+    goExamNext();
+  } else if (key === 'P') {
+    goExamPrev();
+  } else if (key === 'S') {
+    if (!allQuestionsAnswered()) {
+      showToast('You must answer all questions before submitting.', 'warning', 6000);
+      return;
+    }
+    showConfirmToast('Submit exam? You cannot change answers after submission.', function() { submitExam(); });
+  }
+}
+
 async function submitExam(auto) {
-  if (!auto && !confirm('Are you sure you want to submit? You cannot change your answers after submission.')) return;
+  if (!auto && !allQuestionsAnswered()) {
+    showToast('You must answer all questions before submitting.', 'warning', 6000);
+    return;
+  }
   examStarted = false;
   stopExamTimer();
   document.removeEventListener('keydown', examKeyHandler);
@@ -1871,6 +1956,21 @@ async function submitExam(auto) {
     saveExamToHistory(fallback);
   }
 }
+
+el.submitExamBtn.addEventListener('click', function() {
+  if (this.disabled) return;
+  if (!allQuestionsAnswered()) {
+    showToast('You must answer all questions before submitting.', 'warning', 6000);
+    return;
+  }
+  showConfirmToast('Are you sure you want to submit your exam? You cannot change your answers after submission.', async function() {
+    setBtnLoading(el.submitExamBtn, 'Submitting...');
+    await submitExam(false);
+    resetBtnLoading(el.submitExamBtn);
+  });
+});
+
+
 
 function markLocally() {
   let correct = 0;
@@ -2030,12 +2130,6 @@ function showExamResults(data) {
 }
 
 
-el.submitExamBtn.addEventListener('click', async function() {
-  if (!confirm('Are you sure you want to submit? You cannot change your answers after submission.')) return;
-  setBtnLoading(this, 'Submitting...');
-  await submitExam(false);
-  resetBtnLoading(this);
-});
 
 function saveExamToHistory(data) {
   const u = getLocalUser();
@@ -2068,35 +2162,79 @@ function resetExamState() {
   }
 }
 
+
+
+
 function downloadResultsPdf(data) {
   const u = getLocalUser();
   const name = u ? u.full_name || 'Student' : 'Student';
   const dept = u ? u.jambCourseName || '' : '';
   const date = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  const div = document.createElement('div');
-  div.style.cssText = 'padding:30px;font-family:Poppins,sans-serif;max-width:800px;margin:0 auto';
-  div.innerHTML = '<div style="text-align:center;margin-bottom:20px;display:flex;justify-content:center;align-items:center;gap:12px"><img src="https://i.imgur.com/2DY6OD4.png" style="height:40px"><span style="width:2px;height:32px;background:#006838;opacity:.3"></span><img src="https://i.imgur.com/oyqM5oF.png" style="height:40px"></div><h1 style="text-align:center;font-size:18px;color:#006838;margin-bottom:4px">IDT Academy JAMB Mock Exam Result</h1><p style="text-align:center;color:#6d6a8a;font-size:13px;margin-bottom:20px">' + date + '</p><div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #ddd;font-size:14px"><span><strong>Name:</strong> ' + escapeHtml(name) + '</span><span><strong>Score:</strong> ' + data.score + '/400</span></div><div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #ddd;font-size:14px"><span><strong>Department:</strong> ' + escapeHtml(dept) + '</span><span><strong>Status:</strong> ' + (data.passed ? 'PASS' : 'FAIL') + '</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:20px 0">';
+  const watermark = '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);opacity:.06;z-index:0"><img src="https://i.imgur.com/oyqM5oF.png" style="width:150mm"></div>';
+  const signatures = '<div style="position:relative;z-index:1;display:flex;justify-content:space-around;align-items:flex-end;margin-top:30px"><div style="text-align:center"><img src="https://i.imgur.com/z8HOr4D.png" style="height:52px;object-fit:contain;margin:0 auto 4px"><div style="font-size:13px;font-weight:800;color:#1e1b4b">Haruna Lawali</div><div style="font-size:11px;color:#6d6a8a">Founder</div></div><div style="text-align:center"><img src="https://i.imgur.com/leqHq9I.png" style="height:52px;object-fit:contain;margin:0 auto 4px"><div style="font-size:13px;font-weight:800;color:#1e1b4b">Ubaida Lawali</div><div style="font-size:11px;color:#6d6a8a">CEO, IDT Academy</div></div></div>';
+  const pageFoot = '<div style="position:absolute;bottom:8mm;left:0;right:0;text-align:center;font-size:9px;color:#6d6a8a;z-index:1">Powered by IDT Academy — JAMB Preparation Platform</div>';
+  const pageBase = 'width:210mm;height:296mm;position:relative;overflow:hidden;background:#ffffff;padding:14mm;box-sizing:border-box;font-family:Poppins,Arial,sans-serif;color:#1e1b4b;';
+
+  const pages = [];
+
+  let p1 = '<div style="' + pageBase + 'page-break-after:always">' + watermark;
+  p1 += '<div style="position:relative;z-index:1;display:flex;justify-content:center;align-items:center;gap:12px;margin-bottom:10px"><img src="https://i.imgur.com/2DY6OD4.png" style="height:38px"><span style="width:2px;height:30px;background:#006838;opacity:.3"></span><img src="https://i.imgur.com/oyqM5oF.png" style="height:38px"></div>';
+  p1 += '<h1 style="position:relative;z-index:1;text-align:center;font-size:18px;color:#006838;margin:0 0 4px">IDT Academy JAMB Mock Exam Result</h1>';
+  p1 += '<p style="position:relative;z-index:1;text-align:center;color:#6d6a8a;font-size:12px;margin:0 0 16px">' + date + '</p>';
+  p1 += '<div style="position:relative;z-index:1;display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e5e7eb;font-size:13px"><span><strong>Name:</strong> ' + escapeHtml(name) + '</span><span><strong>Score:</strong> ' + data.score + '/400</span></div>';
+  p1 += '<div style="position:relative;z-index:1;display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e5e7eb;font-size:13px"><span><strong>Department:</strong> ' + escapeHtml(dept) + '</span><span><strong>Status:</strong> ' + (data.passed ? 'PASS' : 'FAIL') + '</span></div>';
+  p1 += '<div style="position:relative;z-index:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:18px 0">';
   if (data.subjects) {
     data.subjects.forEach(function(s) {
       const pct = s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0;
-      div.innerHTML += '<div style="text-align:center;padding:10px;background:#f8f6ff;border-radius:8px"><div style="font-size:12px;font-weight:700;color:#6d6a8a;text-transform:uppercase">' + escapeHtml(s.subject) + '</div><div style="font-size:20px;font-weight:800;color:#1e1b4b">' + pct + '</div><div style="font-size:11px;color:#6d6a8a">' + s.correct + '/' + s.total + '</div></div>';
+      p1 += '<div style="text-align:center;padding:10px;background:#f8f6ff;border-radius:8px"><div style="font-size:11px;font-weight:700;color:#6d6a8a;text-transform:uppercase">' + escapeHtml(s.subject) + '</div><div style="font-size:20px;font-weight:800;color:#1e1b4b">' + pct + '</div><div style="font-size:10px;color:#6d6a8a">' + s.correct + '/' + s.total + '</div></div>';
     });
   }
-  div.innerHTML += '</div><div style="text-align:center;padding:16px;background:linear-gradient(135deg,rgba(0,104,56,.06),rgba(124,58,237,.06));border-radius:12px;margin-bottom:20px"><div style="font-size:13px;color:#6d6a8a;font-weight:600;text-transform:uppercase">Total Score</div><div style="font-size:36px;font-weight:900;color:#1e1b4b">' + data.score + '/400</div><div style="font-size:15px;font-weight:700;color:' + (data.passed ? '#10b981' : '#f43f5e') + '">' + (data.passed ? 'PASS' : 'FAIL') + '</div></div>';
-  if (data.details) {
-    div.innerHTML += '<h3 style="font-size:14px;font-weight:700;margin-bottom:8px;color:#1e1b4b">Question Details</h3>';
-    data.details.slice(0, 30).forEach(function(d) {
+  p1 += '</div>';
+  p1 += '<div style="position:relative;z-index:1;text-align:center;padding:16px;background:linear-gradient(135deg,rgba(0,104,56,.06),rgba(124,58,237,.06));border-radius:12px;margin-bottom:10px"><div style="font-size:12px;color:#6d6a8a;font-weight:600;text-transform:uppercase">Total Score</div><div style="font-size:36px;font-weight:900;color:#1e1b4b">' + data.score + '/400</div><div style="font-size:15px;font-weight:700;color:' + (data.passed ? '#10b981' : '#f43f5e') + '">' + (data.passed ? 'PASS' : 'FAIL') + '</div></div>';
+  p1 += signatures + pageFoot + '</div>';
+  pages.push(p1);
+
+  const details = data.details || [];
+  for (let i = 0; i < details.length; i += 20) {
+    const chunk = details.slice(i, i + 20);
+    const isLast = (i + 20) >= details.length;
+    let p = '<div style="' + pageBase + (isLast ? 'page-break-after:auto' : 'page-break-after:always') + '">' + watermark;
+    p += '<div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:13px;font-weight:800;color:#006838">Question Review (' + (i + 1) + '–' + (i + chunk.length) + ' of ' + details.length + ')</div><div style="font-size:10px;color:#6d6a8a">' + escapeHtml(name) + ' • ' + date + '</div></div>';
+    chunk.forEach(function(d) {
       const userLetter = d.user_answer !== null && d.user_answer !== undefined ? String.fromCharCode(65 + d.user_answer) : 'N/A';
       const correctLetter = String.fromCharCode(65 + d.correct);
-      div.innerHTML += '<div style="padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;margin-bottom:6px;font-size:12px;display:flex;align-items:center;gap:8px"><span style="color:' + (d.is_correct ? '#10b981' : '#f43f5e') + '">' + (d.is_correct ? '&#10003;' : '&#10007;') + '</span><span><strong>Q' + d.number + ':</strong> ' + escapeHtml(String(d.question || '').substring(0, 60)) + '... | <span style="color:#6d6a8a">You: ' + userLetter + '</span> | <span style="color:#10b981">Correct: ' + correctLetter + '</span></span></div>';
+      const optLine = (d.options || []).map(function(o, oi) {
+        return '<strong>' + String.fromCharCode(65 + oi) + '.</strong> ' + escapeHtml(String(o || '').substring(0, 45));
+      }).join(' &nbsp; ');
+      p += '<div style="position:relative;z-index:1;padding:5px 9px;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:4px;font-size:9.5px;line-height:1.4;display:flex;gap:7px"><span style="color:' + (d.is_correct ? '#10b981' : '#f43f5e') + ';font-weight:800">' + (d.is_correct ? '✓' : '✗') + '</span><span style="flex:1"><strong>Q' + d.number + ' [' + escapeHtml(d.subject) + ']:</strong> ' + escapeHtml(String(d.question || '').substring(0, 200)) + '<br><span style="color:#6d6a8a">' + optLine + '</span><br>Your answer: <span style="color:' + (d.is_correct ? '#10b981' : '#f43f5e') + ';font-weight:700">' + userLetter + '</span> &nbsp; Correct: <span style="color:#10b981;font-weight:700">' + correctLetter + '</span></span></div>';
     });
+    p += pageFoot + '</div>';
+    pages.push(p);
   }
-  div.innerHTML += '<div style="text-align:center;margin-top:20px;padding:12px;border-top:1px solid #e0e0e0;font-size:11px;color:#6d6a8a"><img src="https://i.imgur.com/oyqM5oF.png" style="height:30px;margin:0 auto 6px"><p>Powered by IDT Academy — JAMB Preparation Platform</p></div>';
 
-  const opt = { margin: [10, 10, 10, 10], filename: 'IDT_JAMB_Result_' + name.replace(/\s+/g, '_') + '.pdf', html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-  html2pdf().set(opt).from(div).save();
+  const holder = document.createElement('div');
+  holder.style.cssText = 'position:fixed;left:-10000px;top:0;z-index:-1';
+  holder.innerHTML = pages.join('');
+  document.body.appendChild(holder);
+
+  const opt = {
+    margin: 0,
+    filename: 'IDT_JAMB_Result_' + name.replace(/\s+/g, '_') + '.pdf',
+    html2canvas: { scale: 2, useCORS: true, windowWidth: 794, scrollY: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+  html2pdf().set(opt).from(holder).save()
+    .then(function() { if (holder.parentNode) holder.parentNode.removeChild(holder); })
+    .catch(function(err) {
+      console.error('PDF error:', err);
+      if (holder.parentNode) holder.parentNode.removeChild(holder);
+      showToast('Could not generate the PDF. Please try again.', 'error', 6000);
+    });
 }
+
+
 
 function showCertificate(data) {
   if (!data.passed) return;
