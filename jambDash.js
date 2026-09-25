@@ -908,27 +908,40 @@ function isExamUnlocked(progress) {
   return completed.indexOf(finalTopic.id) !== -1;
 }
 
+
 async function fetchAds() {
   try {
     const { data, error } = await supabase
       .from('ad_for')
       .select('*');
     if (error) throw error;
-    ads = data || [];
+    ads = (data || []).filter(function(ad) {
+      return ad && typeof ad === 'object' && (ad.ad_image || ad.ad_smat);
+    });
     renderAds();
   } catch (err) {
     console.error('fetchAds error:', err);
     ads = [];
+    renderAds();
   }
 }
 
 function renderAds() {
+  if (adInterval) {
+    clearInterval(adInterval);
+    adInterval = null;
+  }
   el.adSlider.innerHTML = '';
   el.adDots.innerHTML = '';
+
+  const adCard = document.getElementById('adSectionCard');
   if (!ads || ads.length === 0) {
-    el.adSlider.innerHTML = '<div class="ad-empty"><i class="fas fa-bullhorn" style="margin-right:8px"></i> No announcements</div>';
+    if (adCard) adCard.classList.add('hidden');
     return;
   }
+
+  if (adCard) adCard.classList.remove('hidden');
+
   ads.forEach(function(ad, i) {
     const dot = document.createElement('span');
     dot.className = 'dot' + (i === 0 ? ' active' : '');
@@ -938,7 +951,6 @@ function renderAds() {
   });
   adIndex = 0;
   showAd(0);
-  if (adInterval) clearInterval(adInterval);
   if (ads.length > 1) {
     adInterval = setInterval(function() {
       adIndex = (adIndex + 1) % ads.length;
@@ -1801,18 +1813,9 @@ function showAiSecurityWarning() {
 
 
 
-
-
-
-
-
-
-
-
 function preventCopy(e) {
   e.preventDefault();
   e.stopPropagation();
-  showAiSecurityWarning();
   return false;
 }
 
@@ -1838,11 +1841,15 @@ function enableExamProtection() {
   document.body.classList.add('exam-no-copy');
   document.addEventListener('copy', preventCopy, true);
   document.addEventListener('cut', preventCopy, true);
+  document.addEventListener('contextmenu', preventCopy, true);
+  document.addEventListener('selectstart', preventCopy, true);
+  document.addEventListener('dragstart', preventCopy, true);
   document.addEventListener('keyup', blockPrintScreen, true);
   document.addEventListener('keydown', blockPrintScreen, true);
   document.addEventListener('visibilitychange', screenshotVisibilityGuard, true);
   window.addEventListener('blur', screenshotBlurGuard, true);
 }
+
 
 function screenshotVisibilityGuard() {
   if (!examStarted) return;
@@ -1858,13 +1865,14 @@ function disableExamProtection() {
   document.body.classList.remove('exam-no-copy');
   document.removeEventListener('copy', preventCopy, true);
   document.removeEventListener('cut', preventCopy, true);
+  document.removeEventListener('contextmenu', preventCopy, true);
+  document.removeEventListener('selectstart', preventCopy, true);
+  document.removeEventListener('dragstart', preventCopy, true);
   document.removeEventListener('keyup', blockPrintScreen, true);
   document.removeEventListener('keydown', blockPrintScreen, true);
   document.removeEventListener('visibilitychange', screenshotVisibilityGuard, true);
   window.removeEventListener('blur', screenshotBlurGuard, true);
 }
-
-
 
 
 function handleScreenSwitchAttempt() {
@@ -2242,7 +2250,15 @@ function resetExamState() {
 
 
 
-function downloadResultsPdf(data) {
+
+
+
+
+
+
+
+
+async function downloadResultsPdf(data) {
   const u = getLocalUser();
   const name = u ? u.full_name || 'Student' : 'Student';
   const dept = u ? u.jambCourseName || '' : '';
@@ -2255,7 +2271,7 @@ function downloadResultsPdf(data) {
 
   const pages = [];
 
-  let p1 = '<div style="' + pageBase + 'page-break-after:always">' + watermark;
+  let p1 = '<div style="' + pageBase + '">' + watermark;
   p1 += '<div style="position:relative;z-index:1;display:flex;justify-content:center;align-items:center;gap:12px;margin-bottom:10px"><img src="https://i.imgur.com/2DY6OD4.png" style="height:38px"><span style="width:2px;height:30px;background:#006838;opacity:.3"></span><img src="https://i.imgur.com/oyqM5oF.png" style="height:38px"></div>';
   p1 += '<h1 style="position:relative;z-index:1;text-align:center;font-size:18px;color:#006838;margin:0 0 4px">IDT Academy JAMB Mock Exam Result</h1>';
   p1 += '<p style="position:relative;z-index:1;text-align:center;color:#6d6a8a;font-size:12px;margin:0 0 16px">' + date + '</p>';
@@ -2276,8 +2292,7 @@ function downloadResultsPdf(data) {
   const details = data.details || [];
   for (let i = 0; i < details.length; i += 20) {
     const chunk = details.slice(i, i + 20);
-    const isLast = (i + 20) >= details.length;
-    let p = '<div style="' + pageBase + (isLast ? 'page-break-after:auto' : 'page-break-after:always') + '">' + watermark;
+    let p = '<div style="' + pageBase + '">' + watermark;
     p += '<div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:13px;font-weight:800;color:#006838">Question Review (' + (i + 1) + '–' + (i + chunk.length) + ' of ' + details.length + ')</div><div style="font-size:10px;color:#6d6a8a">' + escapeHtml(name) + ' • ' + date + '</div></div>';
     chunk.forEach(function(d) {
       const userLetter = d.user_answer !== null && d.user_answer !== undefined ? String.fromCharCode(65 + d.user_answer) : 'N/A';
@@ -2296,20 +2311,46 @@ function downloadResultsPdf(data) {
   holder.innerHTML = pages.join('');
   document.body.appendChild(holder);
 
-  const opt = {
-    margin: 0,
-    filename: 'IDT_JAMB_Result_' + name.replace(/\s+/g, '_') + '.pdf',
-    html2canvas: { scale: 2, useCORS: true, windowWidth: 794, scrollY: 0 },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  };
-  html2pdf().set(opt).from(holder).save()
-    .then(function() { if (holder.parentNode) holder.parentNode.removeChild(holder); })
-    .catch(function(err) {
-      console.error('PDF error:', err);
-      if (holder.parentNode) holder.parentNode.removeChild(holder);
-      showToast('Could not generate the PDF. Please try again.', 'error', 6000);
-    });
+  const downloadBtn = document.getElementById('downloadPdfBtn');
+  if (downloadBtn) {
+    downloadBtn.disabled = true;
+    downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
+  }
+
+  try {
+    const JsPdfCtor = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : null;
+    if (!JsPdfCtor || typeof html2canvas !== 'function') {
+      throw new Error('PDF library not loaded');
+    }
+    const pdf = new JsPdfCtor({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pageEls = holder.children;
+    for (let i = 0; i < pageEls.length; i++) {
+      const canvas = await html2canvas(pageEls[i], {
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        windowWidth: 794,
+        scrollY: 0
+      });
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      if (i > 0) pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+    }
+    pdf.save('IDT_JAMB_Result_' + name.replace(/\s+/g, '_') + '.pdf');
+    showToast('PDF downloaded successfully.', 'success', 5000);
+  } catch (err) {
+    console.error('PDF error:', err);
+    showToast('Could not generate the PDF. Please try again.', 'error', 6000);
+  } finally {
+    if (holder.parentNode) holder.parentNode.removeChild(holder);
+    if (downloadBtn) {
+      downloadBtn.disabled = false;
+      downloadBtn.innerHTML = '<i class="fas fa-file-pdf"></i> Download PDF';
+    }
+  }
 }
+
 
 
 
@@ -2344,6 +2385,9 @@ function showCertificate(data) {
     document.body.style.overflow = '';
   });
 }
+
+
+
 
 
 
