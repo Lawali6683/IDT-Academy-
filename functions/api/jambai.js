@@ -238,6 +238,8 @@ function resolveExamSubjects(body, dbProfile) {
   return ['Use of English', 'Mathematics', 'Physics', 'Chemistry'];
 }
 
+
+
 function buildSubjectPrompt(subject, count, fullName, courseName) {
   return `You are a JAMB UTME question generator for IDT Academy. Generate exactly ${count} multiple-choice questions for the subject "${subject}" for a JAMB UTME mock exam for a student named ${fullName} studying ${courseName}.
 
@@ -246,9 +248,10 @@ STRICT RULES:
 - Each question has exactly 4 options (A, B, C, D) and exactly one correct answer.
 - "correct" is the zero-based index of the correct answer (0 = A, 1 = B, 2 = C, 3 = D).
 - Questions must be clear, unambiguous, and educationally accurate.
+- Keep each question "text" SHORT and concise (maximum 250 characters). Keep each option short (maximum 60 characters). No long passages inside "text".
 - Cover different areas of the ${subject} JAMB syllabus. No duplicates.
 
-OUTPUT FORMAT: Return ONLY a valid JSON array. No markdown, no explanations, no code blocks. Each object must have exactly these fields: "subject" (string), "text" (string), "options" (array of exactly 4 strings), "correct" (integer 0-3).
+OUTPUT FORMAT: Return ONLY a valid JSON array. No markdown, no explanations, no code blocks. Each object must have exactly these fields: "subject" (string), "text" (string, max 250 chars), "options" (array of exactly 4 short strings), "correct" (integer 0-3).
 
 Example:
 [{"subject":"${subject}","text":"Choose the option that best completes the sentence: The committee ___ agreed on the proposal.","options":["has","have","is having","are having"],"correct":0}]
@@ -256,70 +259,49 @@ Example:
 Generate exactly ${count} questions now.`;
 }
 
+async function generateSubjectQuestions(env, subject, target, fullName, courseName) {
+  const questions = [];
+  const BATCH = 20;
+  let attempts = 0;
 
+  while (questions.length < target && attempts < 10) {
+    const remaining = target - questions.length;
+    const batchSize = Math.min(BATCH, remaining);
+    const skipText = questions.length > 0
+      ? '\n\nIMPORTANT: The following questions already exist. Generate DIFFERENT new questions, do NOT repeat any of these:\n' + questions.slice(-10).map(function(q) { return '- ' + String(q.text).substring(0, 90); }).join('\n')
+      : '';
 
+    try {
+      const prompt = buildSubjectPrompt(subject, batchSize, fullName, courseName) + skipText;
+      const systemInstruction = 'You are a JAMB UTME exam generator. Generate accurate, exam-standard questions in the exact JSON format requested. Return ONLY a valid JSON array, nothing else.';
+      const aiResponseText = await askAI(env, prompt, systemInstruction);
+      const parsed = parseCleanJSON(aiResponseText);
 
+      if (Array.isArray(parsed)) {
+        const existingTexts = questions.map(function(q) { return String(q.text).trim().toLowerCase(); });
+        parsed.forEach(function(q) {
+          if (questions.length >= target) return;
+          if (!q || typeof q.text !== 'string' || q.text.trim().length === 0) return;
+          if (!Array.isArray(q.options)) return;
+          const correct = Number(q.correct);
+          if (isNaN(correct) || correct < 0 || correct > 3) return;
+          while (q.options.length < 4) q.options.push('None of the above');
+          if (q.options.length > 4) q.options = q.options.slice(0, 4);
+          q.options = q.options.map(function(o) { return String(o).substring(0, 120); });
+          const key = String(q.text).trim().toLowerCase();
+          if (existingTexts.indexOf(key) !== -1) return;
+          existingTexts.push(key);
+          questions.push(q);
+        });
+      }
+    } catch (err) {}
 
-async function generateExam(env, subjects, fullName, courseName) {
-  const allQuestions = [];
-  const counts = subjects.map(function(s, i) { return i === 0 ? 60 : 40; });
-
-  for (let i = 0; i < subjects.length; i++) {
-    const subject = subjects[i];
-    const target = counts[i];
-    const subjectQuestions = [];
-
-    let attempts = 0;
-    while (subjectQuestions.length < target && attempts < 6) {
-      const remaining = target - subjectQuestions.length;
-      const batchSize = attempts === 0 ? target : remaining;
-      const skipText = subjectQuestions.length > 0
-        ? '\n\nIMPORTANT: The following questions already exist. Generate DIFFERENT new questions, do NOT repeat any of these:\n' + subjectQuestions.slice(0, 10).map(function(q) { return '- ' + String(q.text).substring(0, 90); }).join('\n')
-        : '';
-
-      try {
-        const prompt = buildSubjectPrompt(subject, batchSize, fullName, courseName) + skipText;
-        const systemInstruction = 'You are a JAMB UTME exam generator. Generate accurate, exam-standard questions in the exact JSON format requested. Return ONLY a valid JSON array, nothing else.';
-        const aiResponseText = await askAI(env, prompt, systemInstruction);
-        const parsed = parseCleanJSON(aiResponseText);
-
-        if (Array.isArray(parsed)) {
-          const existingTexts = subjectQuestions.map(function(q) { return String(q.text).trim().toLowerCase(); });
-          parsed.forEach(function(q) {
-            if (subjectQuestions.length >= target) return;
-            if (!q || typeof q.text !== 'string' || q.text.trim().length === 0) return;
-            if (!Array.isArray(q.options)) return;
-            const correct = Number(q.correct);
-            if (isNaN(correct) || correct < 0 || correct > 3) return;
-            while (q.options.length < 4) q.options.push('None of the above');
-            if (q.options.length > 4) q.options = q.options.slice(0, 4);
-            const key = String(q.text).trim().toLowerCase();
-            if (existingTexts.indexOf(key) !== -1) return;
-            existingTexts.push(key);
-            subjectQuestions.push(q);
-          });
-        }
-      } catch (err) {}
-
-      attempts++;
-    }
-
-    if (subjectQuestions.length < target) {
-      throw new Error('Could not generate enough questions for ' + subject + ' (got ' + subjectQuestions.length + ' of ' + target + '). Please try again.');
-    }
-
-    subjectQuestions.forEach(function(q, qi) {
-      q.id = 'q' + (i + 1) + '_' + (qi + 1);
-      q.number = qi + 1;
-      q.subject = subject;
-      q.correct = Number(q.correct);
-    });
-
-    allQuestions.push.apply(allQuestions, subjectQuestions);
+    attempts++;
   }
 
-  return allQuestions;
+  return questions;
 }
+
 
 
 
@@ -333,10 +315,10 @@ function markExamServer(questions, answers) {
     const qCorrect = Number(q.correct);
     const isCorrect = userAns !== null && userAns === Number(q.correct);
     if (isCorrect) correct++;
-    details.push({
+   details.push({
       number: i + 1,
       subject: q.subject,
-      question: q.text,
+      question: String(q.text || '').substring(0, 200),
       options: q.options,
       correct: Number(q.correct),
       user_answer: userAns,
@@ -406,6 +388,10 @@ ${conversationHistory}
 Tutor: Provide a helpful, educational response. Be encouraging, clear, and thorough. Use JAMB exam context. If the student asks about a specific topic, explain it with examples. If they ask about a question they got wrong, explain why the correct answer is right and help them understand the concept.`;
 }
 
+
+
+
+
 export const onRequestPost = async (context) => {
   const env = context.env;
 
@@ -419,7 +405,7 @@ export const onRequestPost = async (context) => {
 
     const action = String(body.action || '').trim();
     if (!action) {
-      return json({ success: false, error: 'action is required (generate_exam, mark_exam, or chat)' }, 400);
+      return json({ success: false, error: 'action is required (get_subjects, generate_exam_subject, mark_exam, or chat)' }, 400);
     }
 
     const userId = String(body.user_id || body.id || '').trim();
@@ -429,19 +415,67 @@ export const onRequestPost = async (context) => {
       dbProfile = await fetchUserProfile(env, userId);
     }
 
+    if (action === 'get_subjects') {
+      const subjects = resolveExamSubjects(body, dbProfile);
+      return json({ success: true, subjects: subjects });
+    }
+
+    if (action === 'generate_exam_subject') {
+      const fullName = String(body.full_name || (dbProfile && dbProfile.full_name) || 'Student');
+      const courseName = String(body.jambCourseName || body.course_name || (dbProfile && dbProfile.jambCourseName) || 'JAMB Preparation');
+      const subjects = resolveExamSubjects(body, dbProfile);
+      const requested = String(body.subject || '').trim();
+      const lower = requested.toLowerCase();
+      const subject = subjects.find(function(s) { return s.toLowerCase() === lower; }) || (requested || subjects[0]);
+      const isEnglish = subject.toLowerCase().indexOf('english') !== -1;
+      const count = Math.min(60, Math.max(1, Number(body.count) || (isEnglish ? 60 : 40)));
+
+      try {
+        const questions = await generateSubjectQuestions(env, subject, count, fullName, courseName);
+
+        if (!Array.isArray(questions) || questions.length === 0) {
+          throw new Error('No valid questions were generated for ' + subject);
+        }
+
+        const tag = subject.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+        questions.forEach(function(q, qi) {
+          q.id = 'q_' + tag + '_' + (qi + 1);
+          q.number = qi + 1;
+          q.subject = subject;
+          q.text = String(q.text).substring(0, 300);
+          q.correct = Number(q.correct);
+        });
+
+        return json({ success: true, subject: subject, requested: count, generated: questions.length, questions: questions });
+      } catch (err) {
+        return json({ success: false, error: 'Exam generation failed for ' + subject + ': ' + err.message }, 500);
+      }
+    }
+
     if (action === 'generate_exam') {
       const fullName = String(body.full_name || (dbProfile && dbProfile.full_name) || 'Student');
       const courseName = String(body.jambCourseName || body.course_name || (dbProfile && dbProfile.jambCourseName) || 'JAMB Preparation');
       const subjects = resolveExamSubjects(body, dbProfile);
 
       try {
-        const questions = await generateExam(env, subjects, fullName, courseName);
-
-        if (!Array.isArray(questions) || questions.length === 0) {
-          throw new Error('Generated questions format is invalid or empty');
+        let allQuestions = [];
+        for (let i = 0; i < subjects.length; i++) {
+          const subject = subjects[i];
+          const target = i === 0 ? 60 : 40;
+          const qs = await generateSubjectQuestions(env, subject, target, fullName, courseName);
+          if (qs.length < target) {
+            throw new Error('Could not generate enough questions for ' + subject + ' (got ' + qs.length + ' of ' + target + ').');
+          }
+          const tag = subject.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+          qs.forEach(function(q, qi) {
+            q.id = 'q' + (i + 1) + '_' + (qi + 1);
+            q.number = qi + 1;
+            q.subject = subject;
+            q.correct = Number(q.correct);
+          });
+          allQuestions = allQuestions.concat(qs);
         }
-
-        return json({ success: true, questions: questions });
+        return json({ success: true, questions: allQuestions });
       } catch (err) {
         return json({ success: false, error: 'Exam generation failed: ' + err.message }, 500);
       }
@@ -478,7 +512,7 @@ export const onRequestPost = async (context) => {
       }
     }
 
-    return json({ success: false, error: 'Unknown action. Use generate_exam, mark_exam, or chat.' }, 400);
+    return json({ success: false, error: 'Unknown action. Use get_subjects, generate_exam_subject, mark_exam, or chat.' }, 400);
 
   } catch (err) {
     return json({ success: false, error: err.message || 'Internal Server Error' }, 500);
