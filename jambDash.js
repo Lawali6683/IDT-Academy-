@@ -1762,9 +1762,17 @@ function goExamNext() {
     renderExamQuestion(currentExamQ + 1);
     return;
   }
-  const unanswered = examQuestions.length - examAnswers.filter(function(a) { return a !== null && a !== undefined; }).length;
-  if (unanswered > 0) {
-    showToast(unanswered + ' question(s) are still unanswered. Answer all questions before submitting.', 'warning', 6000);
+  let firstUnanswered = -1;
+  for (let i = 0; i < examAnswers.length; i++) {
+    if (examAnswers[i] === null || examAnswers[i] === undefined) {
+      firstUnanswered = i;
+      break;
+    }
+  }
+  if (firstUnanswered !== -1) {
+    renderExamQuestion(firstUnanswered);
+    const remaining = examQuestions.length - examAnswers.filter(function(a) { return a !== null && a !== undefined; }).length;
+    showToast('You have ' + remaining + ' unanswered question(s). Please answer all of them before submitting.', 'warning', 6000);
     return;
   }
   showConfirmToast('This is the last question. Do you want to submit your exam? You cannot change your answers after submission.', function() {
@@ -1791,27 +1799,7 @@ function renderExamGrid() {
 }
 
 
-
-
-
-
-
-
-let aiSecTimeout = null;
-
-function showAiSecurityWarning() {
-  const popup = document.getElementById('aiSecurityPopup');
-  if (!popup) return;
-  popup.classList.remove('show');
-  void popup.offsetWidth;
-  popup.classList.add('show');
-  if (aiSecTimeout) clearTimeout(aiSecTimeout);
-  aiSecTimeout = setTimeout(function() {
-    popup.classList.remove('show');
-  }, 2500);
-}
-
-
+function preventScreenshotAttempt() {}
 
 function preventCopy(e) {
   e.preventDefault();
@@ -1819,20 +1807,16 @@ function preventCopy(e) {
   return false;
 }
 
-function preventScreenshotAttempt() {
-  showAiSecurityWarning();
-}
+
 
 function blockPrintScreen(e) {
   if (e.key === 'PrintScreen' || (e.key === 'Snapshot')) {
     e.preventDefault();
     try { navigator.clipboard.writeText(' '); } catch (err) {}
-    showAiSecurityWarning();
   }
   if ((e.metaKey || e.ctrlKey || e.shiftKey) && (e.key === 'S' || e.key === 's' || e.key === 'P' || e.key === 'p' || e.key === '5') && examStarted) {
     if (e.shiftKey || e.metaKey) {
       e.preventDefault();
-      showAiSecurityWarning();
     }
   }
 }
