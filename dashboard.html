@@ -969,6 +969,25 @@ body.quiz-lock *{user-select:none;-webkit-user-select:none}
 .quiz-cam-wrap.floating{position:fixed;top:14px;right:14px;left:auto;bottom:auto;width:170px;height:110px;z-index:99997;aspect-ratio:auto;box-shadow:0 20px 50px rgba(15,12,41,.6)}
 .quiz-cam-wrap.floating .cam-min-btn i{transform:rotate(180deg)}
 
+
+.custom-icon {
+  width: 24px;         
+  height: 24px;        
+  vertical-align: middle;
+  margin-right: 8px;   
+  object-fit: contain;
+}
+
+.ai-header{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ai-header-langs{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.ai-header-langs button{padding:5px 10px;border-radius:999px;border:1.5px solid rgba(167,139,250,.45);background:transparent;color:#c4b5fd;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s}
+.ai-header-langs button:hover{background:rgba(124,58,237,.18);color:#fff}
+.ai-header-langs button.active{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border-color:#a78bfa;box-shadow:0 0 10px rgba(124,58,237,.5)}
+.ai-other-row{display:flex;gap:8px;padding:8px 14px;border-top:1px solid rgba(167,139,250,.2)}
+.ai-other-row input{flex:1;padding:9px 12px;border-radius:10px;border:1.5px solid rgba(167,139,250,.35);background:rgba(124,58,237,.08);color:#fff;font-size:13px;outline:none}
+.ai-other-row button{width:38px;height:38px;border-radius:10px;border:none;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;cursor:pointer}
+.ai-other-row.hidden{display:none}
+
 </style>
 </head>
 <body>
@@ -1108,11 +1127,28 @@ body.quiz-lock *{user-select:none;-webkit-user-select:none}
 <section class="ov-backdrop" id="chatOverlay">
   <div class="ov-card">
     <div class="ov-head">
-      <h3><i class="fa-solid fa-robot"></i> My IDT Academy Teacher</h3>
+        
+   <h3>
+  <img src="https://i.imgur.com/DPrM9ZJ.png" alt="Teacher Icon" class="custom-icon"> 
+  My IDT Academy Teacher
+</h3>
+      
+      <div class="ai-header-langs" id="aiHeaderLangs">
+  <button data-lang="english">English</button>
+  <button data-lang="english+hausa">Hausa</button>
+  <button data-lang="english+yoruba">Yoruba</button>
+  <button data-lang="english+igbo">Igbo</button>
+  <button data-lang="english+pidgin">Pidgin</button>
+  <button id="aiOtherLangBtn">Other...</button>
+</div>
       <button class="ov-close" id="chatClose" aria-label="Close chat"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="chat-body">
       <div class="chat-msgs" id="chatMsgs"></div>
+      <div class="ai-other-row hidden" id="aiOtherLangRow">
+  <input type="text" id="aiOtherLangInput" placeholder="Type any language e.g. Arabic, French, Fulfulde...">
+  <button id="aiOtherLangSend"><i class="fas fa-paper-plane"></i></button>
+</div>
       <form class="chat-input-row" id="chatForm">
         <div class="chat-input-box">
           <input type="text" id="chatInput" placeholder="Ask anything about this topic in any language..." autocomplete="off" maxlength="800">
@@ -1127,7 +1163,7 @@ body.quiz-lock *{user-select:none;-webkit-user-select:none}
 <section class="ov-backdrop" id="explainOverlay">
   <div class="ov-card">
     <div class="ov-head">
-      <h3><i class="fa-solid fa-language"></i> Explain To My Language</h3>
+      <h3><i class="fa-solid fa-language"></i> Explain more</h3>
       <button class="ov-close" id="explainClose" aria-label="Close explain"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="ov-body">
