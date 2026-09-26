@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase.js';
 import { askQuestion, explainText, getAssessment, gradeAssessment, createPayment, verifyPayment, sendResultEmail } from './ai.js';
 
@@ -371,10 +370,6 @@ function isValidCourseId(v) {
   return Boolean(s) && s.toUpperCase() !== 'N/A' && s.toLowerCase() !== 'null' && s.toLowerCase() !== 'undefined';
 }
 
-
-
-
-
 function sanitizeUserData(ud) {
   if (!ud || typeof ud !== 'object') return {};
   const clean = Object.assign({}, ud);
@@ -383,9 +378,6 @@ function sanitizeUserData(ud) {
   });
   return clean;
 }
-
-
-
 
 function looksLikeJamb(cid, cname, cprice) {
   const id = String(cid || '').trim().toLowerCase();
@@ -397,10 +389,6 @@ function looksLikeJamb(cid, cname, cprice) {
   return false;
 }
 
-
-
-
-
 function isCourseMissing(ud) {
   const u = sanitizeUserData(ud);
   const cid = String((u && u.course_id) || '').trim();
@@ -411,10 +399,6 @@ function isCourseMissing(ud) {
   if (looksLikeJamb(cid, cname, cprice)) return true;
   return false;
 }
-
-
-
-
 
 function collectCourses(ud) {
   const arr = [];
@@ -453,8 +437,6 @@ function collectCourses(ud) {
   });
 }
 
-
-
 function getPrimaryCourse() {
   if (!userData || typeof userData !== 'object') {
     return { course_id: '', course_name: '', course_number: '', course_price: 0, valid: false };
@@ -469,8 +451,6 @@ function getPrimaryCourse() {
   }
   return { course_id: '', course_name: '', course_number: '', course_price: 0, valid: false };
 }
-
-
 
 async function loadUpdateTable() {
   try {
@@ -517,7 +497,6 @@ async function saveUpdate(patch) {
   }
 }
 
-
 async function refreshProfile() {
   const { data, error } = await supabase
     .from('user_profiles')
@@ -533,8 +512,6 @@ async function refreshProfile() {
     userData.academy_id = String(user.id);
   }
 }
-
-
 
 async function saveUserData() {
   if (!profileData || !userData) return;
@@ -575,13 +552,10 @@ function markWatched(topicIdx) {
   }
 }
 
-
-
 function isWatched(topicIdx) {
   const arr = watchedMap[activeCourseId] || [];
   return arr.indexOf(topicIdx) !== -1;
 }
-
 
 function renderSessionClock() {
   const el = $('sessionTime');
@@ -735,8 +709,6 @@ async function loadTopicsFor(courseId) {
   }
 }
 
-
-
 function pickDefaultCourse() {
   if (courseList.length === 1) return courseList[0].course_id;
   const unfinished = courseList.find((c) => {
@@ -859,8 +831,6 @@ function closeCoursePush() {
   if (p) p.classList.remove('open');
 }
 
-
-
 async function chooseCourse(courseId) {
   if (!courseId) return;
   const clickedCard = document.querySelector('.pn-course[data-cid="' + courseId.replace(/"/g, '\\"') + '"]');
@@ -919,11 +889,11 @@ async function chooseCourse(courseId) {
     userData.course_number = courseNumber;
     userData.course_price = price;
     userData.status = 'pending';
-    
+
     try {
       await saveUserData();
     } catch (err) {}
-    
+
     courseList = collectCourses(userData);
     renderPendingGate();
     closeCoursePush();
@@ -991,8 +961,6 @@ function renderCourseSwitch() {
   });
 }
 
-
-
 async function selectCourse(courseId) {
   activeCourseId = courseId;
   renderCourseSwitch();
@@ -1017,7 +985,6 @@ async function selectCourse(courseId) {
   renderTopic();
   showToast('success', 'Course Loaded', 'Welcome to ' + ((courseInfoMap[courseId] || {}).course_name || 'your course') + '. Happy learning!');
 }
-
 
 function renderProgress() {
   const total = currentTopics.length;
@@ -1055,7 +1022,6 @@ function renderProgress() {
     }
   }
 }
-
 
 function detectTopicLanguageLocal(text) {
   const t = String(text || '').toLowerCase();
@@ -1124,7 +1090,6 @@ async function cleanupOldSupabaseData() {
   } catch (_) {}
 }
 
-
 function renderDiplomaLock() {
   const lock = $('videoLock');
   if (!lock) return false;
@@ -1146,12 +1111,6 @@ function renderDiplomaLock() {
   lock.classList.add('hidden');
   return false;
 }
-
-
-
-
-
-
 
 function renderTopic() {
   if (!currentTopics.length) return;
@@ -1236,7 +1195,6 @@ function renderTopic() {
   if (banner) banner.classList.add('hidden');
   renderProgress();
 }
-
 
 function renderVideo() {
   const wrap = $('videoWrap');
@@ -1337,10 +1295,6 @@ function closeUnderstandModal() {
   if (m) m.classList.remove('open');
 }
 
-
-
-
-
 async function advanceTopic() {
   if (isProcessingNext) return;
   if (!currentTopics.length) return;
@@ -1392,8 +1346,6 @@ async function finishCourse() {
   const modal = $('completionModal');
   if (modal) modal.classList.add('open');
 }
-
-
 
 async function handleReady() {
   closeUnderstandModal();
@@ -1525,8 +1477,8 @@ async function startCamera() {
   const lock = $('quizCamLock');
   try {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    makeCamDraggable($('quizCamWrap'));
-showSecurityShield('info');
+      makeCamDraggable($('quizCamWrap'));
+      showSecurityShield('info');
       throw new Error('Camera not supported on this device');
     }
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } }, audio: false });
@@ -1629,9 +1581,6 @@ function startQuizTimer() {
   window.__quizTimerRef = quizState.timer;
 }
 
-
-
-
 function attachAntiCheat() {
   document.body.classList.add('quiz-lock');
   showSecurityShield('info');
@@ -1690,7 +1639,7 @@ function flagAntiCheat(msg) {
   if (quizState.flags >= 2) {
     submitQuiz(true);
   } else {
-    showToast('error', 'Keep Going!', 'You scored ' + score + '/' + qs.length + '. Read the topics again and retry in 2 hours.');
+    showToast('error', 'Warning!', msg + ' One more time and your assessment will be submitted.');
   }
 }
 
@@ -1714,7 +1663,6 @@ function antiCheatBlur() {
     flagAntiCheat('Stay on the assessment page.');
   }
 }
-
 
 function makeCamDraggable(wrap) {
   if (!wrap || wrap.dataset.draggable === '1') return;
@@ -1767,7 +1715,6 @@ function makeCamDraggable(wrap) {
   document.addEventListener('mouseup', onUp);
   document.addEventListener('touchend', onUp);
 }
-
 
 async function submitQuiz(timedOut) {
   if (!quizState || quizState.submitted) return;
@@ -1860,10 +1807,6 @@ async function submitQuiz(timedOut) {
   }
 }
 
-
-
-
-
 function showResult(score, pct, passed, results, timedOut, message) {
   const quiz = $('assessQuiz');
   const result = $('assessResult');
@@ -1931,8 +1874,6 @@ function showResult(score, pct, passed, results, timedOut, message) {
     showToast('error', 'Time Up', 'The ' + Math.round(QUIZ_SECONDS / 60) + ' minutes finished. Your answers were submitted automatically.', '');
   }
 }
-
-
 
 function confetti() {
   const c = document.createElement('canvas');
@@ -2295,8 +2236,6 @@ function markdownToHtml(md) {
   return html;
 }
 
-
-
 function addChatMessage(role, content) {
   const msgs = $('chatMsgs');
   if (!msgs) return null;
@@ -2311,7 +2250,6 @@ function addChatMessage(role, content) {
   msgs.scrollTop = msgs.scrollHeight;
   return div;
 }
-
 
 function addTypingIndicator() {
   const msgs = $('chatMsgs');
@@ -2384,54 +2322,6 @@ function openChat() {
     const input = $('chatInput');
     if (input) input.focus();
   }, 300);
-}
- 
- 
- 
- 
-async function handleExplain(lang, dual) {
-  if (!currentTopic) return;
-  const grid = $('langGrid');
-  const otherRow = $('otherLangRow');
-  const result = $('explainResult');
-  const note = $('explainNote');
-  if (grid) grid.classList.add('hidden');
-  if (otherRow) otherRow.classList.add('hidden');
-  if (result) {
-    result.classList.add('hidden');
-    result.innerHTML = '';
-  }
-  if (note) note.textContent = '';
-  miniLoad(dual ? 'Explaining in English + ' + lang + '...' : 'Explaining in ' + lang + '...');
-  try {
-    const res = await explainText({
-      user_id: user.id,
-      academy_id: getAcademyId(),
-      course_id: activeCourseId,
-      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
-      topic_name: currentTopic.topic_name || '',
-      topic_text: String(currentTopic.topic_text || '').slice(0, 4000),
-      target_lang: lang,
-      explain_mode: dual ? 'dual' : 'single'
-    });
-    if (res.language_available === false) {
-      miniHide();
-      showToast('error', 'Language Not Available', (res.message || (lang + ' is not available yet. Please try another language.')), '');
-      return;
-    }
-    const explanation = res.explanation || res.message || 'No explanation returned.';
-    if (result) {
-      result.innerHTML = '<b style="display:block;color:#a78bfa;margin-bottom:8px">' + aiIconHtml() + ' Explanation in ' + escapeHtml(dual ? 'English + ' + lang : lang) + '</b>' + markdownToHtml(explanation);
-      result.classList.remove('hidden');
-    }
-    if (note) note.textContent = 'You can also ask questions about this explanation using "Ask Question".';
-    setPreferredLang(lang);
-    miniHide();
-    showToast('success', 'Explanation Ready', 'Here is your explanation in ' + lang + '.');
-  } catch (err) {
-    miniHide();
-    showToast('error', 'Explain Failed', 'Could not create the explanation. Please try again.', err.message || String(err));
-  }
 }
 
 function startCountdown() {
@@ -2520,8 +2410,6 @@ function stopAllPayLinks() {
   const box = $('payTransferLinkBox');
   if (box) box.remove();
 }
-
-
 
 async function startPayment() {
   const course = getPrimaryCourse();
@@ -2655,8 +2543,6 @@ async function startPayment() {
   }
 }
 
-
-
 async function loadDashboard() {
   showLoading();
   try {
@@ -2722,6 +2608,140 @@ async function loadDashboard() {
   }
 }
 
+let aiSelectedLang = '';
+
+function aiLabel(lang) {
+  const map = { 'english': 'English', 'english+hausa': 'English + Hausa', 'english+yoruba': 'English + Yoruba', 'english+igbo': 'English + Igbo', 'english+pidgin': 'English + Pidgin' };
+  return map[lang] || lang;
+}
+
+function addAiMessage(role, content) {
+  const area = $('aiChatArea');
+  if (!area) return null;
+  const div = document.createElement('div');
+  div.className = 'ai-msg ' + (role === 'bot' ? 'bot' : 'user');
+  if (role === 'bot') {
+    div.innerHTML = '<div class="ai-msg-label"><span class="ai-msg-icon"><img src="' + AI_ICON_URL + '" alt="AI" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>AI Tutor</div>' + markdownToHtml(content);
+  } else {
+    div.innerHTML = '<p>' + escapeHtml(content) + '</p>';
+  }
+  area.appendChild(div);
+  const body = document.querySelector('.ai-modal .ai-body');
+  if (body) body.scrollTop = body.scrollHeight;
+  return div;
+}
+
+function aiThinking() {
+  const area = $('aiChatArea');
+  if (!area) return null;
+  const div = document.createElement('div');
+  div.className = 'ai-msg bot ai-thinking';
+  div.innerHTML = '<div class="ai-msg-label"><span class="ai-msg-icon"><img src="' + AI_ICON_URL + '" alt="AI" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>AI Tutor</div><p>Typing...</p>';
+  area.appendChild(div);
+  const body = document.querySelector('.ai-modal .ai-body');
+  if (body) body.scrollTop = body.scrollHeight;
+  return div;
+}
+
+function openAiModal() {
+  const overlay = $('aiModalOverlay');
+  if (!overlay) return;
+  const area = $('aiChatArea');
+  if (area && !area.dataset.greeted) {
+    area.dataset.greeted = '1';
+    addAiMessage('bot', 'Hello ' + ((userData && userData.full_name) || 'student') + '! I am your IDT Academy AI tutor. Pick a language at the top, or tap "Explain more" and I will explain this topic in English plus your language.');
+  }
+  overlay.classList.add('active');
+}
+
+function closeAiModal() {
+  const overlay = $('aiModalOverlay');
+  if (overlay) overlay.classList.remove('active');
+  const row = $('aiOtherLangRow');
+  if (row) row.classList.add('hidden');
+}
+
+async function runExplain(lang, dual) {
+  if (!currentTopic) {
+    showToast('error', 'No Topic', 'Open a topic first, then use Explain.', '');
+    return;
+  }
+  if (!lang) {
+    showToast('error', 'Language Required', 'Please pick a language at the top first.', '');
+    return;
+  }
+  aiSelectedLang = lang;
+  setPreferredLang(lang);
+  const topicLang = detectTopicLanguageLocal((currentTopic.topic_name || '') + ' ' + (currentTopic.topic_text || ''));
+  let target = lang;
+  if (topicLang && topicLang !== 'English' && ('english+' + topicLang.toLowerCase()) !== String(lang).toLowerCase() && String(lang).toLowerCase().indexOf(topicLang.toLowerCase()) === -1) {
+    target = topicLang + ' + ' + aiLabel(lang).replace('English + ', '');
+  }
+  const thinking = aiThinking();
+  if (thinking) addAiMessage('user', 'Explain this topic to me in ' + aiLabel(target));
+  try {
+    const res = await explainText({
+      user_id: user.id,
+      academy_id: getAcademyId(),
+      course_id: activeCourseId,
+      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
+      topic_name: currentTopic.topic_name || '',
+      topic_text: String(currentTopic.topic_text || '').slice(0, 4000),
+      target_lang: target,
+      explain_mode: dual ? 'dual' : 'single'
+    });
+    if (thinking) thinking.remove();
+    if (res.language_available === false) {
+      addAiMessage('bot', res.message || (target + ' is not available yet. Please try another language.'));
+      return;
+    }
+    const explanation = res.explanation || res.message || 'No explanation returned.';
+    addAiMessage('bot', explanation);
+    showToast('success', 'Explanation Ready', 'Here is your explanation in ' + aiLabel(target) + '.');
+  } catch (err) {
+    if (thinking) thinking.remove();
+    addAiMessage('bot', 'Sorry, I could not create the explanation right now. Please try again.');
+    showToast('error', 'Explain Failed', 'Could not create the explanation. Please try again.', err.message || String(err));
+  }
+}
+
+async function handleAiChatSend() {
+  const input = $('aiInput');
+  const send = $('aiSendBtn');
+  if (!input || !send) return;
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+  send.disabled = true;
+  addAiMessage('user', q);
+  const history = (chatHistories[activeCourseId] || []).slice(-8);
+  const thinking = aiThinking();
+  try {
+    const res = await askQuestion({
+      user_id: user.id,
+      academy_id: getAcademyId(),
+      course_id: activeCourseId,
+      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
+      topic_name: (currentTopic && currentTopic.topic_name) || '',
+      topic_text: String((currentTopic && currentTopic.topic_text) || '').slice(0, 2500),
+      question: q,
+      history: history,
+      preferred_lang: aiSelectedLang || getPreferredLang()
+    });
+    const answer = res.answer || res.message || 'Sorry, I could not answer that. Please try again.';
+    if (thinking) thinking.remove();
+    addAiMessage('bot', answer);
+    history.push({ role: 'user', content: q.slice(0, 600) });
+    history.push({ role: 'assistant', content: answer.slice(0, 2000) });
+    chatHistories[activeCourseId] = history;
+    saveChatHistory();
+  } catch (err) {
+    if (thinking) thinking.remove();
+    addAiMessage('bot', 'I am having trouble connecting right now. Please try again in a moment.');
+  }
+  send.disabled = false;
+  input.focus();
+}
 
 function on(id, event, handler) {
   const el = $(id);
@@ -2861,7 +2881,7 @@ domReady(() => {
     }
   });
 
- on('btnCopyRefLink', 'click', async (e) => {
+  on('btnCopyRefLink', 'click', async (e) => {
     const btn = e.currentTarget;
     try {
       await copyText(buildReferralLink());
@@ -2879,8 +2899,6 @@ domReady(() => {
     window.location.href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent((userData && userData.referral_code) || '');
   });
 
- 
- 
   document.querySelectorAll('.social-chip').forEach((chip) => {
     chip.addEventListener('click', async () => {
       const link = buildReferralLink();
@@ -2907,7 +2925,7 @@ domReady(() => {
   });
 
   on('btnDualLang', 'click', () => handleExplain(getPreferredLang(), true));
-  
+
   on('userAvatar', 'click', openMyCourses);
 
   on('pendingCourseBox', 'click', () => {
@@ -2955,67 +2973,80 @@ domReady(() => {
     if (o) o.classList.remove('open');
   });
 
-function openExplainOverlay() {
-    const otherRow = $('otherLangRow');
-    const grid = $('langGrid');
-    const result = $('explainResult');
-    const note = $('explainNote');
-    const overlay = $('explainOverlay');
-    if (otherRow) otherRow.classList.add('hidden');
-    if (grid) grid.classList.remove('hidden');
-    if (result) result.classList.add('hidden');
-    if (note) note.textContent = '';
-    if (overlay) overlay.classList.add('open');
+  on('btnExplainLang', 'click', openAiModal);
+  on('videoExplainFloat', 'click', openAiModal);
+  on('aiModalClose', 'click', closeAiModal);
+
+  const headerLangs = $('aiHeaderLangs');
+  if (headerLangs) {
+    headerLangs.querySelectorAll('button[data-lang]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        headerLangs.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        runExplain(btn.dataset.lang, true);
+      });
+    });
   }
 
-  on('btnExplainLang', 'click', openExplainOverlay);
-  on('videoExplainFloat', 'click', openExplainOverlay);
-
-  on('chatForm', 'submit', handleChatSubmit);
-
-  on('btnExplainLang', 'click', () => {
-    const otherRow = $('otherLangRow');
-    const grid = $('langGrid');
-    const result = $('explainResult');
-    const note = $('explainNote');
-    const overlay = $('explainOverlay');
-    if (otherRow) otherRow.classList.add('hidden');
-    if (grid) grid.classList.remove('hidden');
-    if (result) result.classList.add('hidden');
-    if (note) note.textContent = '';
-    if (overlay) overlay.classList.add('open');
-  });
-
-  on('explainClose', 'click', () => {
-    const o = $('explainOverlay');
-    if (o) o.classList.remove('open');
-  });
-
-  document.querySelectorAll('.lang-btn[data-lang]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      handleExplain(btn.dataset.lang);
-    });
-  });
-
-  on('langOtherBtn', 'click', () => {
-    const row = $('otherLangRow');
+  on('aiOtherLangBtn', 'click', () => {
+    const row = $('aiOtherLangRow');
     if (!row) return;
     row.classList.toggle('hidden');
     if (!row.classList.contains('hidden')) {
-      const input = $('otherLangInput');
+      const input = $('aiOtherLangInput');
       if (input) input.focus();
     }
   });
 
-  on('btnSendOtherLang', 'click', () => {
-    const input = $('otherLangInput');
+  on('aiOtherLangSend', 'click', () => {
+    const input = $('aiOtherLangInput');
     const lang = (input && input.value.trim()) || '';
     if (!lang) {
       showToast('error', 'Language Required', 'Please type the language you want.', '');
       return;
     }
-    handleExplain(lang);
+    const row = $('aiOtherLangRow');
+    if (row) row.classList.add('hidden');
+    if (input) input.value = '';
+    const langs = $('aiHeaderLangs');
+    if (langs) langs.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+    runExplain(lang, true);
   });
+
+  const aiSendBtn = $('aiSendBtn');
+  if (aiSendBtn) aiSendBtn.addEventListener('click', handleAiChatSend);
+  const aiInputEl = $('aiInput');
+  if (aiInputEl) {
+    aiInputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleAiChatSend();
+      }
+    });
+  }
+
+  on('chatForm', 'submit', handleChatSubmit);
+
+  on('explainClose', 'click', () => {
+    const overlay = $('explainOverlay');
+    if (overlay) overlay.classList.remove('open');
+  });
+
+  function handleExplain(lang, dual) {
+    const grid = $('langGrid');
+    const result = $('explainResult');
+    const note = $('explainNote');
+    const overlay = $('explainOverlay');
+    const otherRow = $('explainOtherLangRow');
+    if (otherRow) otherRow.classList.add('hidden');
+    if (grid) grid.classList.remove('hidden');
+    if (result) result.classList.add('hidden');
+    if (note) note.textContent = '';
+    if (overlay) overlay.classList.add('open');
+    if (lang && dual) {
+      runExplain(lang, dual);
+    }
+  }
 
   on('assessClose', 'click', () => {
     const o = $('assessmentOverlay');
@@ -3086,4 +3117,3 @@ function openExplainOverlay() {
 
   window.__idtDashboardLoaded = true;
 });
-
