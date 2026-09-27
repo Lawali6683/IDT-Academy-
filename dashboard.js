@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase.js';
 import { askQuestion, explainText, getAssessment, gradeAssessment, createPayment, verifyPayment, sendResultEmail } from './ai.js';
 
@@ -197,12 +196,13 @@ const $ = (id) => document.getElementById(id);
 let toastWrap = null;
 
 const PASS_MARK = 3;
-const RETRY_REGULAR_MS = 42 * 60 * 60 * 1000;
+const RETRY_REGULAR_MS = 2 * 60 * 60 * 1000;
 const RETRY_DIPLOMA_MS = 7 * 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const REGULAR_WATCH_SECONDS = 90;
 const ASSESS_BATCH_SIZE = 3;
 const STATUS_POLL_MS = 4000;
+const DATA_TTL_MS = 60 * 24 * 60 * 60 * 1000;
 const QUIZ_SECONDS = 180;
 
 let user = null;
@@ -370,10 +370,6 @@ function isValidCourseId(v) {
   return Boolean(s) && s.toUpperCase() !== 'N/A' && s.toLowerCase() !== 'null' && s.toLowerCase() !== 'undefined';
 }
 
-
-
-
-
 function sanitizeUserData(ud) {
   if (!ud || typeof ud !== 'object') return {};
   const clean = Object.assign({}, ud);
@@ -382,9 +378,6 @@ function sanitizeUserData(ud) {
   });
   return clean;
 }
-
-
-
 
 function looksLikeJamb(cid, cname, cprice) {
   const id = String(cid || '').trim().toLowerCase();
@@ -396,10 +389,6 @@ function looksLikeJamb(cid, cname, cprice) {
   return false;
 }
 
-
-
-
-
 function isCourseMissing(ud) {
   const u = sanitizeUserData(ud);
   const cid = String((u && u.course_id) || '').trim();
@@ -410,10 +399,6 @@ function isCourseMissing(ud) {
   if (looksLikeJamb(cid, cname, cprice)) return true;
   return false;
 }
-
-
-
-
 
 function collectCourses(ud) {
   const arr = [];
@@ -452,8 +437,6 @@ function collectCourses(ud) {
   });
 }
 
-
-
 function getPrimaryCourse() {
   if (!userData || typeof userData !== 'object') {
     return { course_id: '', course_name: '', course_number: '', course_price: 0, valid: false };
@@ -489,6 +472,7 @@ async function loadUpdateTable() {
     passedBatches = updateData.passed_batches || {};
     lastAssessFail = updateData.last_assess_fail || {};
     preferredLang = updateData.preferred_lang || 'English';
+    sessionSeconds = Number(updateData.reading_seconds) || 0;
   } catch (err) {
     updateData = {};
     watchedMap = {};
@@ -496,6 +480,7 @@ async function loadUpdateTable() {
     chatHistories = {};
     passedBatches = {};
     lastAssessFail = {};
+    sessionSeconds = 0;
   }
 }
 
@@ -512,7 +497,6 @@ async function saveUpdate(patch) {
   }
 }
 
-
 async function refreshProfile() {
   const { data, error } = await supabase
     .from('user_profiles')
@@ -528,8 +512,6 @@ async function refreshProfile() {
     userData.academy_id = String(user.id);
   }
 }
-
-
 
 async function saveUserData() {
   if (!profileData || !userData) return;
@@ -570,26 +552,37 @@ function markWatched(topicIdx) {
   }
 }
 
-
-
 function isWatched(topicIdx) {
   const arr = watchedMap[activeCourseId] || [];
   return arr.indexOf(topicIdx) !== -1;
 }
 
 function renderSessionClock() {
-  const m = Math.floor(sessionSeconds / 60);
-  const s = sessionSeconds % 60;
   const el = $('sessionTime');
-  if (el) el.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  if (!el) return;
+  const h = Math.floor(sessionSeconds / 3600);
+  const m = Math.floor((sessionSeconds % 3600) / 60);
+  const s = sessionSeconds % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  el.textContent = h > 0 ? h + ':' + pad(m) + ':' + pad(s) : pad(m) + ':' + pad(s);
+  const daysEl = $('sessionDays');
+  if (daysEl) {
+    const reg = regDate || (userData && userData.date_registered);
+    const days = weeksSince(reg);
+    daysEl.textContent = days > 0 ? (days + (days === 1 ? ' week' : ' weeks') + ' 🏢') : 'First week';
+  }
 }
 
 function startSessionClock() {
-  sessionSeconds = 0;
+  sessionSeconds = Number((updateData && updateData.reading_seconds) || 0);
+  renderSessionClock();
   if (sessionTimer) clearInterval(sessionTimer);
   sessionTimer = setInterval(() => {
     sessionSeconds++;
     renderSessionClock();
+    if (sessionSeconds % 60 === 0) {
+      saveUpdate({ reading_seconds: sessionSeconds, last_active: new Date().toISOString() });
+    }
   }, 1000);
 }
 
@@ -716,8 +709,6 @@ async function loadTopicsFor(courseId) {
   }
 }
 
-
-
 function pickDefaultCourse() {
   if (courseList.length === 1) return courseList[0].course_id;
   const unfinished = courseList.find((c) => {
@@ -840,8 +831,6 @@ function closeCoursePush() {
   if (p) p.classList.remove('open');
 }
 
-
-
 async function chooseCourse(courseId) {
   if (!courseId) return;
   const clickedCard = document.querySelector('.pn-course[data-cid="' + courseId.replace(/"/g, '\\"') + '"]');
@@ -900,11 +889,11 @@ async function chooseCourse(courseId) {
     userData.course_number = courseNumber;
     userData.course_price = price;
     userData.status = 'pending';
-    
+
     try {
       await saveUserData();
     } catch (err) {}
-    
+
     courseList = collectCourses(userData);
     renderPendingGate();
     closeCoursePush();
@@ -972,8 +961,6 @@ function renderCourseSwitch() {
   });
 }
 
-
-
 async function selectCourse(courseId) {
   activeCourseId = courseId;
   renderCourseSwitch();
@@ -998,7 +985,6 @@ async function selectCourse(courseId) {
   renderTopic();
   showToast('success', 'Course Loaded', 'Welcome to ' + ((courseInfoMap[courseId] || {}).course_name || 'your course') + '. Happy learning!');
 }
-
 
 function renderProgress() {
   const total = currentTopics.length;
@@ -1037,7 +1023,72 @@ function renderProgress() {
   }
 }
 
+function detectTopicLanguageLocal(text) {
+  const t = String(text || '').toLowerCase();
+  if (!t.trim()) return 'English';
+  const scores = { Hausa: 0, Yoruba: 0, Igbo: 0, French: 0, Spanish: 0 };
+  const hausa = [' yana ', ' kuma ', ' wannan ', ' domin ', ' nufin ', ' yara ', ' abin ', ' kana ', ' kamar ', ' sai ', ' zai ', ' mutane ', ' abin ', ' gaskiya '];
+  const yoruba = [' nitori ', ' pupo ', ' jare ', ' ejo ', ' ko ni ', ' ti o ', ' fun ', ' won ', ' mo fe '];
+  const igbo = [' na ', ' nke ', ' maka ', ' anyi ', ' gi ', ' ha ', ' oma ', ' biko '];
+  const french = [' le ', ' la ', ' les ', ' une ', ' est ', ' pour ', ' avec ', ' vous ', ' nous '];
+  const spanish = [' el ', ' la ', ' los ', ' una ', ' es ', ' para ', ' con ', ' usted ', ' nosotros '];
+  const count = (list) => list.reduce((n, w) => n + (t.split(w).length - 1), 0);
+  scores.Hausa = count(hausa);
+  scores.Yoruba = count(yoruba);
+  scores.Igbo = count(igbo);
+  scores.French = count(french);
+  scores.Spanish = count(spanish);
+  let best = 'English';
+  let bestScore = 2;
+  Object.keys(scores).forEach((lang) => {
+    if (scores[lang] > bestScore) {
+      bestScore = scores[lang];
+      best = lang;
+    }
+  });
+  return best;
+}
 
+async function cleanupOldSupabaseData() {
+  try {
+    const cutoff = Date.now() - DATA_TTL_MS;
+    let changed = false;
+    if (Array.isArray(userData.assessment_grade) && userData.assessment_grade.length) {
+      const keep = userData.assessment_grade.filter((g) => {
+        const ts = g && g.date ? new Date(g.date).getTime() : Date.now();
+        return isFinite(ts) && ts >= cutoff;
+      });
+      if (keep.length !== userData.assessment_grade.length) {
+        userData.assessment_grade = keep;
+        changed = true;
+      }
+    }
+    Object.keys(lastAssessFail).forEach((k) => {
+      if (!lastAssessFail[k] || lastAssessFail[k] < cutoff) {
+        delete lastAssessFail[k];
+        changed = true;
+      }
+    });
+    Object.keys(passedBatches).forEach((k) => {
+      if (!Array.isArray(passedBatches[k]) || passedBatches[k].length === 0) {
+        delete passedBatches[k];
+        changed = true;
+      }
+    });
+    Object.keys(chatHistories).forEach((k) => {
+      if (Array.isArray(chatHistories[k]) && chatHistories[k].length === 0) {
+        delete chatHistories[k];
+        changed = true;
+      }
+    });
+    if (changed) {
+      await saveUpdate({ passed_batches: passedBatches, last_assess_fail: lastAssessFail, chat_history: chatHistories });
+      try {
+        await saveUserData();
+      } catch (_) {}
+    }
+  } catch (_) {}
+}
 
 function renderDiplomaLock() {
   const lock = $('videoLock');
@@ -1060,12 +1111,6 @@ function renderDiplomaLock() {
   lock.classList.add('hidden');
   return false;
 }
-
-
-
-
-
-
 
 function renderTopic() {
   if (!currentTopics.length) return;
@@ -1150,7 +1195,6 @@ function renderTopic() {
   if (banner) banner.classList.add('hidden');
   renderProgress();
 }
-
 
 function renderVideo() {
   const wrap = $('videoWrap');
@@ -1251,10 +1295,6 @@ function closeUnderstandModal() {
   if (m) m.classList.remove('open');
 }
 
-
-
-
-
 async function advanceTopic() {
   if (isProcessingNext) return;
   if (!currentTopics.length) return;
@@ -1306,8 +1346,6 @@ async function finishCourse() {
   const modal = $('completionModal');
   if (modal) modal.classList.add('open');
 }
-
-
 
 async function handleReady() {
   closeUnderstandModal();
@@ -1381,72 +1419,29 @@ async function openAssessment(batch) {
   window._assessBatch = batch;
 }
 
-
-
-
 async function startAssessmentFlow() {
   const batch = window._assessBatch || 0;
   const startIdx = Math.max(0, batch - ASSESS_BATCH_SIZE);
-  const rawTopics = currentTopics.slice(startIdx, batch);
-  if (rawTopics.length === 0) {
-    showToast('error', 'No Topics', 'No topics found for this assessment.', '');
-    return;
-  }
-  const batchTopics = rawTopics.map((t) => ({
+  const batchTopics = currentTopics.slice(startIdx, batch).map((t) => ({
     topic_number: t.topic_number,
     topic_name: t.topic_name,
     topic_text: String(t.topic_text || '').slice(0, 1800)
   }));
-  const counts = rawTopics.map((t, i) => {
-    if (i === 0) return 2;
-    if (i === 1) return 2;
-    return 1;
-  });
+  if (batchTopics.length === 0) {
+    showToast('error', 'No Topics', 'No topics found for this assessment.', '');
+    return;
+  }
   miniLoad('Creating your assessment...');
-  let questions = [];
   try {
     const res = await getAssessment({
       user_id: user.id,
       academy_id: getAcademyId(),
       course_id: activeCourseId,
       course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
-      topics: batchTopics,
-      question_counts: counts,
-      total_questions: 5,
-      unique_questions: true
+      topics: batchTopics
     });
-    questions = res.questions || [];
-    const seen = {};
-    questions = questions.filter((q) => {
-      const key = String(q.question || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 80);
-      if (!key || seen[key]) return false;
-      seen[key] = true;
-      return true;
-    });
-    if (questions.length < 5 && questions.length >= 3) {
-      const res2 = await getAssessment({
-        user_id: user.id,
-        academy_id: getAcademyId(),
-        course_id: activeCourseId,
-        course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
-        topics: batchTopics,
-        question_counts: counts,
-        total_questions: 5,
-        unique_questions: true,
-        avoid_questions: questions.map((q) => String(q.question || '').slice(0, 120))
-      });
-      const more = (res2.questions || []).filter((q) => {
-        const key = String(q.question || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 80);
-        if (!key || seen[key]) return false;
-        seen[key] = true;
-        return true;
-      });
-      questions = questions.concat(more).slice(0, 5);
-    }
+    const questions = res.questions || [];
     if (!questions.length) throw new Error('No questions returned');
-    if (questions.length < 5) {
-      questions = questions.map((q, i) => Object.assign({}, q, { number: i + 1 }));
-    }
     quizState = {
       questions: questions,
       answers: questions.map(() => ''),
@@ -1477,14 +1472,13 @@ async function startAssessmentFlow() {
   }
 }
 
-
 async function startCamera() {
   const video = $('quizCam');
   const lock = $('quizCamLock');
   try {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    makeCamDraggable($('quizCamWrap'));
-showSecurityShield('info');
+      makeCamDraggable($('quizCamWrap'));
+      showSecurityShield('info');
       throw new Error('Camera not supported on this device');
     }
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } }, audio: false });
@@ -1587,9 +1581,6 @@ function startQuizTimer() {
   window.__quizTimerRef = quizState.timer;
 }
 
-
-
-
 function attachAntiCheat() {
   document.body.classList.add('quiz-lock');
   showSecurityShield('info');
@@ -1648,7 +1639,7 @@ function flagAntiCheat(msg) {
   if (quizState.flags >= 2) {
     submitQuiz(true);
   } else {
-    showToast('error', 'Warning!', msg + ' This is recorded.', 'Flag ' + quizState.flags + '/2');
+    showToast('error', 'Warning!', msg + ' One more time and your assessment will be submitted.');
   }
 }
 
@@ -1672,7 +1663,6 @@ function antiCheatBlur() {
     flagAntiCheat('Stay on the assessment page.');
   }
 }
-
 
 function makeCamDraggable(wrap) {
   if (!wrap || wrap.dataset.draggable === '1') return;
@@ -1725,7 +1715,6 @@ function makeCamDraggable(wrap) {
   document.addEventListener('mouseup', onUp);
   document.addEventListener('touchend', onUp);
 }
-
 
 async function submitQuiz(timedOut) {
   if (!quizState || quizState.submitted) return;
@@ -1818,10 +1807,6 @@ async function submitQuiz(timedOut) {
   }
 }
 
-
-
-
-
 function showResult(score, pct, passed, results, timedOut, message) {
   const quiz = $('assessQuiz');
   const result = $('assessResult');
@@ -1889,8 +1874,6 @@ function showResult(score, pct, passed, results, timedOut, message) {
     showToast('error', 'Time Up', 'The ' + Math.round(QUIZ_SECONDS / 60) + ' minutes finished. Your answers were submitted automatically.', '');
   }
 }
-
-
 
 function confetti() {
   const c = document.createElement('canvas');
@@ -1971,9 +1954,6 @@ function pdfHeader(doc, w, title) {
   doc.rect(0, 0, w, 34, 'F');
   doc.setFillColor(6, 182, 212);
   doc.rect(0, 34, w, 2.5, 'F');
-  if (typeof pdfHeader._logo !== 'undefined' && pdfHeader._logo) {
-    doc.addImage(pdfHeader._logo, 'PNG', w - 30, 5, 24, 24);
-  }
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
@@ -2037,7 +2017,6 @@ async function downloadResultPdf() {
     const academyId = getAcademyId();
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
     const logo = await imageToDataUrl('https://i.imgur.com/oyqM5oF.png');
-    pdfHeader._logo = logo;
     const signChair = await imageToDataUrl('https://i.imgur.com/z8HOr4D.png');
     const signCeo = await imageToDataUrl('https://i.imgur.com/leqHq9I.png');
 
@@ -2191,7 +2170,6 @@ async function emailResult() {
     const courseName = (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '';
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
     const logo = await imageToDataUrl('https://i.imgur.com/oyqM5oF.png');
-    pdfHeader._logo = logo;
     if (logo) doc.addImage(logo, 'PNG', (w - 20) / 2, 12, 20, 20);
     doc.setTextColor(30, 27, 75);
     doc.setFont('helvetica', 'bold');
@@ -2246,57 +2224,15 @@ async function emailResult() {
 }
 
 function markdownToHtml(md) {
-  let src = String(md || '');
-  const blocks = [];
-  src = src.replace(/```([\s\S]*?)```/g, (m, code) => {
-    blocks.push(escapeHtml(code.trim()));
-    return '\n@@CB' + (blocks.length - 1) + '@@\n';
-  });
-  let lines = escapeHtml(src).split('\n');
-  let html = '';
-  let inList = false;
-  let inNumList = false;
-  const closeLists = () => {
-    if (inList) { html += '</ul>'; inList = false; }
-    if (inNumList) { html += '</ol>'; inNumList = false; }
-  };
-  lines.forEach((raw) => {
-    let line = raw.trim();
-    if (/^@@CB\d+@@$/.test(line)) {
-      closeLists();
-      blocks.forEach((b, i) => {});
-      html += line;
-      return;
-    }
-    if (!line) { closeLists(); return; }
-    line = line
-      .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
-      .replace(/(^|[\s(])\*([^*\n]+)\*/g, '$1<i>$2</i>')
-      .replace(/`([^`]+)`/g, '<code>$1</code>');
-    let m;
-    if ((m = line.match(/^#{1,6}\s+(.*)$/))) {
-      closeLists();
-      html += '<div style="font-size:15px;font-weight:800;color:#6d28d9;margin:10px 0 4px">' + m[1] + '</div>';
-      return;
-    }
-    if ((m = line.match(/^[-•]\s+(.*)$/))) {
-      if (!inList) { closeLists(); html += '<ul style="margin:4px 0 4px 18px">'; inList = true; }
-      html += '<li style="margin-bottom:4px">' + m[1] + '</li>';
-      return;
-    }
-    if ((m = line.match(/^\d+[.)]\s+(.*)$/))) {
-      if (!inNumList) { closeLists(); html += '<ol style="margin:4px 0 4px 18px">'; inNumList = true; }
-      html += '<li style="margin-bottom:4px">' + m[1] + '</li>';
-      return;
-    }
-    closeLists();
-    html += '<p style="margin-bottom:7px">' + line + '</p>';
-  });
-  closeLists();
-  html = html.replace(/@@CB(\d+)@@/g, (m, i) => {
-    const b = blocks[Number(i)] || '';
-    return '<pre style="background:#0a0c1a;border:1px solid rgba(167,139,250,.15);border-radius:10px;padding:12px;margin:8px 0;overflow-x:auto;font-family:Consolas,monospace;font-size:12px;white-space:pre-wrap"><code style="color:#a78bfa">' + b + '</code></pre>';
-  });
+  let text = String(md || '');
+  text = text.replace(/^\s*#{1,6}\s*/gm, '');
+  let html = escapeHtml(text);
+  html = html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  html = html.replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,!?:;]|$)/g, '$1<i>$2</i>');
+  html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  html = html.replace(/^\s*[-•]\s+/gm, '&bull; ');
+  html = html.replace(/^\s*(\d+)[.)]\s+/gm, '<b>$1.</b> ');
+  html = html.replace(/\n/g, '<br>');
   return html;
 }
 
@@ -2314,180 +2250,6 @@ function addChatMessage(role, content) {
   msgs.scrollTop = msgs.scrollHeight;
   return div;
 }
-
-
-let aiLang = 'english';
-let aiMode = 'chat';
-let aiBusy = false;
-
-function aiTypingNode() {
-  return '<div class="ai-typing" id="aiTyping"><span></span><span></span><span></span></div>';
-}
-
-function aiAddMsg(role, content) {
-  const area = $('aiChatArea');
-  if (!area) return null;
-  const div = document.createElement('div');
-  div.className = 'ai-msg ' + role;
-  if (role === 'bot') {
-    div.innerHTML = '<div class="ai-msg-label"><span class="ai-msg-icon"><img src="' + AI_ICON_URL + '" alt="AI"></span>AI Tutor</div>' + markdownToHtml(content);
-  } else {
-    div.textContent = content;
-  }
-  area.appendChild(div);
-  const body = area.closest('.ai-body');
-  if (body) body.scrollTop = body.scrollHeight;
-  return div;
-}
-
-function aiShowTyping() {
-  const area = $('aiChatArea');
-  if (!area || $('aiTyping')) return;
-  area.insertAdjacentHTML('beforeend', aiTypingNode());
-  const body = area.closest('.ai-body');
-  if (body) body.scrollTop = body.scrollHeight;
-}
-
-function aiRemoveTyping() {
-  const t = $('aiTyping');
-  if (t) t.remove();
-}
-
-function openAiModal(mode) {
-  aiMode = mode || 'chat';
-  const overlay = $('aiModalOverlay');
-  if (!overlay) return;
-  overlay.classList.add('active');
-  const area = $('aiChatArea');
-  if (area && !area.dataset.init) {
-    area.dataset.init = '1';
-    aiAddMsg('bot', 'Hello! I am your **IDT Academy AI Tutor**. Ask me any question about your topics, and I will explain in the language you choose.');
-  }
-  if (aiMode === 'explain') {
-    explainMoreInAi();
-  }
-  const input = $('aiInput');
-  if (input) setTimeout(() => input.focus(), 350);
-}
-
-function closeAiModal() {
-  const overlay = $('aiModalOverlay');
-  if (overlay) overlay.classList.remove('active');
-  const toast = $('aiOtherToast');
-  if (toast) toast.classList.remove('open');
-}
-
-function aiSetActiveLang(lang) {
-  aiLang = lang;
-  const wrap = $('aiLangSelect');
-  if (!wrap) return;
-  wrap.querySelectorAll('button[data-lang]').forEach((b) => {
-    b.classList.toggle('active', b.dataset.lang === lang && lang !== 'other');
-  });
-}
-
-function aiLangLabel() {
-  if (aiLang === 'other') {
-    const saved = (updateData && updateData.ai_custom_lang) || '';
-    return saved || 'English';
-  }
-  return aiLang;
-}
-
-async function explainMoreInAi() {
-  if (!currentTopic || aiBusy) return;
-  aiBusy = true;
-  aiShowTyping();
-  const lang = aiLangLabel();
-  try {
-    const res = await explainText({
-      user_id: user.id,
-      academy_id: getAcademyId(),
-      course_id: activeCourseId,
-      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
-      topic_name: currentTopic.topic_name || '',
-      topic_text: String(currentTopic.topic_text || '').slice(0, 3000),
-      target_lang: lang,
-      explain_mode: 'teacher',
-      with_examples: true,
-      example_questions: 2
-    });
-    aiRemoveTyping();
-    const explanation = res.explanation || res.message || 'Sorry, I could not prepare the explanation. Please try again.';
-    aiAddMsg('bot', 'Here is the full explanation of **' + ((currentTopic && currentTopic.topic_name) || 'this topic') + '** in **' + lang + '**:\n\n' + explanation);
-    setPreferredLang(lang);
-  } catch (err) {
-    aiRemoveTyping();
-    aiAddMsg('bot', 'I am having trouble connecting right now. Please try again in a moment.');
-  }
-  aiBusy = false;
-}
-
-async function reExplainInLang(lang) {
-  if (!currentTopic) return;
-  aiBusy = true;
-  aiShowTyping();
-  try {
-    const res = await explainText({
-      user_id: user.id,
-      academy_id: getAcademyId(),
-      course_id: activeCourseId,
-      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
-      topic_name: currentTopic.topic_name || '',
-      topic_text: String(currentTopic.topic_text || '').slice(0, 3000),
-      target_lang: lang,
-      explain_mode: 'teacher',
-      with_examples: true,
-      example_questions: 2
-    });
-    aiRemoveTyping();
-    const explanation = res.explanation || res.message || 'Sorry, I could not prepare the explanation. Please try again.';
-    aiAddMsg('bot', 'Explanation of **' + ((currentTopic && currentTopic.topic_name) || 'this topic') + '** in **' + lang + '**:\n\n' + explanation);
-    setPreferredLang(lang);
-  } catch (err) {
-    aiRemoveTyping();
-    aiAddMsg('bot', 'I am having trouble connecting right now. Please try again in a moment.');
-  }
-  aiBusy = false;
-}
-
-async function handleAiSend() {
-  const input = $('aiInput');
-  const btn = $('aiSendBtn');
-  if (!input || !btn || aiBusy) return;
-  const q = input.value.trim();
-  if (!q) return;
-  input.value = '';
-  input.style.height = 'auto';
-  btn.disabled = true;
-  aiAddMsg('user', q);
-  aiBusy = true;
-  aiShowTyping();
-  const lang = aiLangLabel();
-  try {
-    const res = await askQuestion({
-      user_id: user.id,
-      academy_id: getAcademyId(),
-      course_id: activeCourseId,
-      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
-      topic_name: (currentTopic && currentTopic.topic_name) || '',
-      topic_text: String((currentTopic && currentTopic.topic_text) || '').slice(0, 2500),
-      question: q,
-      history: [],
-      preferred_lang: lang
-    });
-    aiRemoveTyping();
-    const answer = res.answer || res.message || 'Sorry, I could not answer that. Please try again.';
-    aiAddMsg('bot', answer);
-  } catch (err) {
-    aiRemoveTyping();
-    aiAddMsg('bot', 'I am having trouble connecting right now. Please try again in a moment.');
-  }
-  aiBusy = false;
-  btn.disabled = false;
-  input.focus();
-}
-
 
 function addTypingIndicator() {
   const msgs = $('chatMsgs');
@@ -2561,8 +2323,6 @@ function openChat() {
     if (input) input.focus();
   }, 300);
 }
- 
- 
 
 function startCountdown() {
   if (!paymentState) return;
@@ -2650,8 +2410,6 @@ function stopAllPayLinks() {
   const box = $('payTransferLinkBox');
   if (box) box.remove();
 }
-
-
 
 async function startPayment() {
   const course = getPrimaryCourse();
@@ -2785,17 +2543,13 @@ async function startPayment() {
   }
 }
 
-
-
-
-
-
 async function loadDashboard() {
   showLoading();
   try {
     await loadCourseInfos();
     await refreshProfile();
     await loadUpdateTable();
+    await cleanupOldSupabaseData();
     const cleanUd = sanitizeUserData(userData);
     courseList = collectCourses(cleanUd);
     for (const c of courseList) {
@@ -2854,8 +2608,140 @@ async function loadDashboard() {
   }
 }
 
+let aiSelectedLang = '';
 
+function aiLabel(lang) {
+  const map = { 'english': 'English', 'english+hausa': 'English + Hausa', 'english+yoruba': 'English + Yoruba', 'english+igbo': 'English + Igbo', 'english+pidgin': 'English + Pidgin' };
+  return map[lang] || lang;
+}
 
+function addAiMessage(role, content) {
+  const area = $('aiChatArea');
+  if (!area) return null;
+  const div = document.createElement('div');
+  div.className = 'ai-msg ' + (role === 'bot' ? 'bot' : 'user');
+  if (role === 'bot') {
+    div.innerHTML = '<div class="ai-msg-label"><span class="ai-msg-icon"><img src="' + AI_ICON_URL + '" alt="AI" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>AI Tutor</div>' + markdownToHtml(content);
+  } else {
+    div.innerHTML = '<p>' + escapeHtml(content) + '</p>';
+  }
+  area.appendChild(div);
+  const body = document.querySelector('.ai-modal .ai-body');
+  if (body) body.scrollTop = body.scrollHeight;
+  return div;
+}
+
+function aiThinking() {
+  const area = $('aiChatArea');
+  if (!area) return null;
+  const div = document.createElement('div');
+  div.className = 'ai-msg bot ai-thinking';
+  div.innerHTML = '<div class="ai-msg-label"><span class="ai-msg-icon"><img src="' + AI_ICON_URL + '" alt="AI" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>AI Tutor</div><p>Typing...</p>';
+  area.appendChild(div);
+  const body = document.querySelector('.ai-modal .ai-body');
+  if (body) body.scrollTop = body.scrollHeight;
+  return div;
+}
+
+function openAiModal() {
+  const overlay = $('aiModalOverlay');
+  if (!overlay) return;
+  const area = $('aiChatArea');
+  if (area && !area.dataset.greeted) {
+    area.dataset.greeted = '1';
+    addAiMessage('bot', 'Hello ' + ((userData && userData.full_name) || 'student') + '! I am your IDT Academy AI tutor. Pick a language at the top, or tap "Explain more" and I will explain this topic in English plus your language.');
+  }
+  overlay.classList.add('active');
+}
+
+function closeAiModal() {
+  const overlay = $('aiModalOverlay');
+  if (overlay) overlay.classList.remove('active');
+  const row = $('aiOtherLangRow');
+  if (row) row.classList.add('hidden');
+}
+
+async function runExplain(lang, dual) {
+  if (!currentTopic) {
+    showToast('error', 'No Topic', 'Open a topic first, then use Explain.', '');
+    return;
+  }
+  if (!lang) {
+    showToast('error', 'Language Required', 'Please pick a language at the top first.', '');
+    return;
+  }
+  aiSelectedLang = lang;
+  setPreferredLang(lang);
+  const topicLang = detectTopicLanguageLocal((currentTopic.topic_name || '') + ' ' + (currentTopic.topic_text || ''));
+  let target = lang;
+  if (topicLang && topicLang !== 'English' && ('english+' + topicLang.toLowerCase()) !== String(lang).toLowerCase() && String(lang).toLowerCase().indexOf(topicLang.toLowerCase()) === -1) {
+    target = topicLang + ' + ' + aiLabel(lang).replace('English + ', '');
+  }
+  const thinking = aiThinking();
+  if (thinking) addAiMessage('user', 'Explain this topic to me in ' + aiLabel(target));
+  try {
+    const res = await explainText({
+      user_id: user.id,
+      academy_id: getAcademyId(),
+      course_id: activeCourseId,
+      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
+      topic_name: currentTopic.topic_name || '',
+      topic_text: String(currentTopic.topic_text || '').slice(0, 4000),
+      target_lang: target,
+      explain_mode: dual ? 'dual' : 'single'
+    });
+    if (thinking) thinking.remove();
+    if (res.language_available === false) {
+      addAiMessage('bot', res.message || (target + ' is not available yet. Please try another language.'));
+      return;
+    }
+    const explanation = res.explanation || res.message || 'No explanation returned.';
+    addAiMessage('bot', explanation);
+    showToast('success', 'Explanation Ready', 'Here is your explanation in ' + aiLabel(target) + '.');
+  } catch (err) {
+    if (thinking) thinking.remove();
+    addAiMessage('bot', 'Sorry, I could not create the explanation right now. Please try again.');
+    showToast('error', 'Explain Failed', 'Could not create the explanation. Please try again.', err.message || String(err));
+  }
+}
+
+async function handleAiChatSend() {
+  const input = $('aiInput');
+  const send = $('aiSendBtn');
+  if (!input || !send) return;
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+  send.disabled = true;
+  addAiMessage('user', q);
+  const history = (chatHistories[activeCourseId] || []).slice(-8);
+  const thinking = aiThinking();
+  try {
+    const res = await askQuestion({
+      user_id: user.id,
+      academy_id: getAcademyId(),
+      course_id: activeCourseId,
+      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
+      topic_name: (currentTopic && currentTopic.topic_name) || '',
+      topic_text: String((currentTopic && currentTopic.topic_text) || '').slice(0, 2500),
+      question: q,
+      history: history,
+      preferred_lang: aiSelectedLang || getPreferredLang()
+    });
+    const answer = res.answer || res.message || 'Sorry, I could not answer that. Please try again.';
+    if (thinking) thinking.remove();
+    addAiMessage('bot', answer);
+    history.push({ role: 'user', content: q.slice(0, 600) });
+    history.push({ role: 'assistant', content: answer.slice(0, 2000) });
+    chatHistories[activeCourseId] = history;
+    saveChatHistory();
+  } catch (err) {
+    if (thinking) thinking.remove();
+    addAiMessage('bot', 'I am having trouble connecting right now. Please try again in a moment.');
+  }
+  send.disabled = false;
+  input.focus();
+}
 
 function on(id, event, handler) {
   const el = $(id);
@@ -2873,84 +2759,6 @@ function domReady(fn) {
     fn();
   }
 }
-
-
-on('btnExplainLang', 'click', () => openAiModal('explain'));
-on('btnAskQuestion', 'click', () => openAiModal('chat'));
-on('aiModalClose', 'click', closeAiModal);
-
-document.querySelectorAll('#aiLangSelect button[data-lang]').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const lang = btn.dataset.lang;
-    if (lang === 'other') {
-      const toast = $('aiOtherToast');
-      if (toast) {
-        toast.classList.add('open');
-        const input = $('aiOtherInput');
-        if (input) setTimeout(() => input.focus(), 250);
-      }
-      return;
-    }
-    aiSetActiveLang(lang);
-    if (aiMode === 'explain' && currentTopic) {
-      reExplainInLang(lang);
-    }
-  });
-});
-
-on('aiOtherClose', 'click', () => {
-  const toast = $('aiOtherToast');
-  if (toast) toast.classList.remove('open');
-});
-
-function submitOtherLang() {
-  const input = $('aiOtherInput');
-  const lang = (input && input.value.trim()) || '';
-  if (!lang) {
-    showToast('error', 'Language Required', 'Please type the language you want.', '');
-    return;
-  }
-  if (updateData) updateData.ai_custom_lang = lang;
-  saveUpdate({ ai_custom_lang: lang });
-  aiSetActiveLang('other');
-  const toast = $('aiOtherToast');
-  if (toast) toast.classList.remove('open');
-  if (input) input.value = '';
-  if (aiMode === 'explain' && currentTopic) {
-    reExplainInLang(lang);
-  } else {
-    aiAddMsg('bot', 'Got it! I will now reply in **' + lang + '**. Ask me anything.');
-  }
-}
-
-on('aiOtherSend', 'click', submitOtherLang);
-
-const aiOtherInputEl = $('aiOtherInput');
-if (aiOtherInputEl) {
-  aiOtherInputEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      submitOtherLang();
-    }
-  });
-}
-
-const aiInputEl = $('aiInput');
-if (aiInputEl) {
-  aiInputEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleAiSend();
-    }
-  });
-  aiInputEl.addEventListener('input', () => {
-    aiInputEl.style.height = 'auto';
-    aiInputEl.style.height = Math.min(aiInputEl.scrollHeight, 120) + 'px';
-  });
-}
-
-on('aiSendBtn', 'click', handleAiSend);
-
 
 domReady(() => {
   ensureAppFreshness();
@@ -3032,7 +2840,9 @@ domReady(() => {
   });
 
   on('pnClose', 'click', closeCoursePush);
+
   on('pnBody', 'click', () => {});
+
   on('btnPayNow', 'click', startPayment);
 
   on('paymentClose', 'click', () => {
@@ -3114,6 +2924,8 @@ domReady(() => {
     });
   });
 
+  on('btnDualLang', 'click', () => handleExplain(getPreferredLang(), true));
+
   on('userAvatar', 'click', openMyCourses);
 
   on('pendingCourseBox', 'click', () => {
@@ -3137,7 +2949,9 @@ domReady(() => {
     showToast('info', 'Good Choice', 'Take your time. Read the topic again and make sure you understand before moving on.');
   });
 
-  on('btnReady', 'click', handleReady);
+  on('btnReady', 'click', () => {
+    handleReady();
+  });
 
   on('btnCopyText', 'click', async (e) => {
     const btn = e.currentTarget;
@@ -3152,6 +2966,87 @@ domReady(() => {
     }
   });
 
+  on('btnAskQuestion', 'click', openChat);
+
+  on('chatClose', 'click', () => {
+    const o = $('chatOverlay');
+    if (o) o.classList.remove('open');
+  });
+
+  on('btnExplainLang', 'click', openAiModal);
+  on('videoExplainFloat', 'click', openAiModal);
+  on('aiModalClose', 'click', closeAiModal);
+
+  const headerLangs = $('aiHeaderLangs');
+  if (headerLangs) {
+    headerLangs.querySelectorAll('button[data-lang]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        headerLangs.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        runExplain(btn.dataset.lang, true);
+      });
+    });
+  }
+
+  on('aiOtherLangBtn', 'click', () => {
+    const row = $('aiOtherLangRow');
+    if (!row) return;
+    row.classList.toggle('hidden');
+    if (!row.classList.contains('hidden')) {
+      const input = $('aiOtherLangInput');
+      if (input) input.focus();
+    }
+  });
+
+  on('aiOtherLangSend', 'click', () => {
+    const input = $('aiOtherLangInput');
+    const lang = (input && input.value.trim()) || '';
+    if (!lang) {
+      showToast('error', 'Language Required', 'Please type the language you want.', '');
+      return;
+    }
+    const row = $('aiOtherLangRow');
+    if (row) row.classList.add('hidden');
+    if (input) input.value = '';
+    const langs = $('aiHeaderLangs');
+    if (langs) langs.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+    runExplain(lang, true);
+  });
+
+  const aiSendBtn = $('aiSendBtn');
+  if (aiSendBtn) aiSendBtn.addEventListener('click', handleAiChatSend);
+  const aiInputEl = $('aiInput');
+  if (aiInputEl) {
+    aiInputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleAiChatSend();
+      }
+    });
+  }
+
+  on('chatForm', 'submit', handleChatSubmit);
+
+  on('explainClose', 'click', () => {
+    const overlay = $('explainOverlay');
+    if (overlay) overlay.classList.remove('open');
+  });
+
+  function handleExplain(lang, dual) {
+    const grid = $('langGrid');
+    const result = $('explainResult');
+    const note = $('explainNote');
+    const overlay = $('explainOverlay');
+    const otherRow = $('explainOtherLangRow');
+    if (otherRow) otherRow.classList.add('hidden');
+    if (grid) grid.classList.remove('hidden');
+    if (result) result.classList.add('hidden');
+    if (note) note.textContent = '';
+    if (overlay) overlay.classList.add('open');
+    if (lang && dual) {
+      runExplain(lang, dual);
+    }
+  }
 
   on('assessClose', 'click', () => {
     const o = $('assessmentOverlay');
@@ -3190,6 +3085,7 @@ domReady(() => {
   });
 
   on('btnDownloadPdf', 'click', downloadResultPdf);
+
   on('btnEmailResult', 'click', emailResult);
 
   on('btnContinueStudy', 'click', () => {
