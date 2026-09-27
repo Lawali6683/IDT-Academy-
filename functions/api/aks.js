@@ -194,7 +194,7 @@ async function handleAsk(env, body, userData) {
     + 'Detect the language of the student\'s question automatically. If they asked in a language other than English, answer mainly in that language but keep difficult technical words in English, explaining each one in simple local words like a good teacher. '
     + 'If the student requests two languages, answer first in English then repeat the key points in the second language. '
     + 'FORMATTING RULES (VERY IMPORTANT): Do NOT use markdown symbols anywhere. Never use asterisks *, hashes #, backticks, or underscores. Write plain clean text only. Use line breaks and numbered steps for structure. '
-    + 'If the language requested is one you cannot write properly, say honestly that it is not available and offer English or another language. ';
+    + 'If the language requested is one you cannot write properly, say honestly that it is not available and offer English or another language. '
     + 'Never invent facts. Use only the lesson notes provided. If you do not know, say so honestly and suggest what to do next.';
 
   const contents = [];
@@ -222,6 +222,9 @@ async function handleAsk(env, body, userData) {
 async function handleExplain(env, body, userData) {
   const studentName = (userData && userData.full_name) || body.full_name || 'Student';
   const dual = body.explain_mode === 'dual';
+  const teacherMode = body.explain_mode === 'teacher';
+  const withExamples = body.with_examples === true;
+  const numExamples = Number(body.example_questions || 2);
   const userLang = String(body.target_lang || body.preferred_lang || 'English').trim() || 'English';
   const courseName = String(body.course_name || '');
   const topicName = String(body.topic_name || '');
@@ -229,22 +232,23 @@ async function handleExplain(env, body, userData) {
 
   let system = 'You are a warm, patient expert teacher at IDT Academy teaching ' + studentName + '. ';
   system += 'FIRST RULE: Before anything, check if you can write correctly and fluently in the language "' + userLang + '". If you cannot write properly in that language, respond with ONLY this exact marker and nothing else: LANGUAGE_NOT_AVAILABLE ';
-  if (dual) {
+  if (teacherMode) {
+    system += 'The student pressed "Explain More" on topic "' + topicName + '". Explain the topic DEEPLY like a real classroom teacher, mainly in ' + userLang + ' (keep technical terms in English with simple ' + userLang + ' explanations). ';
+    system += 'STRUCTURE (follow exactly): 1) Simple introduction of the topic. 2) Full step-by-step explanation with real-life examples a Nigerian student can relate to. 3) At least two worked examples that make the topic clear. 4) Exactly ' + numExamples + ' practice questions WITH their full answers shown (heading "Practice Questions"). 5) A short encouraging closing message. ';
+  } else if (dual) {
     system += 'Otherwise, explain the lesson in TWO parts. Part 1: explain fully in English. Part 2 with the heading "In ' + userLang + '": explain the same key points in ' + userLang + '. ';
   } else {
     system += 'Otherwise, explain the lesson mainly in ' + userLang + '. ';
   }
   system += 'TEACHING RULES: '
-    + '1. For every difficult or technical word, write it in English first, then immediately explain its meaning in ' + userLang + ' in simple words, like this style: "Boys yana nufin yara maza da yawa". '
+    + '1. For every difficult or technical word, write it in English first, then immediately explain its meaning in ' + userLang + ' in simple words. '
     + '2. Explain step by step, slowly, like a real classroom teacher, with simple everyday examples from real life that a student in Nigeria can relate to. '
     + '3. Use simple numbered steps and short paragraphs. '
-    + '4. If the topic has something visible or drawable, add one short line at the end titled "Image to look at:" describing a simple picture or diagram the student should imagine or search online. '
-    + '5. At the very end, ask exactly TWO short questions in ' + userLang + ' (or in English if dual) to check if the student understood, and tell them to answer with the Ask Question button. '
-    + '6. Be encouraging: praise the student, call them by name, and tell them they are doing well. '
+    + '4. Be encouraging: praise the student, call them by name, and tell them they are doing well. '
     + 'FORMATTING RULES (VERY IMPORTANT): Do NOT use markdown symbols anywhere. Never use asterisks *, hashes #, backticks, or underscores for emphasis. Write plain clean text only. Use line breaks and numbered steps for structure.';
 
   const text = await generateAIResponse(env, system,
-    'Lesson from "' + courseName + '"\nTopic: ' + topicName + '\n\nNotes:\n' + (topicText || 'No notes provided.') + '\n\nExplain this lesson fully to ' + studentName + ' in ' + userLang + ' following all the teaching rules. Make it clear, enjoyable and easy to understand.'
+    'Lesson from "' + courseName + '"\nTopic: ' + topicName + '\n\nNotes:\n' + (topicText || 'No notes provided.') + '\n\nExplain this lesson fully to ' + studentName + ' in ' + userLang + ' following all the teaching rules.' + (teacherMode && withExamples ? ' Include the worked examples and the ' + numExamples + ' practice questions with answers as required by the structure.' : '')
   );
 
   if (text.trim().toUpperCase().indexOf('LANGUAGE_NOT_AVAILABLE') !== -1) {
@@ -258,7 +262,6 @@ async function handleExplain(env, body, userData) {
 
   return json({ success: true, explanation: text, language: dual ? ('English + ' + userLang) : userLang, lang_detected: userLang, language_available: true });
 }
-
 
 
 async function parseJsonArray(text) {
@@ -312,27 +315,47 @@ async function handleGetAssessment(env, body, userData) {
   const studentName = (userData && userData.full_name) || body.full_name || 'Student';
   const courseName = String(body.course_name || '');
   const topics = Array.isArray(body.topics) ? body.topics : [];
+  const counts = Array.isArray(body.question_counts) && body.question_counts.length === topics.length
+    ? body.question_counts.map(function(c) { return Math.max(1, Math.min(3, Number(c) || 1)); })
+    : topics.map(function() { return 1; });
+  const avoid = Array.isArray(body.avoid_questions) ? body.avoid_questions : [];
   const topicLang = detectTopicLanguage(topics.map(function(t) { return t.topic_text || ''; }).join(' '));
 
-  const system = 'You are an assessment creator at IDT Academy. Create exactly 5 questions to test if ' + studentName + ' understood the topics below. '
-    + 'LANGUAGE RULE (MOST IMPORTANT): Every question, every option and every expected answer MUST be written ONLY in ' + topicLang + '. Do not mix English into the questions unless a technical term has no ' + topicLang + ' translation, in which case keep that single term in English. '
-    + 'Each question must have 4 options (A, B, C, D) with one correct answer marked by index (0-based). '
-    + 'Make 3 questions multiple-choice and 2 questions that require a written short answer (set type: "write" and options: []). '
+  const perTopic = topics.map(function(t, i) {
+    return 'Topic ' + (i + 1) + ' (create EXACTLY ' + counts[i] + ' DIFFERENT question' + (counts[i] > 1 ? 's' : '') + ' from THIS topic only):\nName: ' + (t.topic_name || '') + '\nNotes:\n' + String(t.topic_text || '').slice(0, 1500);
+  }).join('\n\n');
+
+  const avoidBlock = avoid.length
+    ? '\n\nIMPORTANT: Do NOT create any question similar to these existing questions:\n' + avoid.map(function(q, i) { return (i + 1) + '. ' + q; }).join('\n')
+    : '';
+
+  const totalQ = counts.reduce(function(a, b) { return a + b; }, 0);
+
+  const system = 'You are an assessment creator at IDT Academy. Create exactly ' + totalQ + ' questions to test if ' + studentName + ' understood the topics below. '
+    + 'DISTRIBUTION RULE (MOST IMPORTANT): You MUST create the exact number of questions stated for EACH topic separately, taken ONLY from that topic\'s notes. Do not skip any topic and do not take two questions from the same part of a topic. Every question must be UNIQUE and different from every other question. '
+    + 'QUESTION TYPE RULE: Most questions must be multiple-choice with 4 options (A, B, C, D) and one correct answer marked by index (0-based). But EXACTLY ONE question in the whole set must be a written short answer question (set type: "write" and options: []). '
+    + 'LANGUAGE RULE: Every question, every option and every expected answer MUST be written ONLY in ' + topicLang + '. Do not mix English into the questions unless a technical term has no ' + topicLang + ' translation, in which case keep that single term in English. '
     + 'Questions should be practical and based ONLY on the notes below. '
     + 'Write all question text, options, explanations and correct answers in plain clean text with no markdown symbols like *, #, or backticks. '
-    + 'Return ONLY valid JSON array with no extra text: [{"question": "...", "options": ["A", "B", "C", "D"], "type": "mcq", "correct": 0}, ...]';
+    + 'Return ONLY valid JSON array with no extra text: [{"question": "...", "options": ["A", "B", "C", "D"], "type": "mcq", "correct": 0}, ...] for mcq, or {"question": "...", "options": [], "type": "write", "correct": "model answer text"} for write. Mix the order of the questions randomly.';
 
-  const prompt = 'Course: ' + courseName + '\n\nTopics:\n' + topics.map(function(t, i) {
-    return 'Topic ' + (i + 1) + ': ' + (t.topic_name || '') + '\n' + String(t.topic_text || '').slice(0, 1500);
-  }).join('\n\n') + '\n\nCreate 5 questions written ONLY in ' + topicLang + '. Return ONLY valid JSON array.';
+  const prompt = 'Course: ' + courseName + '\n\nTopics:\n' + perTopic + avoidBlock + '\n\nCreate exactly ' + totalQ + ' questions written ONLY in ' + topicLang + ' following the distribution rule and the one written-answer rule. Return ONLY valid JSON array.';
 
   const text = await generateAIResponse(env, system, prompt);
   let questions = parseJsonArray(text);
 
+  const seen = {};
+  questions = questions.filter(function(q) {
+    const key = String(q.question || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 80);
+    if (!key || seen[key]) return false;
+    seen[key] = true;
+    return true;
+  }).slice(0, totalQ);
+
   if (!questions.length) {
     questions = [];
-    for (let i = 0; i < 5; i++) {
-      questions.push({ question: 'Explain what you learned about this topic.', options: [], type: 'write', correct: '' });
+    for (let i = 0; i < totalQ; i++) {
+      questions.push({ question: 'Explain what you learned about ' + ((topics[0] && topics[0].topic_name) || 'this topic') + '.', options: [], type: 'write', correct: '' });
     }
   }
 
@@ -341,37 +364,72 @@ async function handleGetAssessment(env, body, userData) {
 }
 
 
-
-
 async function handleGradeAssessment(env, body, userData) {
   const studentName = (userData && userData.full_name) || body.full_name || 'Student';
   const courseName = String(body.course_name || '');
   const questions = Array.isArray(body.questions) ? body.questions : [];
 
-  const system = 'You are a fair and encouraging teacher at IDT Academy. Grade ' + studentName + '\'s answers for the course "' + courseName + '". '
-    + 'For each question: if the student\'s answer shows understanding even with spelling mistakes, give partial or full credit. '
-    + 'Only mark as wrong if the answer is completely irrelevant or nonsense. Be generous but honest. '
-    + 'Write the correct_answer and explanation in the same language the questions and the student\'s answers are written in. '
-    + 'Do NOT use markdown symbols like *, #, or backticks anywhere. Plain clean text only. '
-    + 'Return ONLY valid JSON array with no extra text: [{"number": 1, "question": "...", "is_correct": true, "user_answer": "...", "correct_answer": "...", "explanation": "..."}]';
+  const mcqAuto = [];
+  const writeQs = [];
+  questions.forEach(function(q, i) {
+    const num = Number(q.number || i + 1);
+    if ((q.type || 'mcq') === 'mcq' && Array.isArray(q.options) && q.options.length && q.user_answer !== '') {
+      const idx = Number(q.user_answer);
+      const correctIdx = Number(q.correct);
+      if (!isNaN(idx) && !isNaN(correctIdx)) {
+        mcqAuto.push({
+          number: num,
+          question: q.question,
+          is_correct: idx === correctIdx,
+          user_answer: q.options[idx] != null ? q.options[idx] : String(q.user_answer),
+          correct_answer: q.options[correctIdx] != null ? q.options[correctIdx] : '',
+          explanation: idx === correctIdx ? 'Correct answer.' : 'The correct option was selected by the system.'
+        });
+        return;
+      }
+    }
+    writeQs.push({ num: num, q: q });
+  });
 
-  const prompt = 'Grade these ' + questions.length + ' answers for ' + studentName + ':\n\n' +
-    questions.map(function(q, i) {
-      return 'Q' + (i + 1) + ': ' + q.question + '\nOptions: ' + JSON.stringify(q.options || []) + '\nType: ' + (q.type || 'mcq') + '\nStudent answer: ' + (q.user_answer || '(no answer)');
-    }).join('\n\n') + '\n\nReturn ONLY valid JSON array of grading results. Be fair and encouraging.';
-
-  const text = await generateAIResponse(env, system, prompt);
-  let results = parseJsonArray(text);
-
-  if (!results.length) {
-    results = questions.map(function(q, i) {
-      return { number: i + 1, question: q.question, is_correct: Boolean(q.user_answer), user_answer: q.user_answer || '', correct_answer: 'See lesson notes', explanation: 'Graded automatically.' };
-    });
+  let aiResults = [];
+  if (writeQs.length) {
+    const system = 'You are a fair and encouraging teacher at IDT Academy. Grade ' + studentName + '\'s written answers for the course "' + courseName + '". '
+      + 'For each question: if the student\'s answer shows understanding even with spelling mistakes, give full or partial credit. '
+      + 'Only mark as wrong if the answer is completely irrelevant or nonsense. Be generous but honest. '
+      + 'Write the correct_answer and explanation in the same language the questions and the student\'s answers are written in. '
+      + 'Do NOT use markdown symbols like *, #, or backticks anywhere. Plain clean text only. '
+      + 'Return ONLY valid JSON array with no extra text: [{"number": 1, "question": "...", "is_correct": true, "user_answer": "...", "correct_answer": "...", "explanation": "..."}]';
+    const prompt = 'Grade these ' + writeQs.length + ' written answers for ' + studentName + ':\n\n' +
+      writeQs.map(function(w) {
+        return 'Q' + w.num + ': ' + w.q.question + '\nType: write\nStudent answer: ' + (w.q.user_answer || '(no answer)');
+      }).join('\n\n') + '\n\nReturn ONLY valid JSON array of grading results. Be fair and encouraging.';
+    const text = await generateAIResponse(env, system, prompt);
+    aiResults = parseJsonArray(text);
   }
 
+  const results = mcqAuto.concat(aiResults.map(function(r) {
+    return {
+      number: Number(r.number || 0),
+      question: String(r.question || ''),
+      is_correct: r.is_correct === true,
+      user_answer: String(r.user_answer || ''),
+      correct_answer: String(r.correct_answer || ''),
+      explanation: String(r.explanation || '')
+    };
+  }));
+
+  results.sort(function(a, b) { return Number(a.number || 0) - Number(b.number || 0); });
+
+  const finalResults = questions.map(function(q, i) {
+    const num = Number(q.number || i + 1);
+    const found = results.find(function(r) { return Number(r.number) === num; });
+    if (found) return found;
+    return { number: num, question: q.question, is_correct: Boolean(q.user_answer), user_answer: q.user_answer || '', correct_answer: (q.type === 'write' ? 'See lesson notes' : (q.options && q.options[Number(q.correct)] != null ? q.options[Number(q.correct)] : 'See lesson notes')), explanation: 'Graded automatically.' };
+  });
+
   let score = 0;
-  results.forEach(function(r) { if (r.is_correct === true) score++; });
-  const pct = Math.round((score / Math.max(1, results.length)) * 100);
+  finalResults.forEach(function(r) { if (r.is_correct === true) score++; });
+  const pct = Math.round((score / Math.max(1, finalResults.length)) * 100);
   const passed = pct >= 60;
 
   return json({
@@ -379,10 +437,10 @@ async function handleGradeAssessment(env, body, userData) {
     score: score,
     pct: pct,
     passed: passed,
-    results: results,
+    results: finalResults,
     message: passed
-      ? 'Excellent work, ' + studentName + '! You scored ' + score + '/' + results.length + ' (' + pct + '%). You understood the topics well. Keep going!'
-      : 'Good effort, ' + studentName + '! You scored ' + score + '/' + results.length + ' (' + pct + '%). Read the topics once more and try again after 2 hours. You can do it!'
+      ? 'Excellent work, ' + studentName + '! You scored ' + score + '/' + finalResults.length + ' (' + pct + '%). You understood the topics well. Keep going!'
+      : 'Good effort, ' + studentName + '! You scored ' + score + '/' + finalResults.length + ' (' + pct + '%). Read the topics once more and try again. You can do it!'
   });
 }
 
