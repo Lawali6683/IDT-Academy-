@@ -3,18 +3,27 @@ import { supabase } from './supabase.js';
 const ASK_API = '/api/aks';
 const PAYSTACK_API = '/api/paystack';
 const EMAIL_API = '/api/sendEmail';
+const REQUEST_TIMEOUT_MS = 90000;
 
 async function postJson(url, payload, errorPrefix) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(function () { ctrl.abort(); }, REQUEST_TIMEOUT_MS);
   let res;
   try {
     res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: ctrl.signal
     });
   } catch (err) {
+    clearTimeout(timer);
+    if (err && err.name === 'AbortError') {
+      throw new Error(errorPrefix + ': request timed out. Please try again.');
+    }
     throw new Error(errorPrefix + ': network failed. Check your connection and try again.');
   }
+  clearTimeout(timer);
   let data = null;
   try {
     data = await res.json();
@@ -22,7 +31,7 @@ async function postJson(url, payload, errorPrefix) {
     data = null;
   }
   if (!res.ok) {
-    const txt = data && data.error ? data.error : '';
+    const txt = data && (data.error || data.message) ? (data.error || data.message) : '';
     throw new Error(errorPrefix + ' ' + res.status + (txt ? ': ' + txt : ''));
   }
   if (!data || typeof data !== 'object') {
