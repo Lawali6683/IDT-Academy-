@@ -281,10 +281,30 @@ function removeToast(t) {
   setTimeout(function() { if (t.parentNode) t.parentNode.removeChild(t); }, 300);
 }
 
-function showLoading(show) {
+function showLoading(show, msg) {
   if (!el.loading) return;
-  if (show) { el.loading.classList.remove('fade-out'); el.loading.style.display = 'flex'; }
-  else { el.loading.classList.add('fade-out'); setTimeout(function() { el.loading.style.display = 'none'; }, 500); }
+  if (show) {
+    el.loading.classList.remove('fade-out');
+    el.loading.style.display = 'flex';
+    let note = document.getElementById('loadingNote');
+    if (msg) {
+      if (!note) {
+        note = document.createElement('div');
+        note.id = 'loadingNote';
+        note.style.cssText = 'margin-top:16px;max-width:340px;padding:0 22px;text-align:center;font-size:14px;font-weight:600;line-height:1.6;color:#6d6a8a';
+        el.loading.appendChild(note);
+      }
+      note.textContent = msg;
+      note.style.display = 'block';
+    } else if (note) {
+      note.style.display = 'none';
+    }
+  } else {
+    const note = document.getElementById('loadingNote');
+    if (note) note.style.display = 'none';
+    el.loading.classList.add('fade-out');
+    setTimeout(function() { el.loading.style.display = 'none'; }, 500);
+  }
 }
 
 async function copyText(txt) {
@@ -1301,7 +1321,7 @@ function withTimeout(promise, ms, failMsg) {
 
 
 async function generateExamQuestions() {
-  showLoading(true);
+  showLoading(true, 'Your exam is being generated. Please wait a few minutes and do not close or refresh this page — the exam will open automatically once it is ready.');
   try {
     let raw = null;
     try {
@@ -1418,8 +1438,6 @@ async function generateExamQuestions() {
     showLoading(false);
   }
 }
-
-
 
 
 async function openExamLock() {
@@ -1762,17 +1780,12 @@ function goExamNext() {
     renderExamQuestion(currentExamQ + 1);
     return;
   }
-  let firstUnanswered = -1;
-  for (let i = 0; i < examAnswers.length; i++) {
-    if (examAnswers[i] === null || examAnswers[i] === undefined) {
-      firstUnanswered = i;
-      break;
-    }
-  }
+  const firstUnanswered = examAnswers.findIndex(function(a) { return a === null || a === undefined; });
   if (firstUnanswered !== -1) {
+    const remaining = examAnswers.filter(function(a) { return a === null || a === undefined; }).length;
     renderExamQuestion(firstUnanswered);
-    const remaining = examQuestions.length - examAnswers.filter(function(a) { return a !== null && a !== undefined; }).length;
-    showToast('You have ' + remaining + ' unanswered question(s). Please answer all of them before submitting.', 'warning', 6000);
+    try { if (el.examQText) el.examQText.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+    showToast('You still have ' + remaining + ' unanswered question(s). We have taken you to question ' + (firstUnanswered + 1) + ' — please answer it and continue.', 'warning', 6000);
     return;
   }
   showConfirmToast('This is the last question. Do you want to submit your exam? You cannot change your answers after submission.', function() {
@@ -2029,7 +2042,14 @@ async function submitExam(auto) {
 el.submitExamBtn.addEventListener('click', function() {
   if (this.disabled) return;
   if (!allQuestionsAnswered()) {
-    showToast('You must answer all questions before submitting.', 'warning', 6000);
+    const firstUnanswered = examAnswers.findIndex(function(a) { return a === null || a === undefined; });
+    if (firstUnanswered !== -1) {
+      renderExamQuestion(firstUnanswered);
+      try { if (el.examQText) el.examQText.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+      showToast('You must answer all questions before submitting. We have taken you to question ' + (firstUnanswered + 1) + '.', 'warning', 6000);
+    } else {
+      showToast('You must answer all questions before submitting.', 'warning', 6000);
+    }
     return;
   }
   showConfirmToast('Are you sure you want to submit your exam? You cannot change your answers after submission.', async function() {
@@ -2038,8 +2058,6 @@ el.submitExamBtn.addEventListener('click', function() {
     resetBtnLoading(el.submitExamBtn);
   });
 });
-
-
 
 function markLocally() {
   let correct = 0;
@@ -2235,64 +2253,83 @@ function resetExamState() {
 
 
 
-
-
-
-
-
-
-
 async function downloadResultsPdf(data) {
   const u = getLocalUser();
   const name = u ? u.full_name || 'Student' : 'Student';
-  const dept = u ? u.jambCourseName || '' : '';
+  const dept = u ? u.jambCourseName || 'JAMB Preparation' : 'JAMB Preparation';
   const date = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
+  const passed = !!data.passed;
+  const statusColor = passed ? '#10b981' : '#f43f5e';
+  const statusText = passed ? 'PASS' : 'FAIL';
 
-  const watermark = '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);opacity:.06;z-index:0"><img src="https://i.imgur.com/oyqM5oF.png" style="width:150mm"></div>';
-  const signatures = '<div style="position:relative;z-index:1;display:flex;justify-content:space-around;align-items:flex-end;margin-top:30px"><div style="text-align:center"><img src="https://i.imgur.com/z8HOr4D.png" style="height:52px;object-fit:contain;margin:0 auto 4px"><div style="font-size:13px;font-weight:800;color:#1e1b4b">Haruna Lawali</div><div style="font-size:11px;color:#6d6a8a">Founder</div></div><div style="text-align:center"><img src="https://i.imgur.com/leqHq9I.png" style="height:52px;object-fit:contain;margin:0 auto 4px"><div style="font-size:13px;font-weight:800;color:#1e1b4b">Ubaida Lawali</div><div style="font-size:11px;color:#6d6a8a">CEO, IDT Academy</div></div></div>';
-  const pageFoot = '<div style="position:absolute;bottom:8mm;left:0;right:0;text-align:center;font-size:9px;color:#6d6a8a;z-index:1">Powered by IDT Academy — JAMB Preparation Platform</div>';
-  const pageBase = 'width:210mm;height:296mm;position:relative;overflow:hidden;background:#ffffff;padding:14mm;box-sizing:border-box;font-family:Poppins,Arial,sans-serif;color:#1e1b4b;';
+  function row(label, value) {
+    return '<div style="display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px dashed #eceaf6">' +
+      '<span style="font-size:12px;color:#6d6a8a;font-weight:600">' + escapeHtml(label) + '</span>' +
+      '<span style="font-size:12.5px;color:#1e1b4b;font-weight:700;text-align:right">' + escapeHtml(value || '—') + '</span>' +
+    '</div>';
+  }
 
-  const pages = [];
+  function signature(img, n, r) {
+    return '<div style="text-align:center"><img src="' + img + '" style="height:50px;object-fit:contain;margin:0 auto 4px"><div style="font-size:13px;font-weight:800;color:#1e1b4b">' + escapeHtml(n) + '</div><div style="font-size:11px;color:#6d6a8a">' + escapeHtml(r) + '</div></div>';
+  }
 
-  let p1 = '<div style="' + pageBase + '">' + watermark;
-  p1 += '<div style="position:relative;z-index:1;display:flex;justify-content:center;align-items:center;gap:12px;margin-bottom:10px"><img src="https://i.imgur.com/2DY6OD4.png" style="height:38px"><span style="width:2px;height:30px;background:#006838;opacity:.3"></span><img src="https://i.imgur.com/oyqM5oF.png" style="height:38px"></div>';
-  p1 += '<h1 style="position:relative;z-index:1;text-align:center;font-size:18px;color:#006838;margin:0 0 4px">IDT Academy JAMB Mock Exam Result</h1>';
-  p1 += '<p style="position:relative;z-index:1;text-align:center;color:#6d6a8a;font-size:12px;margin:0 0 16px">' + date + '</p>';
-  p1 += '<div style="position:relative;z-index:1;display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e5e7eb;font-size:13px"><span><strong>Name:</strong> ' + escapeHtml(name) + '</span><span><strong>Score:</strong> ' + data.score + '/400</span></div>';
-  p1 += '<div style="position:relative;z-index:1;display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e5e7eb;font-size:13px"><span><strong>Department:</strong> ' + escapeHtml(dept) + '</span><span><strong>Status:</strong> ' + (data.passed ? 'PASS' : 'FAIL') + '</span></div>';
-  p1 += '<div style="position:relative;z-index:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:18px 0">';
+  let subjectsHtml = '';
   if (data.subjects) {
     data.subjects.forEach(function(s) {
       const pct = s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0;
-      p1 += '<div style="text-align:center;padding:10px;background:#f8f6ff;border-radius:8px"><div style="font-size:11px;font-weight:700;color:#6d6a8a;text-transform:uppercase">' + escapeHtml(s.subject) + '</div><div style="font-size:20px;font-weight:800;color:#1e1b4b">' + pct + '</div><div style="font-size:10px;color:#6d6a8a">' + s.correct + '/' + s.total + '</div></div>';
+      subjectsHtml += '<tr>' +
+        '<td style="padding:10px 14px;border-bottom:1px solid #eceaf6;font-size:12.5px;font-weight:600;color:#1e1b4b;text-align:left">' + escapeHtml(s.subject) + '</td>' +
+        '<td style="padding:10px 14px;border-bottom:1px solid #eceaf6;font-size:12.5px;color:#6d6a8a;text-align:center">' + s.correct + ' / ' + s.total + '</td>' +
+        '<td style="padding:10px 14px;border-bottom:1px solid #eceaf6;font-size:12.5px;font-weight:700;color:' + (pct >= 50 ? '#10b981' : '#f43f5e') + ';text-align:right">' + pct + '%</td>' +
+      '</tr>';
     });
-  }
-  p1 += '</div>';
-  p1 += '<div style="position:relative;z-index:1;text-align:center;padding:16px;background:linear-gradient(135deg,rgba(0,104,56,.06),rgba(124,58,237,.06));border-radius:12px;margin-bottom:10px"><div style="font-size:12px;color:#6d6a8a;font-weight:600;text-transform:uppercase">Total Score</div><div style="font-size:36px;font-weight:900;color:#1e1b4b">' + data.score + '/400</div><div style="font-size:15px;font-weight:700;color:' + (data.passed ? '#10b981' : '#f43f5e') + '">' + (data.passed ? 'PASS' : 'FAIL') + '</div></div>';
-  p1 += signatures + pageFoot + '</div>';
-  pages.push(p1);
-
-  const details = data.details || [];
-  for (let i = 0; i < details.length; i += 20) {
-    const chunk = details.slice(i, i + 20);
-    let p = '<div style="' + pageBase + '">' + watermark;
-    p += '<div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:13px;font-weight:800;color:#006838">Question Review (' + (i + 1) + '–' + (i + chunk.length) + ' of ' + details.length + ')</div><div style="font-size:10px;color:#6d6a8a">' + escapeHtml(name) + ' • ' + date + '</div></div>';
-    chunk.forEach(function(d) {
-      const userLetter = d.user_answer !== null && d.user_answer !== undefined ? String.fromCharCode(65 + d.user_answer) : 'N/A';
-      const correctLetter = String.fromCharCode(65 + d.correct);
-      const optLine = (d.options || []).map(function(o, oi) {
-        return '<strong>' + String.fromCharCode(65 + oi) + '.</strong> ' + escapeHtml(String(o || '').substring(0, 45));
-      }).join(' &nbsp; ');
-      p += '<div style="position:relative;z-index:1;padding:5px 9px;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:4px;font-size:9.5px;line-height:1.4;display:flex;gap:7px"><span style="color:' + (d.is_correct ? '#10b981' : '#f43f5e') + ';font-weight:800">' + (d.is_correct ? '✓' : '✗') + '</span><span style="flex:1"><strong>Q' + d.number + ' [' + escapeHtml(d.subject) + ']:</strong> ' + escapeHtml(String(d.question || '').substring(0, 200)) + '<br><span style="color:#6d6a8a">' + optLine + '</span><br>Your answer: <span style="color:' + (d.is_correct ? '#10b981' : '#f43f5e') + ';font-weight:700">' + userLetter + '</span> &nbsp; Correct: <span style="color:#10b981;font-weight:700">' + correctLetter + '</span></span></div>';
-    });
-    p += pageFoot + '</div>';
-    pages.push(p);
   }
 
   const holder = document.createElement('div');
   holder.style.cssText = 'position:fixed;left:-10000px;top:0;z-index:-1';
-  holder.innerHTML = pages.join('');
+  holder.innerHTML =
+    '<div style="width:210mm;height:296mm;box-sizing:border-box;position:relative;overflow:hidden;padding:14mm;background:linear-gradient(155deg,#f7f5ff 0%,#ffffff 42%,#f1fbf5 100%);font-family:Poppins,Arial,sans-serif;color:#1e1b4b">' +
+      '<div style="position:absolute;top:-120px;right:-120px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.14),rgba(124,58,237,0) 70%)"></div>' +
+      '<div style="position:absolute;bottom:-140px;left:-140px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(0,104,56,.14),rgba(0,104,56,0) 70%)"></div>' +
+      '<div style="position:relative;z-index:1;text-align:center;margin-bottom:6px">' +
+        '<img src="https://i.imgur.com/2DY6OD4.png" style="height:44px;vertical-align:middle">' +
+        '<span style="display:inline-block;width:2px;height:34px;background:#006838;opacity:.3;margin:0 14px;vertical-align:middle"></span>' +
+        '<img src="https://i.imgur.com/oyqM5oF.png" style="height:44px;vertical-align:middle">' +
+      '</div>' +
+      '<div style="position:relative;z-index:1;text-align:center;font-size:11px;letter-spacing:3px;font-weight:700;color:#7c3aed;text-transform:uppercase;margin-bottom:4px">IDT Academy</div>' +
+      '<h1 style="position:relative;z-index:1;text-align:center;font-size:22px;font-weight:800;margin:0 0 2px;color:#1e1b4b">JAMB Mock Exam Result Slip</h1>' +
+      '<p style="position:relative;z-index:1;text-align:center;font-size:12px;color:#6d6a8a;margin:0 0 18px">' + date + '</p>' +
+      '<div style="position:relative;z-index:1;display:flex;justify-content:center;margin-bottom:18px">' +
+        '<span style="display:inline-flex;align-items:center;gap:8px;padding:8px 22px;border-radius:999px;font-size:13px;font-weight:800;letter-spacing:1px;color:#fff;background:' + statusColor + '">' + statusText + '</span>' +
+      '</div>' +
+      '<div style="position:relative;z-index:1;background:#ffffff;border:1px solid #eceaf6;border-radius:16px;padding:16px 18px;margin-bottom:16px;box-shadow:0 8px 24px rgba(30,27,75,.05)">' +
+        row('Candidate Name', name) +
+        row('Course / Department', dept) +
+        row('Exam Date', date) +
+      '</div>' +
+      '<div style="position:relative;z-index:1;background:linear-gradient(135deg,#006838,#7c3aed);border-radius:18px;padding:20px;text-align:center;color:#fff;margin-bottom:18px">' +
+        '<div style="font-size:11px;letter-spacing:2px;font-weight:700;text-transform:uppercase;opacity:.85">Total Score</div>' +
+        '<div style="font-size:44px;font-weight:900;line-height:1.1">' + data.score + '<span style="font-size:22px;opacity:.8">/400</span></div>' +
+        '<div style="font-size:12px;opacity:.9;margin-top:4px">' + (data.correct || 0) + ' correct answers out of ' + (data.total || 0) + '</div>' +
+      '</div>' +
+      '<div style="position:relative;z-index:1;background:#ffffff;border:1px solid #eceaf6;border-radius:16px;overflow:hidden;box-shadow:0 8px 24px rgba(30,27,75,.05);margin-bottom:20px">' +
+        '<div style="background:#faf9ff;padding:12px 14px;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#7c3aed;border-bottom:1px solid #eceaf6">Subject Breakdown</div>' +
+        '<table style="width:100%;border-collapse:collapse">' +
+          '<thead><tr>' +
+            '<th style="padding:9px 14px;font-size:10.5px;text-align:left;color:#6d6a8a;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #eceaf6">Subject</th>' +
+            '<th style="padding:9px 14px;font-size:10.5px;text-align:center;color:#6d6a8a;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #eceaf6">Score</th>' +
+            '<th style="padding:9px 14px;font-size:10.5px;text-align:right;color:#6d6a8a;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #eceaf6">Percent</th>' +
+          '</tr></thead>' +
+          '<tbody>' + subjectsHtml + '</tbody>' +
+        '</table>' +
+      '</div>' +
+      '<div style="position:relative;z-index:1;display:flex;justify-content:space-around;align-items:flex-end;margin-top:10px">' +
+        signature('https://i.imgur.com/z8HOr4D.png', 'Haruna Lawali', 'Founder') +
+        signature('https://i.imgur.com/leqHq9I.png', 'Ubaida Lawali', 'CEO, IDT Academy') +
+      '</div>' +
+      '<div style="position:absolute;bottom:8mm;left:0;right:0;text-align:center;font-size:9px;color:#6d6a8a;z-index:1">Powered by IDT Academy — JAMB Preparation Platform</div>' +
+    '</div>';
+
   document.body.appendChild(holder);
 
   const downloadBtn = document.getElementById('downloadPdfBtn');
@@ -2307,22 +2344,18 @@ async function downloadResultsPdf(data) {
       throw new Error('PDF library not loaded');
     }
     const pdf = new JsPdfCtor({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-    const pageEls = holder.children;
-    for (let i = 0; i < pageEls.length; i++) {
-      const canvas = await html2canvas(pageEls[i], {
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: '#ffffff',
-        windowWidth: 794,
-        scrollY: 0
-      });
-      const imgData = canvas.toDataURL('image/jpeg', 0.92);
-      if (i > 0) pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-    }
-    pdf.save('IDT_JAMB_Result_' + name.replace(/\s+/g, '_') + '.pdf');
-    showToast('PDF downloaded successfully.', 'success', 5000);
+    const canvas = await html2canvas(holder.firstElementChild, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: '#ffffff',
+      windowWidth: 794,
+      scrollY: 0
+    });
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+    pdf.save('IDT_JAMB_Result_Slip_' + name.replace(/\s+/g, '_') + '.pdf');
+    showToast('Result slip downloaded successfully.', 'success', 5000);
   } catch (err) {
     console.error('PDF error:', err);
     showToast('Could not generate the PDF. Please try again.', 'error', 6000);
@@ -2334,8 +2367,6 @@ async function downloadResultsPdf(data) {
     }
   }
 }
-
-
 
 
 function showCertificate(data) {
