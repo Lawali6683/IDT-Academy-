@@ -8,10 +8,6 @@ const APP_VERSION = '2026-09-14.1';
 const AI_ICON_URL = 'https://i.imgur.com/DPrM9ZJ.png';
 const SECURITY_ICON_URL = 'https://i.imgur.com/rMW6FMN.png';
 
-function aiIconHtml() {
-  return '<img class="ai-ico" src="' + AI_ICON_URL + '" alt="AI">';
-}
-
 let securityShieldEl = null;
 
 function showSecurityShield(mode) {
@@ -28,7 +24,6 @@ function showSecurityShield(mode) {
     }, 2600);
   } catch (_) {}
 }
-
 
 function ensureAppFreshness() {
   try {
@@ -62,7 +57,7 @@ window.addEventListener('error', function(e) {
   try {
     var el = document.createElement('div');
     el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#f43f5e;color:#fff;padding:12px 16px;font-family:sans-serif;font-size:12.5px;font-weight:700;text-align:left;line-height:1.5';
-    el.textContent = 'JS Error: ' + (e.message || 'Unknown error') + (e.filename ? ' @ ' + e.filename : '');
+    el.textContent = 'JS Error: ' + (e.message || 'Unknown error');
     document.body.appendChild(el);
     setTimeout(function() { el.remove(); }, 10000);
   } catch (_) {}
@@ -284,10 +279,11 @@ function showToast(type, title, message, raw) {
   const el = document.createElement('div');
   el.className = 'toast ' + type;
   const rawHtml = raw ? '<small class="toast-raw"><i class="fa-solid fa-bug"></i> ' + escapeHtml(raw) + '</small>' : '';
-  el.innerHTML = '<i class="fa-solid ' + icons[type] + '"></i>' +
+  el.innerHTML = '<i class="fa-solid ' + (icons[type] || 'fa-circle-info') + '"></i>' +
     '<div class="toast-body"><b>' + escapeHtml(title) + '</b><p>' + escapeHtml(message) + '</p>' + rawHtml + '</div>' +
     '<button class="toast-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>';
-  el.querySelector('.toast-x').addEventListener('click', () => removeToast(el));
+  const xBtn = el.querySelector('.toast-x');
+  if (xBtn) xBtn.addEventListener('click', () => removeToast(el));
   toastWrap.appendChild(el);
   if (type === 'success') {
     setTimeout(() => removeToast(el), 3600);
@@ -569,7 +565,7 @@ function renderSessionClock() {
   if (daysEl) {
     const reg = regDate || (userData && userData.date_registered);
     const days = weeksSince(reg);
-    daysEl.textContent = days > 0 ? (days + (days === 1 ? ' week' : ' weeks') + ' 🏢') : 'First week';
+    daysEl.textContent = days > 0 ? (days + (days === 1 ? ' week' : ' weeks')) : 'First week';
   }
 }
 
@@ -762,7 +758,7 @@ function renderCoursePush() {
     html += '</div>';
   });
   body.innerHTML = html;
-  body.querySelectorAll('.pn-course').forEach((card) => {
+  body.querySelectorAll('.pn-course[data-cid]').forEach((card) => {
     card.addEventListener('click', () => chooseCourse(card.dataset.cid));
   });
 }
@@ -1027,7 +1023,7 @@ function detectTopicLanguageLocal(text) {
   const t = String(text || '').toLowerCase();
   if (!t.trim()) return 'English';
   const scores = { Hausa: 0, Yoruba: 0, Igbo: 0, French: 0, Spanish: 0 };
-  const hausa = [' yana ', ' kuma ', ' wannan ', ' domin ', ' nufin ', ' yara ', ' abin ', ' kana ', ' kamar ', ' sai ', ' zai ', ' mutane ', ' abin ', ' gaskiya '];
+  const hausa = [' yana ', ' kuma ', ' wannan ', ' domin ', ' nufin ', ' yara ', ' abin ', ' kana ', ' kamar ', ' sai ', ' zai ', ' mutane ', ' gaskiya '];
   const yoruba = [' nitori ', ' pupo ', ' jare ', ' ejo ', ' ko ni ', ' ti o ', ' fun ', ' won ', ' mo fe '];
   const igbo = [' na ', ' nke ', ' maka ', ' anyi ', ' gi ', ' ha ', ' oma ', ' biko '];
   const french = [' le ', ' la ', ' les ', ' une ', ' est ', ' pour ', ' avec ', ' vous ', ' nous '];
@@ -1202,13 +1198,30 @@ function renderVideo() {
   wrap.innerHTML = '';
   if (videoWatchTimer) clearInterval(videoWatchTimer);
   videoWatchTimer = null;
+  const lock = $('videoLock');
   if (diplomaMode) {
     const locked = renderDiplomaLock();
-    if (locked) return;
+    if (locked) {
+      const floatBtn = $('videoExplainFloat');
+      if (floatBtn) floatBtn.remove();
+      return;
+    }
+  } else if (lock) {
+    lock.classList.add('hidden');
+  }
+  let floatBtn = $('videoExplainFloat');
+  if (!floatBtn) {
+    floatBtn = document.createElement('button');
+    floatBtn.id = 'videoExplainFloat';
+    floatBtn.className = 'video-explain-float';
+    floatBtn.setAttribute('aria-label', 'Explain in my language');
+    floatBtn.innerHTML = '<i class="fa-solid fa-language"></i><span>Explain</span>';
+    floatBtn.addEventListener('click', () => {
+      openChat();
+      runExplain(currentLang(), String(currentLang()).indexOf('+') !== -1);
+    });
   }
   const url = (currentTopic && currentTopic.video_url) || '';
-  const lock = $('videoLock');
-  if (lock) lock.classList.add('hidden');
   if (!url) {
     const ph = document.createElement('div');
     ph.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#94a3b8;background:#0b0d1a;text-align:center;padding:20px';
@@ -1220,10 +1233,11 @@ function renderVideo() {
   if (yt) {
     const iframe = document.createElement('iframe');
     iframe.src = 'https://www.youtube.com/embed/' + yt + '?rel=0&modestbranding=1&playsinline=1&controls=1&fs=1&color=white&iv_load_policy=3';
-    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+    iframe.allow = 'accelerometer; clipboard-write; gyroscope; picture-in-picture';
     iframe.allowFullscreen = true;
     iframe.referrerPolicy = 'strict-origin-when-cross-origin';
     wrap.appendChild(iframe);
+    wrap.appendChild(floatBtn);
     startVideoDwellTimer();
   } else if (isDirectVideo(url)) {
     const vid = document.createElement('video');
@@ -1232,13 +1246,14 @@ function renderVideo() {
     vid.playsInline = true;
     vid.preload = 'metadata';
     wrap.appendChild(vid);
+    wrap.appendChild(floatBtn);
     attachVideoWatcher(vid);
   } else {
     const iframe = document.createElement('iframe');
     iframe.src = url;
-    iframe.allow = 'autoplay; fullscreen; encrypted-media';
     iframe.allowFullscreen = true;
     wrap.appendChild(iframe);
+    wrap.appendChild(floatBtn);
     startVideoDwellTimer();
   }
 }
@@ -1304,22 +1319,22 @@ async function advanceTopic() {
     return;
   }
   if (nextIdx >= currentTopics.length) {
-    showToast('info', 'Wait Next Week Topic', 'You have finished all the available topics for now. The final topic will open next week. Please check back later.', '');
+    showToast('info', 'Wait Next Week Topic', 'You have finished all the available topics for now. The final topic will open next week. Please check back later.');
     return;
   }
   if (currentTopics[nextIdx].is_final === true) {
     renderTopic();
-    showToast('info', 'Wait Next Week Topic', 'You have finished all the available topics for now. The final topic will open next week. Please check back later.', '');
+    showToast('info', 'Wait Next Week Topic', 'You have finished all the available topics for now. The final topic will open next week. Please check back later.');
     return;
   }
   if (topicNeedsWatch(currentTopicIdx) && !isWatched(currentTopicIdx)) {
-    showToast('info', 'Watch The Video First', 'Please watch the full video for this topic before moving on. This helps you understand better.', '');
+    showToast('info', 'Watch The Video First', 'Please watch the full video for this topic before moving on. This helps you understand better.');
     return;
   }
   if (diplomaMode) {
     const weeks = weeksSince(regDate);
     if (nextIdx > weeks) {
-      showToast('info', 'Lesson Locked', 'Diploma lessons unlock one per week. Please wait for the next lesson to open.', '');
+      showToast('info', 'Lesson Locked', 'Diploma lessons unlock one per week. Please wait for the next lesson to open.');
       return;
     }
   }
@@ -1364,7 +1379,7 @@ async function handleReady() {
       const waitMs = diplomaMode ? RETRY_DIPLOMA_MS : RETRY_REGULAR_MS;
       const remain = failTs + waitMs - Date.now();
       if (remain > 0) {
-        showToast('info', 'Assessment Locked', 'You can retry this assessment in ' + formatDuration(remain) + '. Keep reading and come back.', '');
+        showToast('info', 'Assessment Locked', 'You can retry this assessment in ' + formatDuration(remain) + '. Keep reading and come back.');
         await goToTopic(idx);
         return;
       }
@@ -1402,7 +1417,7 @@ async function openAssessment(batch) {
     if (remain > 0 && btn) {
       btn.disabled = true;
       btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Retry In ' + formatDuration(remain);
-      showToast('info', 'Assessment Locked', 'You can retry in ' + formatDuration(remain) + '. Read the topics again and come back.', '');
+      showToast('info', 'Assessment Locked', 'You can retry in ' + formatDuration(remain) + '. Read the topics again and come back.');
     }
   } else if (btn) {
     btn.disabled = false;
@@ -1428,7 +1443,7 @@ async function startAssessmentFlow() {
     topic_text: String(t.topic_text || '').slice(0, 2500)
   }));
   if (batchTopics.length === 0) {
-    showToast('error', 'No Topics', 'No topics found for this assessment.', '');
+    showToast('error', 'No Topics', 'No topics found for this assessment.');
     return;
   }
   miniLoad('Creating your assessment...');
@@ -1490,8 +1505,11 @@ async function startCamera() {
     }
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } }, audio: false });
     if (quizState) quizState.stream = stream;
-    if (video) video.srcObject = stream;
-    if (video) await video.play().catch(() => {});
+    if (video) {
+      video.srcObject = stream;
+      video.muted = true;
+      await video.play().catch(() => {});
+    }
     if (lock) lock.classList.add('hidden');
     return true;
   } catch (err) {
@@ -1570,7 +1588,7 @@ function startQuizTimer() {
   if (!quizState) return;
   if (quizState.timer) clearInterval(quizState.timer);
   quizState.timer = setInterval(() => {
-    if (!quizState) { clearInterval(window.__quizTimerRef); return; }
+    if (!quizState) return;
     quizState.secondsLeft--;
     const m = Math.floor(quizState.secondsLeft / 60);
     const s = quizState.secondsLeft % 60;
@@ -1585,7 +1603,6 @@ function startQuizTimer() {
       submitQuiz(true);
     }
   }, 1000);
-  window.__quizTimerRef = quizState.timer;
 }
 
 function attachAntiCheat() {
@@ -1685,7 +1702,6 @@ function makeCamDraggable(wrap) {
       e.stopPropagation();
       floating = !floating;
       wrap.classList.toggle('floating', floating);
-      wrap.classList.toggle('minimized', false);
     });
   }
   let dragging = false;
@@ -1881,7 +1897,7 @@ function showResult(score, pct, passed, results, timedOut, message) {
   const btnPdf = $('btnDownloadPdf');
   if (btnPdf && passed) btnPdf.classList.remove('hidden');
   if (timedOut) {
-    showToast('error', 'Time Up', 'The ' + Math.round(QUIZ_SECONDS / 60) + ' minutes finished. Your answers were submitted automatically.', '');
+    showToast('error', 'Time Up', 'The ' + Math.round(QUIZ_SECONDS / 60) + ' minutes finished. Your answers were submitted automatically.');
   }
 }
 
@@ -2262,9 +2278,6 @@ function saveChatHistory() {
   saveUpdate({ chat_history: chatHistories });
 }
 
-
-
-
 function startCountdown() {
   if (!paymentState) return;
   if (paymentState.timer) clearInterval(paymentState.timer);
@@ -2278,7 +2291,7 @@ function startCountdown() {
       const pg = $('pendingGate');
       if (po) po.classList.remove('open');
       if (pg) pg.classList.add('open');
-      showToast('error', 'Payment Expired', 'The payment window expired. Please tap Pay Now to create a new one.', '');
+      showToast('error', 'Payment Expired', 'The payment window expired. Please tap Pay Now to create a new one.');
       return;
     }
     const m = Math.floor(remain / 60000);
@@ -2312,7 +2325,7 @@ function startStatusPolling() {
         if (pg) pg.classList.remove('open');
         stopAllPayLinks();
         confetti();
-        showToast('success', 'Payment Confirmed! 🎉', 'Congratulations! Your payment was successful. Your dashboard is now unlocked.', '');
+        showToast('success', 'Payment Confirmed! 🎉', 'Congratulations! Your payment was successful. Your dashboard is now unlocked.');
         await loadDashboard();
       }
     } catch (err) {}
@@ -2340,7 +2353,7 @@ function startVerifyPolling() {
         stopStatusPolling();
         stopAllPayLinks();
         confetti();
-        showToast('success', 'Payment Confirmed! 🎉', 'Congratulations! Your payment was successful. Your dashboard is now unlocked.', '');
+        showToast('success', 'Payment Confirmed! 🎉', 'Congratulations! Your payment was successful. Your dashboard is now unlocked.');
         await loadDashboard();
       }
     } catch (err) {}
@@ -2355,7 +2368,7 @@ function stopAllPayLinks() {
 async function startPayment() {
   const course = getPrimaryCourse();
   if (!course.valid || !course.course_price || !course.course_id) {
-    showToast('info', 'Select A Course First', 'Please choose a course before paying. Pick the one you want below.', '');
+    showToast('info', 'Select A Course First', 'Please choose a course before paying. Pick the one you want below.');
     openCoursePush();
     const sub = $('pnSub');
     if (sub) sub.textContent = 'Please select a course below to continue with your payment.';
@@ -2363,7 +2376,7 @@ async function startPayment() {
   }
   const price = Number(course.course_price || 0);
   if (price === 3500) {
-    showToast('error', 'Invalid Course Price', 'This course price is not valid for payment. Please select a course from the list below.', '');
+    showToast('error', 'Invalid Course Price', 'This course price is not valid for payment. Please select a course from the list below.');
     openCoursePush();
     const sub = $('pnSub');
     if (sub) sub.textContent = 'Please select a valid course below to continue with your payment.';
@@ -2413,7 +2426,7 @@ async function startPayment() {
       startCountdown();
       startVerifyPolling();
       startStatusPolling();
-      showToast('info', 'Payment Window Opened', 'Complete your payment in the Paystack window. Your dashboard unlocks automatically after payment.', '');
+      showToast('info', 'Payment Window Opened', 'Complete your payment in the Paystack window. Your dashboard unlocks automatically after payment.');
       setTimeout(() => {
         window.location.href = authUrl;
       }, 800);
@@ -2471,7 +2484,7 @@ async function startPayment() {
       miniHide();
       payBtn.disabled = false;
       payBtn.innerHTML = oldBtnHtml;
-      showToast('info', 'Payment Details Ready', 'Transfer the exact amount to the account shown. Your dashboard unlocks automatically after payment.', '');
+      showToast('info', 'Payment Details Ready', 'Transfer the exact amount to the account shown. Your dashboard unlocks automatically after payment.');
       return;
     }
 
@@ -2522,7 +2535,7 @@ async function loadDashboard() {
     });
     if (paidCourses.length === 0) {
       hideLoading();
-      showToast('info', 'No Paid Course', 'No paid course was found on your account. Please select a course and complete your payment.', '');
+      showToast('info', 'No Paid Course', 'No paid course was found on your account. Please select a course and complete your payment.');
       openCoursePush();
       return;
     }
@@ -2532,7 +2545,7 @@ async function loadDashboard() {
       if (app) app.classList.remove('hidden');
       courseList = paidCourses;
       openMyCourses();
-      showToast('info', 'Choose Your Course', 'You have ' + paidCourses.length + ' paid courses. Tap the one you want to study.', '');
+      showToast('info', 'Choose Your Course', 'You have ' + paidCourses.length + ' paid courses. Tap the one you want to study.');
       return;
     }
     const cid = paidCourses[0].course_id;
@@ -2549,10 +2562,7 @@ async function loadDashboard() {
   }
 }
 
-let aiSelectedLang = '';
-
-
-
+let aiSelectedLang = 'english';
 
 function aiLabel(lang) {
   const map = {
@@ -2560,89 +2570,97 @@ function aiLabel(lang) {
     'english+hausa': 'English + Hausa',
     'english+yoruba': 'English + Yoruba',
     'english+igbo': 'English + Igbo',
-    'english+pidgin': 'English + Pidgin',
-    'other': 'Other Language'
+    'english+pidgin': 'English + Pidgin'
   };
   const key = String(lang || '').toLowerCase();
   return map[key] || String(lang || '');
 }
 
 function currentLang() {
-  const ls = $('aiLangSelect');
-  const active = ls ? ls.querySelector('button.active') : null;
-  if (active && active.dataset.lang && active.dataset.lang !== 'other') return active.dataset.lang;
+  const headerLangs = $('aiHeaderLangs');
+  if (headerLangs) {
+    const active = headerLangs.querySelector('button.active[data-lang]');
+    if (active && active.dataset.lang) return active.dataset.lang;
+  }
   return aiSelectedLang || 'english';
 }
 
+function scrollChatToBottom() {
+  const box = $('chatMsgs');
+  if (box) box.scrollTop = box.scrollHeight;
+}
+
 function addAiMessage(role, content) {
-  const area = $('aiChatArea');
+  const area = $('chatMsgs');
   if (!area) return null;
   const div = document.createElement('div');
-  div.className = 'ai-msg ' + (role === 'bot' ? 'bot' : 'user');
+  div.className = 'chat-bubble ' + (role === 'bot' ? 'bot' : 'user');
   if (role === 'bot') {
-    div.innerHTML = '<div class="ai-msg-label"><img src="' + AI_ICON_URL + '" alt="AI"> AI Tutor</div><p>' + markdownToHtml(content) + '</p>';
+    div.innerHTML = '<div style="font-size:10.5px;font-weight:800;opacity:.75;text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;display:flex;align-items:center;gap:6px"><img src="' + AI_ICON_URL + '" alt="AI" style="width:18px;height:18px;border-radius:50%;object-fit:cover"> AI Tutor</div><div>' + markdownToHtml(content) + '</div>';
   } else {
-    div.innerHTML = '<p>' + escapeHtml(content) + '</p>';
+    div.innerHTML = '<div>' + escapeHtml(content) + '</div>';
+  }
+  if (role === 'user') {
+    div.style.alignSelf = 'flex-end';
+    div.style.background = 'linear-gradient(135deg,var(--violet),var(--violet-d))';
+    div.style.color = '#fff';
+    div.style.borderBottomRightRadius = '6px';
+  } else {
+    div.style.alignSelf = 'flex-start';
+    div.style.background = '#fff';
+    div.style.border = '1px solid var(--line)';
+    div.style.borderBottomLeftRadius = '6px';
+    div.style.boxShadow = '0 6px 18px rgba(80,40,160,.06)';
   }
   area.appendChild(div);
-  const body = document.querySelector('.ai-modal .ai-body');
-  if (body) body.scrollTop = body.scrollHeight;
+  scrollChatToBottom();
   return div;
 }
 
 function aiThinking() {
-  const area = $('aiChatArea');
+  const area = $('chatMsgs');
   if (!area) return null;
   const div = document.createElement('div');
-  div.className = 'ai-typing';
-  div.innerHTML = '<span></span><span></span><span></span>';
+  div.className = 'chat-bubble ai-thinking-bubble';
+  div.style.alignSelf = 'flex-start';
+  div.style.background = '#fff';
+  div.style.border = '1px solid var(--line)';
+  div.style.borderBottomLeftRadius = '6px';
+  div.innerHTML = '<span style="display:inline-flex;gap:6px;align-items:center"><span style="width:8px;height:8px;border-radius:50%;background:#7c3aed;animation:typingDot 1.3s ease-in-out infinite"></span><span style="width:8px;height:8px;border-radius:50%;background:#7c3aed;animation:typingDot 1.3s ease-in-out .18s infinite"></span><span style="width:8px;height:8px;border-radius:50%;background:#7c3aed;animation:typingDot 1.3s ease-in-out .36s infinite"></span></span>';
+  const style = document.createElement('style');
+  style.id = 'idtTypingStyle';
+  style.textContent = '@keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}';
+  if (!document.getElementById('idtTypingStyle')) document.head.appendChild(style);
   area.appendChild(div);
-  const body = document.querySelector('.ai-modal .ai-body');
-  if (body) body.scrollTop = body.scrollHeight;
+  scrollChatToBottom();
   return div;
 }
 
-function openAiModal() {
-  const overlay = $('aiModalOverlay');
+function openChat() {
+  const overlay = $('chatOverlay');
   if (!overlay) return;
-  overlay.classList.add('active');
-  document.body.style.overflow = 'hidden';
-  const body = document.querySelector('.ai-modal .ai-body');
-  if (body) setTimeout(() => { body.scrollTop = body.scrollHeight; }, 120);
+  overlay.classList.add('open');
+  const input = $('chatInput');
+  if (input) setTimeout(() => input.focus(), 150);
 }
 
-function closeAiModal() {
-  const overlay = $('aiModalOverlay');
-  if (overlay) overlay.classList.remove('active');
-  document.body.style.overflow = '';
-  closeLangPush();
-}
-
-function openLangPush() {
-  const p = $('langPush');
-  if (!p) return;
-  p.classList.add('open');
-  const input = $('langPushInput');
-  if (input) setTimeout(() => input.focus(), 220);
-}
-
-function closeLangPush() {
-  const p = $('langPush');
-  if (p) p.classList.remove('open');
+function closeChat() {
+  const overlay = $('chatOverlay');
+  if (overlay) overlay.classList.remove('open');
 }
 
 async function runExplain(lang, dual) {
   if (!currentTopic) {
-    showToast('error', 'No Topic', 'Open a topic first, then ask for an explanation.', '');
+    showToast('error', 'No Topic', 'Open a topic first, then ask for an explanation.');
     return;
   }
   if (!lang) {
-    showToast('error', 'Language Required', 'Please pick a language first.', '');
+    showToast('error', 'Language Required', 'Please pick a language first.');
     return;
   }
   aiSelectedLang = lang;
   setPreferredLang(lang);
-  openAiModal();
+  openChat();
   const label = aiLabel(lang);
   addAiMessage('user', 'Explain "' + (currentTopic.topic_name || 'This topic') + '" in ' + label + ' like a teacher, with examples and 2 practice questions with answers.');
   const thinking = aiThinking();
@@ -2672,18 +2690,13 @@ async function runExplain(lang, dual) {
   }
 }
 
-function openChat() {
-  openAiModal();
-}
-
 async function handleAiChatSend() {
-  const input = $('aiInput');
-  const send = $('aiSendBtn');
+  const input = $('chatInput');
+  const send = $('chatSend');
   if (!input || !send) return;
   const q = input.value.trim();
   if (!q) return;
   input.value = '';
-  input.style.height = 'auto';
   send.disabled = true;
   addAiMessage('user', q);
   const history = (chatHistories[activeCourseId] || []).slice(-8);
@@ -2715,13 +2728,9 @@ async function handleAiChatSend() {
   input.focus();
 }
 
-
 function on(id, event, handler) {
   const el = $(id);
-  if (!el) {
-    console.warn('[IDT] Missing element, binding skipped:', id);
-    return;
-  }
+  if (!el) return;
   el.addEventListener(event, handler);
 }
 
@@ -2814,8 +2823,6 @@ domReady(() => {
 
   on('pnClose', 'click', closeCoursePush);
 
-  on('pnBody', 'click', () => {});
-
   on('btnPayNow', 'click', startPayment);
 
   on('paymentClose', 'click', () => {
@@ -2871,80 +2878,74 @@ domReady(() => {
     if (!user) return;
     window.location.href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent((userData && userData.referral_code) || '');
   });
-  
-  
-  on('btnAskQuestion', 'click', openAiModal);
+
+  on('btnAskQuestion', 'click', openChat);
 
   on('btnExplainLang', 'click', () => {
-    openAiModal();
+    openChat();
     const lang = currentLang();
     runExplain(lang, String(lang).indexOf('+') !== -1);
   });
 
-  on('videoExplainFloat', 'click', () => {
-    openAiModal();
-    const lang = currentLang();
-    runExplain(lang, String(lang).indexOf('+') !== -1);
+  on('chatClose', 'click', closeChat);
+
+  const chatForm = $('chatForm');
+  if (chatForm) {
+    chatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      handleAiChatSend();
+    });
+  }
+
+  on('chatSend', 'click', (e) => {
+    e.preventDefault();
+    handleAiChatSend();
   });
 
-  on('aiModalClose', 'click', closeAiModal);
-
-  const langSelect = $('aiLangSelect');
-  if (langSelect) {
-    langSelect.querySelectorAll('button[data-lang]').forEach((btn) => {
+  const headerLangs = $('aiHeaderLangs');
+  if (headerLangs) {
+    headerLangs.querySelectorAll('button[data-lang]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        if (btn.dataset.lang === 'other') {
-          openLangPush();
-          return;
-        }
-        langSelect.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+        headerLangs.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
-        const lang = btn.dataset.lang;
-        runExplain(lang, String(lang).indexOf('+') !== -1);
+        runExplain(btn.dataset.lang, true);
       });
     });
+    const otherBtn = $('aiOtherLangBtn');
+    if (otherBtn) {
+      otherBtn.addEventListener('click', () => {
+        const row = $('aiOtherLangRow');
+        if (row) row.classList.remove('hidden');
+      });
+    }
   }
 
-  on('langPushClose', 'click', closeLangPush);
+  const aiOtherLangSend = $('aiOtherLangSend');
+  if (aiOtherLangSend) {
+    aiOtherLangSend.addEventListener('click', () => {
+      const input = $('aiOtherLangInput');
+      const lang = (input && input.value.trim()) || '';
+      if (!lang) {
+        showToast('error', 'Language Required', 'Please type the language you want.');
+        return;
+      }
+      if (input) input.value = '';
+      const row = $('aiOtherLangRow');
+      if (row) row.classList.add('hidden');
+      runExplain(lang, true);
+    });
+  }
 
-  on('langPushSend', 'click', () => {
-    const input = $('langPushInput');
-    const lang = (input && input.value.trim()) || '';
-    if (!lang) {
-      showToast('error', 'Language Required', 'Please type the language you want.', '');
-      return;
-    }
-    if (input) input.value = '';
-    closeLangPush();
-    const ls = $('aiLangSelect');
-    if (ls) ls.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
-    runExplain(lang, true);
-  });
-
-  on('langPushInput', 'keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const send = $('langPushSend');
-      if (send) send.click();
-    }
-  });
-
-  const aiSendBtn = $('aiSendBtn');
-  if (aiSendBtn) aiSendBtn.addEventListener('click', handleAiChatSend);
-  const aiInputEl = $('aiInput');
-  if (aiInputEl) {
-    aiInputEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
+  const aiOtherLangInput = $('aiOtherLangInput');
+  if (aiOtherLangInput) {
+    aiOtherLangInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
         e.preventDefault();
-        handleAiChatSend();
+        const send = $('aiOtherLangSend');
+        if (send) send.click();
       }
     });
-    aiInputEl.addEventListener('input', () => {
-      aiInputEl.style.height = 'auto';
-      aiInputEl.style.height = Math.min(aiInputEl.scrollHeight, 130) + 'px';
-    });
   }
-  
 
   document.querySelectorAll('.social-chip').forEach((chip) => {
     chip.addEventListener('click', async () => {
@@ -2971,7 +2972,6 @@ domReady(() => {
     });
   });
 
- 
   on('userAvatar', 'click', openMyCourses);
 
   on('pendingCourseBox', 'click', () => {
@@ -2986,7 +2986,10 @@ domReady(() => {
 
   on('btnNextTopic', 'click', () => {
     if (isProcessingNext) return;
-    advanceTopic();
+    isProcessingNext = true;
+    advanceTopic().finally(() => {
+      isProcessingNext = false;
+    });
   });
 
   on('btnNotReady', 'click', () => {
@@ -3012,27 +3015,6 @@ domReady(() => {
     }
   });
 
- 
- 
-  const headerLangs = $('aiHeaderLangs');
-  if (headerLangs) {
-    headerLangs.querySelectorAll('button[data-lang]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        headerLangs.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        runExplain(btn.dataset.lang, true);
-      });
-    });
-    const otherBtn = $('aiOtherLangBtn');
-    if (otherBtn) {
-      otherBtn.addEventListener('click', () => {
-        const row = $('aiOtherLangRow');
-        if (row) row.classList.remove('hidden');
-      });
-    }
-  }
-
-  
   on('assessClose', 'click', () => {
     const o = $('assessmentOverlay');
     if (o) o.classList.remove('open');
@@ -3056,7 +3038,7 @@ domReady(() => {
     if (!quizState) return;
     const q = quizState.questions[quizState.currentQ];
     if (q && q.type !== 'write' && Array.isArray(q.options) && q.options.length && quizState.answers[quizState.currentQ] === '') {
-      showToast('info', 'Choose An Answer', 'Please select an answer before continuing.', '');
+      showToast('info', 'Choose An Answer', 'Please select an answer before continuing.');
       return;
     }
     if (quizState.currentQ < quizState.questions.length - 1) {
