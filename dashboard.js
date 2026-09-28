@@ -3013,11 +3013,8 @@ domReady(() => {
   });
 
  
-
-  on('btnExplainLang', 'click', openAiModal);
-  on('videoExplainFloat', 'click', openAiModal);
-  on('aiModalClose', 'click', closeAiModal);
  
+  const headerLangs = $('aiHeaderLangs');
   if (headerLangs) {
     headerLangs.querySelectorAll('button[data-lang]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -3026,9 +3023,14 @@ domReady(() => {
         runExplain(btn.dataset.lang, true);
       });
     });
+    const otherBtn = $('aiOtherLangBtn');
+    if (otherBtn) {
+      otherBtn.addEventListener('click', () => {
+        const row = $('aiOtherLangRow');
+        if (row) row.classList.remove('hidden');
+      });
+    }
   }
-
- 
 
   
   on('assessClose', 'click', () => {
