@@ -602,6 +602,7 @@ textarea{resize:vertical}
 .ad-box img{width:100%;max-height:170px;object-fit:cover;border-radius:13px;cursor:pointer;transition:opacity .5s ease}
 .ad-box img.fade{opacity:0}
 
+
 .chat-body{display:flex;flex-direction:column;height:min(70vh,560px)}
 .chat-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#f8f7ff}
 .chat-bubble{
@@ -609,65 +610,8 @@ textarea{resize:vertical}
   font-size:13px;line-height:1.65;word-break:break-word;white-space:pre-wrap;
   animation:chatIn .3s ease both;
 }
-@keyframes chatIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.chat-bubble.user{
-  align-self:flex-end;background:linear-gradient(135deg,var(--violet),var(--violet-d));
-  color:#fff;border-bottom-right-radius:5px;
-}
-.chat-bubble.ai{
-  align-self:flex-start;background:#fff;color:var(--ink);
-  border:1px solid var(--line);border-bottom-left-radius:5px;
-  box-shadow:0 6px 16px rgba(80,40,160,.08);
-}
-.chat-bubble.ai .cb-meta{font-size:10px;color:var(--muted);font-weight:800;display:flex;align-items:center;gap:6px;margin-bottom:5px}
-.chat-bubble.ai .cb-meta i{color:var(--violet)}
-.chat-typing{
-  align-self:flex-start;display:flex;gap:5px;align-items:center;
-  background:#fff;border:1px solid var(--line);border-radius:16px;border-bottom-left-radius:5px;
-  padding:14px 16px;box-shadow:0 6px 16px rgba(80,40,160,.08);
-}
-.chat-typing span{width:7px;height:7px;border-radius:50%;background:var(--violet);animation:typingDot 1.2s ease-in-out infinite}
-.chat-typing span:nth-child(2){animation-delay:.15s}
-.chat-typing span:nth-child(3){animation-delay:.3s}
-@keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
-.chat-input-row{display:flex;gap:9px;padding:13px;border-top:1px solid var(--line);background:#fff}
-.chat-input-box{
-  flex:1;display:flex;align-items:center;background:#f4f2ff;
-  border:1.5px solid var(--line);border-radius:14px;padding:0 13px;
-}
-.chat-input-box:focus-within{border-color:var(--violet);box-shadow:0 0 0 4px rgba(124,58,237,.1)}
-.chat-input-box input{width:100%;border:none;outline:none;background:transparent;font-size:13px;padding:12px 0;color:var(--ink)}
-.chat-send{
-  border:none;width:48px;height:48px;border-radius:14px;flex-shrink:0;cursor:pointer;
-  background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#fff;font-size:15px;
-  display:flex;align-items:center;justify-content:center;transition:all .22s ease;
-  box-shadow:0 10px 22px rgba(109,40,217,.3);
-}
-.chat-send:hover{transform:translateY(-2px)}
-.chat-send:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.chat-note{padding:9px 15px;font-size:10.5px;color:var(--muted);text-align:center;border-top:1px solid var(--line);background:#fff}
 
-.lang-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
-.lang-btn{
-  display:flex;flex-direction:column;align-items:center;gap:8px;
-  border:1.5px solid var(--line);background:#fff;border-radius:16px;
-  padding:15px 8px;cursor:pointer;transition:all .22s ease;
-}
-.lang-btn i{font-size:21px}
-.lang-btn b{font-size:12px;font-weight:800}
-.lang-btn:hover{transform:translateY(-2px);border-color:var(--violet);box-shadow:0 10px 20px rgba(80,40,160,.12)}
-.lang-btn.other{grid-column:1/-1;flex-direction:row;justify-content:center}
-.other-row{display:flex;gap:9px}
-.other-input{
-  flex:1;display:flex;align-items:center;background:#f4f2ff;
-  border:1.5px solid var(--line);border-radius:14px;padding:0 13px;
-}
-.other-input input{width:100%;border:none;outline:none;background:transparent;font-size:13px;padding:12px 0}
-.explain-result{
-  background:linear-gradient(160deg,#0f172a,#1e1b4b);
-  border-radius:16px;padding:18px;color:#e2e8f0;font-size:13px;line-height:1.8;
-  white-space:pre-wrap;word-break:break-word;max-height:340px;overflow-y:auto;margin-top:14px;
-}
+
 .explain-result pre{
   background:#0a0c1a;border:1px solid rgba(167,139,250,.15);border-radius:10px;
   padding:12px;margin:8px 0;overflow-x:auto;font-family:Consolas,monospace;font-size:12px;
@@ -928,32 +872,6 @@ textarea{resize:vertical}
 }
 
 
-
-
-.ai-ico{width:20px;height:20px;object-fit:contain;border-radius:6px;vertical-align:middle}
-.cb-meta .ai-ico{width:18px;height:18px}
-.chat-typing .ai-ico{width:22px;height:22px;margin-right:8px;background:#fff;border-radius:50%;padding:2px;box-shadow:0 4px 10px rgba(80,40,160,.15)}
-.ai-icon{background:#fff}
-.ai-icon img{width:44px;height:44px;object-fit:contain}
-#chatOverlay .ov-card{max-width:100vw;width:100vw;max-height:100vh;height:100vh;height:100dvh;border-radius:0;max-height:none}
-#chatOverlay .chat-body{height:calc(100dvh - 63px)}
-#chatOverlay .chat-msgs{
-  background:
-    radial-gradient(820px 480px at 6% -6%, rgba(167,139,250,.30), transparent 60%),
-    radial-gradient(740px 480px at 98% 4%, rgba(34,211,238,.22), transparent 58%),
-    linear-gradient(160deg,#f8f6ff 0%,#ffffff 50%,#eefbff 100%);
-}
-.lang-btn.dual{grid-column:1/-1;flex-direction:row;justify-content:center;border-color:rgba(14,165,233,.4)}
-body.quiz-lock{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-body.quiz-lock *{user-select:none;-webkit-user-select:none}
-.security-shield{
-  position:fixed;top:50%;left:50%;z-index:999998;
-  display:flex;flex-direction:column;align-items:center;gap:10px;
-  background:rgba(255,255,255,.96);border:2px solid rgba(124,58,237,.45);
-  border-radius:20px;padding:22px 32px;pointer-events:none;
-  box-shadow:0 30px 70px rgba(15,12,41,.45);
-  animation:shieldShow .3s ease both,shieldTurn 1.6s ease-in-out;
-}
 .security-shield img{width:76px;height:76px;object-fit:contain}
 .security-shield span{font-size:12px;font-weight:900;color:#6d28d9;letter-spacing:1.5px;text-transform:uppercase}
 .security-shield.alert{border-color:var(--rose);box-shadow:0 0 0 6px rgba(244,63,94,.18),0 30px 70px rgba(15,12,41,.45);animation:shieldShow .3s ease both,shieldShake .5s ease}
@@ -987,6 +905,448 @@ body.quiz-lock *{user-select:none;-webkit-user-select:none}
 .ai-other-row input{flex:1;padding:9px 12px;border-radius:10px;border:1.5px solid rgba(167,139,250,.35);background:rgba(124,58,237,.08);color:#fff;font-size:13px;outline:none}
 .ai-other-row button{width:38px;height:38px;border-radius:10px;border:none;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;cursor:pointer}
 .ai-other-row.hidden{display:none}
+
+
+.lang-grid{grid-template-columns:1fr 1fr}
+.lang-btn.other{grid-column:1/-1}
+
+
+
+:root{
+  --jamb-green:#006838;
+  --bg-subtle:#f8fafc;
+  --line-g:#e2e8f0;
+}
+
+.ai-modal-overlay{
+  position:fixed;
+  inset:0;
+  width:100vw;
+  height:100vh;
+  height:100dvh;
+  z-index:999999;
+  background:rgba(15,23,42,.72);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  opacity:0;
+  visibility:hidden;
+  transition:opacity .3s ease,visibility .3s ease;
+  overflow:hidden;
+}
+
+.ai-modal-overlay.active{
+  display:flex;
+  opacity:1;
+  visibility:visible;
+}
+
+.ai-modal{
+  width:100%;
+  height:100dvh;
+  display:flex;
+  flex-direction:column;
+  background:#ffffff;
+  overflow:hidden;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top);
+  padding-bottom:env(safe-area-inset-bottom);
+  transform:translateY(100%);
+  transition:transform .38s cubic-bezier(.16,1,.3,1);
+}
+
+.ai-modal-overlay.active .ai-modal{
+  transform:translateY(0);
+}
+
+.ai-modal .ai-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:14px 18px;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(6,182,212,.08));
+  flex-shrink:0;
+  z-index:10;
+}
+
+.ai-modal .ai-header h3{
+  font-size:16px;
+  font-weight:800;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:0;
+  color:var(--ink);
+}
+
+.ai-modal .ai-header h3 img{
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  object-fit:cover;
+  box-shadow:0 2px 8px rgba(0,0,0,.15);
+}
+
+.ai-modal .ai-header .ai-close{
+  width:40px;
+  height:40px;
+  border:none;
+  border-radius:50%;
+  background:rgba(244,63,94,.1);
+  color:var(--rose);
+  font-size:16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition:all .25s ease;
+}
+
+.ai-modal .ai-header .ai-close:hover{
+  background:var(--rose);
+  color:#ffffff;
+  transform:rotate(90deg);
+}
+
+.ai-modal .ai-lang-select{
+  display:flex;
+  gap:8px;
+  padding:12px 16px;
+  background:var(--bg-subtle);
+  border-bottom:1px solid var(--line);
+  overflow-x:auto;
+  flex-shrink:0;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+  scroll-snap-type:x proximity;
+}
+
+.ai-modal .ai-lang-select::-webkit-scrollbar{
+  display:none;
+}
+
+.ai-modal .ai-lang-select button{
+  flex:0 0 auto;
+  scroll-snap-align:start;
+  padding:8px 16px;
+  border:1.5px solid var(--line-g);
+  border-radius:999px;
+  background:#ffffff;
+  font-size:13px;
+  font-weight:600;
+  color:var(--muted);
+  white-space:nowrap;
+  cursor:pointer;
+  transition:all .2s ease;
+  box-shadow:0 1px 2px rgba(0,0,0,.04);
+}
+
+.ai-modal .ai-lang-select button:hover{
+  border-color:var(--violet);
+  color:var(--violet);
+  transform:translateY(-1px);
+}
+
+.ai-modal .ai-lang-select button.active{
+  background:linear-gradient(135deg,var(--violet),var(--violet-d));
+  color:#ffffff;
+  border-color:transparent;
+  box-shadow:0 6px 16px rgba(124,58,237,.35);
+}
+
+.ai-modal .ai-body{
+  flex:1;
+  overflow-y:auto;
+  padding:18px;
+  background:var(--bg-subtle);
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+
+#aiChatArea{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  max-width:900px;
+  margin:0 auto;
+  width:100%;
+}
+
+.ai-modal .ai-msg{
+  max-width:88%;
+  padding:13px 17px;
+  border-radius:20px;
+  font-size:14.5px;
+  line-height:1.65;
+  word-break:break-word;
+  animation:fadeInMsg .32s cubic-bezier(.16,1,.3,1) both;
+}
+
+.ai-modal .ai-msg.bot{
+  align-self:flex-start;
+  background:#ffffff;
+  border:1px solid var(--line);
+  color:var(--ink);
+  border-top-left-radius:6px;
+  box-shadow:0 6px 18px rgba(80,40,160,.06);
+}
+
+.ai-modal .ai-msg.user{
+  align-self:flex-end;
+  background:linear-gradient(135deg,var(--violet),var(--violet-d));
+  color:#ffffff;
+  border-top-right-radius:6px;
+  box-shadow:0 8px 20px rgba(109,40,217,.3);
+}
+
+.ai-modal .ai-msg .ai-msg-label{
+  font-size:11px;
+  font-weight:800;
+  opacity:.85;
+  text-transform:uppercase;
+  letter-spacing:.6px;
+  margin-bottom:6px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.ai-modal .ai-msg .ai-msg-label img{
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  object-fit:cover;
+}
+
+.ai-modal .ai-msg p{
+  white-space:pre-wrap;
+}
+
+.ai-modal .ai-msg pre{
+  background:#0a0c1a;
+  border:1px solid rgba(167,139,250,.15);
+  border-radius:10px;
+  padding:12px;
+  margin:8px 0;
+  overflow-x:auto;
+  font-family:Consolas,monospace;
+  font-size:12px;
+}
+
+.ai-modal .ai-msg code{
+  font-family:Consolas,monospace;
+}
+
+.ai-modal .ai-typing{
+  align-self:flex-start;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  background:#ffffff;
+  border:1px solid var(--line);
+  border-radius:20px;
+  border-top-left-radius:6px;
+  padding:14px 18px;
+  box-shadow:0 6px 18px rgba(80,40,160,.06);
+}
+
+.ai-modal .ai-typing span{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--violet);
+  animation:typingDot 1.3s ease-in-out infinite;
+}
+
+.ai-modal .ai-typing span:nth-child(2){
+  animation-delay:.18s;
+}
+
+.ai-modal .ai-typing span:nth-child(3){
+  animation-delay:.36s;
+}
+
+.ai-modal .ai-input-area{
+  display:flex;
+  align-items:flex-end;
+  gap:10px;
+  padding:12px 16px;
+  background:#ffffff;
+  border-top:1px solid var(--line);
+  flex-shrink:0;
+}
+
+.ai-modal .ai-input-area textarea{
+  flex:1;
+  min-height:48px;
+  max-height:130px;
+  padding:13px 18px;
+  border:1.5px solid var(--line-g);
+  border-radius:24px;
+  font-size:14.5px;
+  line-height:1.45;
+  outline:none;
+  resize:none;
+  font-family:inherit;
+  transition:all .2s ease;
+  background:var(--bg-subtle);
+  color:var(--ink);
+}
+
+.ai-modal .ai-input-area textarea:focus{
+  border-color:var(--violet);
+  background:#ffffff;
+  box-shadow:0 0 0 4px rgba(124,58,237,.1);
+}
+
+.ai-modal .ai-input-area button{
+  width:48px;
+  height:48px;
+  border:none;
+  border-radius:50%;
+  background:linear-gradient(135deg,var(--violet),var(--violet-d));
+  color:#ffffff;
+  font-size:16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  flex-shrink:0;
+  transition:all .2s ease;
+  box-shadow:0 6px 16px rgba(109,40,217,.32);
+}
+
+.ai-modal .ai-input-area button:hover{
+  transform:scale(1.06);
+}
+
+.ai-modal .ai-input-area button:active{
+  transform:scale(.94);
+}
+
+.ai-modal .ai-input-area button:disabled{
+  opacity:.5;
+  cursor:not-allowed;
+  transform:none;
+}
+
+.lang-push{
+  position:fixed;
+  left:50%;
+  bottom:24px;
+  transform:translateX(-50%) translateY(140%);
+  z-index:1000001;
+  width:min(94vw,460px);
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:#ffffff;
+  border:1px solid rgba(124,58,237,.2);
+  border-radius:18px;
+  padding:12px 14px;
+  box-shadow:0 24px 60px rgba(15,12,41,.35);
+  opacity:0;
+  visibility:hidden;
+  transition:all .4s cubic-bezier(.16,1,.3,1);
+}
+
+.lang-push.open{
+  opacity:1;
+  visibility:visible;
+  transform:translateX(-50%) translateY(0);
+}
+
+.lang-push .lp-close{
+  width:34px;
+  height:34px;
+  border:none;
+  border-radius:50%;
+  background:rgba(244,63,94,.1);
+  color:var(--rose);
+  font-size:14px;
+  flex-shrink:0;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:all .2s ease;
+}
+
+.lang-push .lp-close:hover{
+  background:var(--rose);
+  color:#ffffff;
+}
+
+.lang-push input{
+  flex:1;
+  min-width:0;
+  border:1.5px solid var(--line-g);
+  border-radius:14px;
+  padding:12px 15px;
+  font-size:14px;
+  outline:none;
+  background:var(--bg-subtle);
+  color:var(--ink);
+  font-family:inherit;
+  transition:all .2s ease;
+}
+
+.lang-push input:focus{
+  border-color:var(--violet);
+  background:#ffffff;
+  box-shadow:0 0 0 4px rgba(124,58,237,.1);
+}
+
+.lang-push .lp-send{
+  width:44px;
+  height:44px;
+  border:none;
+  border-radius:50%;
+  background:linear-gradient(135deg,var(--violet),var(--violet-d));
+  color:#ffffff;
+  font-size:15px;
+  flex-shrink:0;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:all .2s ease;
+  box-shadow:0 6px 16px rgba(109,40,217,.32);
+}
+
+.lang-push .lp-send:hover{
+  transform:scale(1.06);
+}
+
+.lang-push .lp-send:active{
+  transform:scale(.94);
+}
+
+@keyframes fadeInMsg{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+@keyframes typingDot{
+  0%,60%,100%{transform:translateY(0);opacity:.4}
+  30%{transform:translateY(-5px);opacity:1}
+}
+
+@media(max-width:640px){
+  .ai-modal .ai-header{padding:12px 14px}
+  .ai-modal .ai-header h3{font-size:15px}
+  .ai-modal .ai-body{padding:14px}
+  .ai-modal .ai-msg{max-width:92%;font-size:14px}
+  .ai-modal .ai-input-area{padding:10px 12px}
+  .lang-push{bottom:14px}
+}
 
 </style>
 </head>
@@ -1124,6 +1484,8 @@ body.quiz-lock *{user-select:none;-webkit-user-select:none}
   </div>
 </section>
 
+
+
 <section class="ov-backdrop" id="chatOverlay">
   <div class="ov-card">
     <div class="ov-head">
@@ -1160,35 +1522,7 @@ body.quiz-lock *{user-select:none;-webkit-user-select:none}
   </div>
 </section>
 
-<section class="ov-backdrop" id="explainOverlay">
-  <div class="ov-card">
-    <div class="ov-head">
-      <h3><i class="fa-solid fa-language"></i> Explain more</h3>
-      <button class="ov-close" id="explainClose" aria-label="Close explain"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="ov-body">
-      <p style="font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.6">Choose the language you want this topic explained in. The explanation comes with simple examples so you understand fully.</p>
-      <div class="lang-grid" id="langGrid">
-          <button class="lang-btn dual" id="btnDualLang"><i class="fa-solid fa-language" style="color:#0ea5e9"></i><b>English + My Language</b></button>
-        <button class="lang-btn" data-lang="English"><i class="fa-solid fa-language" style="color:#7c3aed"></i><b>English</b></button>
-        <button class="lang-btn" data-lang="Hausa"><i class="fa-solid fa-language" style="color:#f59e0b"></i><b>Hausa</b></button>
-        <button class="lang-btn" data-lang="Yoruba"><i class="fa-solid fa-language" style="color:#10b981"></i><b>Yoruba</b></button>
-        <button class="lang-btn" data-lang="Igbo"><i class="fa-solid fa-language" style="color:#06b6d4"></i><b>Igbo</b></button>
-        <button class="lang-btn" data-lang="French"><i class="fa-solid fa-language" style="color:#f43f5e"></i><b>French</b></button>
-        <button class="lang-btn" data-lang="Spanish"><i class="fa-solid fa-language" style="color:#8b5cf6"></i><b>Spanish</b></button>
-        <button class="lang-btn other" id="langOtherBtn"><i class="fa-solid fa-plus" style="color:#7c3aed"></i><b>Other Language</b></button>
-      </div>
-      <div class="other-row hidden" id="otherLangRow">
-        <div class="other-input">
-          <input type="text" id="otherLangInput" placeholder="Type your language e.g. Arabic" maxlength="40">
-        </div>
-        <button class="btn btn-primary" id="btnSendOtherLang" style="padding:12px 20px;font-size:13px;width:auto"><i class="fa-solid fa-paper-plane"></i> Send</button>
-      </div>
-      <div class="explain-result hidden" id="explainResult"></div>
-      <div class="explain-note" id="explainNote"></div>
-    </div>
-  </div>
-</section>
+
 
 <section class="ov-backdrop" id="assessmentOverlay">
   <div class="ov-card">
@@ -1364,7 +1698,9 @@ body.quiz-lock *{user-select:none;-webkit-user-select:none}
     </div>
     <div class="study-actions">
       <button class="sa-btn ask" id="btnAskQuestion"><i class="fa-solid fa-circle-question"></i><div><b>Ask Question</b><span>Chat with my AI teacher</span></div></button>
-      <button class="sa-btn explain" id="btnExplainLang"><i class="fa-solid fa-language"></i><div><b>Explain To My Language</b><span>Understand better in your language</span></div></button>
+      
+      <button class="sa-btn explain" id="btnExplainLang"><i class="fa-solid fa-wand-magic-sparkles"></i><div><b>Explain More</b><span>AI explains this topic in detail</span></div></button>
+      
       <button class="sa-btn code-run hidden" id="btnCodeRun"><i class="fa-solid fa-code"></i><div><b>Run Code</b><span>Test code examples live</span></div></button>
     </div>
     <div class="complete-banner hidden" id="completeBanner">
