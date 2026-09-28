@@ -1425,7 +1425,7 @@ async function startAssessmentFlow() {
   const batchTopics = currentTopics.slice(startIdx, batch).map((t) => ({
     topic_number: t.topic_number,
     topic_name: t.topic_name,
-    topic_text: String(t.topic_text || '').slice(0, 1800)
+    topic_text: String(t.topic_text || '').slice(0, 2500)
   }));
   if (batchTopics.length === 0) {
     showToast('error', 'No Topics', 'No topics found for this assessment.', '');
@@ -1440,8 +1440,15 @@ async function startAssessmentFlow() {
       course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
       topics: batchTopics
     });
-    const questions = res.questions || [];
-    if (!questions.length) throw new Error('No questions returned');
+    let questions = Array.isArray(res.questions) ? res.questions.slice() : [];
+    const seenQ = {};
+    questions = questions.filter((q) => {
+      const k = String((q && q.question) || '').trim().toLowerCase();
+      if (!k || seenQ[k]) return false;
+      seenQ[k] = true;
+      return true;
+    });
+    if (!questions.length) throw new Error('No valid questions returned');
     quizState = {
       questions: questions,
       answers: questions.map(() => ''),
@@ -1727,6 +1734,9 @@ async function submitQuiz(timedOut) {
     question: q.question,
     options: q.options || [],
     type: q.type || 'mcq',
+    correct: q.correct,
+    topic: q.topic,
+    topic_name: q.topic_name,
     user_answer: quizState.answers[i] || ''
   }));
   const timeSpent = Math.max(0, QUIZ_SECONDS - quizState.secondsLeft);
@@ -1949,19 +1959,28 @@ function imageToDataUrl(url) {
   });
 }
 
-function pdfHeader(doc, w, title) {
+function pdfHeader(doc, w, title, logo) {
   doc.setFillColor(124, 58, 237);
   doc.rect(0, 0, w, 34, 'F');
   doc.setFillColor(6, 182, 212);
   doc.rect(0, 34, w, 2.5, 'F');
+  let tx = 14;
+  if (logo) {
+    try {
+      doc.setFillColor(255, 255, 255);
+      doc.circle(24, 17, 12, 'F');
+      doc.addImage(logo, 'PNG', 14, 7, 20, 20);
+      tx = 42;
+    } catch (e) {}
+  }
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
-  doc.text('IDT ACADEMY', 14, 14);
+  doc.text('IDT ACADEMY', tx, 14);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text('Intelligent Digital Technology Academy  •  www.idtacademy.com.ng', 14, 21);
-  doc.text('Learn Beyond Limits', 14, 27);
+  doc.text('Intelligent Digital Technology Academy  •  www.idtacademy.com.ng', tx, 21);
+  doc.text('Learn Beyond Limits', tx, 27);
   doc.setTextColor(30, 27, 75);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
@@ -2025,7 +2044,7 @@ async function downloadResultPdf() {
       doc.addImage(logo, 'PNG', (w - 150) / 2, (h - 150) / 2, 150, 150);
       doc.setGState(new doc.GState({ opacity: 1 }));
     }
-    pdfHeader(doc, w, 'ASSESSMENT SLIP');
+    pdfHeader(doc, w, 'ASSESSMENT SLIP', logo);
     let y = 62;
     doc.setFillColor(245, 243, 255);
     doc.roundedRect(14, y, w - 28, 26, 3, 3, 'F');
@@ -2086,7 +2105,7 @@ async function downloadResultPdf() {
       doc.addImage(logo, 'PNG', (w - 150) / 2, (h - 150) / 2, 150, 150);
       doc.setGState(new doc.GState({ opacity: 1 }));
     }
-    pdfHeader(doc, w, 'PROFESSIONAL RESULT SLIP');
+    pdfHeader(doc, w, 'PROFESSIONAL RESULT SLIP', logo);
     y = 66;
     doc.setFillColor(passed ? 16 : 244, passed ? 185 : 63, passed ? 129 : 94);
     doc.roundedRect(14, y, w - 28, 34, 4, 4, 'F');
@@ -2224,42 +2243,18 @@ async function emailResult() {
 }
 
 function markdownToHtml(md) {
-  let text = String(md || '');
-  text = text.replace(/^\s*#{1,6}\s*/gm, '');
-  let html = escapeHtml(text);
+  let html = escapeHtml(String(md == null ? '' : md));
+  html = html.replace(/^\s*#{1,6}\s*/gm, '');
+  html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<b><i>$1</i></b>');
   html = html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-  html = html.replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,!?:;]|$)/g, '$1<i>$2</i>');
+  html = html.replace(/(^|[\s(>])\*([^*\n]+?)\*(?=[\s).,!?:;<]|$)/g, '$1<i>$2</i>');
+  html = html.replace(/__(.+?)__/g, '<b>$1</b>');
   html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-  html = html.replace(/^\s*[-•]\s+/gm, '&bull; ');
+  html = html.replace(/^\s*[-•*]\s+/gm, '&bull; ');
   html = html.replace(/^\s*(\d+)[.)]\s+/gm, '<b>$1.</b> ');
-  html = html.replace(/\n/g, '<br>');
-  return html;
-}
-
-function addChatMessage(role, content) {
-  const msgs = $('chatMsgs');
-  if (!msgs) return null;
-  const div = document.createElement('div');
-  div.className = 'chat-bubble ' + role;
-  if (role === 'ai') {
-    div.innerHTML = '<div class="cb-meta">' + aiIconHtml() + ' My IDT Academy Teacher</div>' + markdownToHtml(content);
-  } else {
-    div.textContent = content;
-  }
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
-  return div;
-}
-
-function addTypingIndicator() {
-  const msgs = $('chatMsgs');
-  if (!msgs) return null;
-  const div = document.createElement('div');
-  div.className = 'chat-typing';
-  div.innerHTML = '<img class="ai-ico" src="' + AI_ICON_URL + '" alt="AI"><span></span><span></span><span></span>';
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
-  return div;
+  html = html.replace(/[ \t]+\n/g, '\n');
+  html = html.replace(/\n{3,}/g, '\n\n');
+  return html.replace(/\n/g, '<br>');
 }
 
 function saveChatHistory() {
@@ -2267,62 +2262,8 @@ function saveChatHistory() {
   saveUpdate({ chat_history: chatHistories });
 }
 
-async function handleChatSubmit(e) {
-  e.preventDefault();
-  const input = $('chatInput');
-  const send = $('chatSend');
-  if (!input || !send) return;
-  const q = input.value.trim();
-  if (!q) return;
-  input.value = '';
-  send.disabled = true;
-  addChatMessage('user', q);
-  const history = (chatHistories[activeCourseId] || []).slice(-8);
-  const typing = addTypingIndicator();
-  try {
-    const res = await askQuestion({
-      user_id: user.id,
-      academy_id: getAcademyId(),
-      course_id: activeCourseId,
-      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
-      topic_name: (currentTopic && currentTopic.topic_name) || '',
-      topic_text: String((currentTopic && currentTopic.topic_text) || '').slice(0, 2500),
-      question: q,
-      history: history,
-      preferred_lang: getPreferredLang()
-    });
-    const answer = res.answer || res.message || 'Sorry, I could not answer that. Please try again.';
-    if (typing) typing.remove();
-    addChatMessage('ai', answer);
-    history.push({ role: 'user', content: q.slice(0, 600) });
-    history.push({ role: 'assistant', content: answer.slice(0, 2000) });
-    chatHistories[activeCourseId] = history;
-    saveChatHistory();
-  } catch (err) {
-    if (typing) typing.remove();
-    addChatMessage('ai', 'I am having trouble connecting right now. Please try again in a moment. (' + (err.message || 'error') + ')');
-  }
-  send.disabled = false;
-  input.focus();
-}
 
-function openChat() {
-  const msgs = $('chatMsgs');
-  if (!msgs) return;
-  msgs.innerHTML = '';
-  addChatMessage('ai', 'Hello **' + escapeHtml((userData && userData.full_name) || 'student') + '**! 👋\n\nI am your **IDT Academy Teacher**. Ask me anything about the topic you are reading. I understand every language in the world — Hausa, Yoruba, Igbo, Arabic, French, Spanish, English and more. I will reply in the language you asked with.\n\nExample: *"Explain the difference between RAM and ROM with examples."*');
-  const hist = chatHistories[activeCourseId] || [];
-  hist.forEach((m) => {
-    if (m.role === 'user') addChatMessage('user', m.content);
-    if (m.role === 'assistant') addChatMessage('ai', m.content);
-  });
-  const overlay = $('chatOverlay');
-  if (overlay) overlay.classList.add('open');
-  setTimeout(() => {
-    const input = $('chatInput');
-    if (input) input.focus();
-  }, 300);
-}
+
 
 function startCountdown() {
   if (!paymentState) return;
@@ -2610,9 +2551,27 @@ async function loadDashboard() {
 
 let aiSelectedLang = '';
 
+
+
+
 function aiLabel(lang) {
-  const map = { 'english': 'English', 'english+hausa': 'English + Hausa', 'english+yoruba': 'English + Yoruba', 'english+igbo': 'English + Igbo', 'english+pidgin': 'English + Pidgin' };
-  return map[lang] || lang;
+  const map = {
+    'english': 'English',
+    'english+hausa': 'English + Hausa',
+    'english+yoruba': 'English + Yoruba',
+    'english+igbo': 'English + Igbo',
+    'english+pidgin': 'English + Pidgin',
+    'other': 'Other Language'
+  };
+  const key = String(lang || '').toLowerCase();
+  return map[key] || String(lang || '');
+}
+
+function currentLang() {
+  const ls = $('aiLangSelect');
+  const active = ls ? ls.querySelector('button.active') : null;
+  if (active && active.dataset.lang && active.dataset.lang !== 'other') return active.dataset.lang;
+  return aiSelectedLang || 'english';
 }
 
 function addAiMessage(role, content) {
@@ -2621,7 +2580,7 @@ function addAiMessage(role, content) {
   const div = document.createElement('div');
   div.className = 'ai-msg ' + (role === 'bot' ? 'bot' : 'user');
   if (role === 'bot') {
-    div.innerHTML = '<div class="ai-msg-label"><span class="ai-msg-icon"><img src="' + AI_ICON_URL + '" alt="AI" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>AI Tutor</div>' + markdownToHtml(content);
+    div.innerHTML = '<div class="ai-msg-label"><img src="' + AI_ICON_URL + '" alt="AI"> AI Tutor</div><p>' + markdownToHtml(content) + '</p>';
   } else {
     div.innerHTML = '<p>' + escapeHtml(content) + '</p>';
   }
@@ -2635,8 +2594,8 @@ function aiThinking() {
   const area = $('aiChatArea');
   if (!area) return null;
   const div = document.createElement('div');
-  div.className = 'ai-msg bot ai-thinking';
-  div.innerHTML = '<div class="ai-msg-label"><span class="ai-msg-icon"><img src="' + AI_ICON_URL + '" alt="AI" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>AI Tutor</div><p>Typing...</p>';
+  div.className = 'ai-typing';
+  div.innerHTML = '<span></span><span></span><span></span>';
   area.appendChild(div);
   const body = document.querySelector('.ai-modal .ai-body');
   if (body) body.scrollTop = body.scrollHeight;
@@ -2646,39 +2605,47 @@ function aiThinking() {
 function openAiModal() {
   const overlay = $('aiModalOverlay');
   if (!overlay) return;
-  const area = $('aiChatArea');
-  if (area && !area.dataset.greeted) {
-    area.dataset.greeted = '1';
-    addAiMessage('bot', 'Hello ' + ((userData && userData.full_name) || 'student') + '! I am your IDT Academy AI tutor. Pick a language at the top, or tap "Explain more" and I will explain this topic in English plus your language.');
-  }
   overlay.classList.add('active');
+  document.body.style.overflow = 'hidden';
+  const body = document.querySelector('.ai-modal .ai-body');
+  if (body) setTimeout(() => { body.scrollTop = body.scrollHeight; }, 120);
 }
 
 function closeAiModal() {
   const overlay = $('aiModalOverlay');
   if (overlay) overlay.classList.remove('active');
-  const row = $('aiOtherLangRow');
-  if (row) row.classList.add('hidden');
+  document.body.style.overflow = '';
+  closeLangPush();
+}
+
+function openLangPush() {
+  const p = $('langPush');
+  if (!p) return;
+  p.classList.add('open');
+  const input = $('langPushInput');
+  if (input) setTimeout(() => input.focus(), 220);
+}
+
+function closeLangPush() {
+  const p = $('langPush');
+  if (p) p.classList.remove('open');
 }
 
 async function runExplain(lang, dual) {
   if (!currentTopic) {
-    showToast('error', 'No Topic', 'Open a topic first, then use Explain.', '');
+    showToast('error', 'No Topic', 'Open a topic first, then ask for an explanation.', '');
     return;
   }
   if (!lang) {
-    showToast('error', 'Language Required', 'Please pick a language at the top first.', '');
+    showToast('error', 'Language Required', 'Please pick a language first.', '');
     return;
   }
   aiSelectedLang = lang;
   setPreferredLang(lang);
-  const topicLang = detectTopicLanguageLocal((currentTopic.topic_name || '') + ' ' + (currentTopic.topic_text || ''));
-  let target = lang;
-  if (topicLang && topicLang !== 'English' && ('english+' + topicLang.toLowerCase()) !== String(lang).toLowerCase() && String(lang).toLowerCase().indexOf(topicLang.toLowerCase()) === -1) {
-    target = topicLang + ' + ' + aiLabel(lang).replace('English + ', '');
-  }
+  openAiModal();
+  const label = aiLabel(lang);
+  addAiMessage('user', 'Explain "' + (currentTopic.topic_name || 'This topic') + '" in ' + label + ' like a teacher, with examples and 2 practice questions with answers.');
   const thinking = aiThinking();
-  if (thinking) addAiMessage('user', 'Explain this topic to me in ' + aiLabel(target));
   try {
     const res = await explainText({
       user_id: user.id,
@@ -2686,23 +2653,27 @@ async function runExplain(lang, dual) {
       course_id: activeCourseId,
       course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
       topic_name: currentTopic.topic_name || '',
-      topic_text: String(currentTopic.topic_text || '').slice(0, 4000),
-      target_lang: target,
+      topic_text: String(currentTopic.topic_text || '').slice(0, 5000),
+      target_lang: lang,
       explain_mode: dual ? 'dual' : 'single'
     });
     if (thinking) thinking.remove();
-    if (res.language_available === false) {
-      addAiMessage('bot', res.message || (target + ' is not available yet. Please try another language.'));
+    if (res && res.language_available === false) {
+      addAiMessage('bot', res.message || (label + ' is not available right now. Please try another language.'));
       return;
     }
-    const explanation = res.explanation || res.message || 'No explanation returned.';
+    const explanation = (res && (res.explanation || res.message)) || 'No explanation was returned.';
     addAiMessage('bot', explanation);
-    showToast('success', 'Explanation Ready', 'Here is your explanation in ' + aiLabel(target) + '.');
+    showToast('success', 'Explanation Ready', 'Here is your explanation in ' + label + '.');
   } catch (err) {
     if (thinking) thinking.remove();
-    addAiMessage('bot', 'Sorry, I could not create the explanation right now. Please try again.');
+    addAiMessage('bot', 'Sorry, I could not prepare the explanation right now. Please try again.');
     showToast('error', 'Explain Failed', 'Could not create the explanation. Please try again.', err.message || String(err));
   }
+}
+
+function openChat() {
+  openAiModal();
 }
 
 async function handleAiChatSend() {
@@ -2712,6 +2683,7 @@ async function handleAiChatSend() {
   const q = input.value.trim();
   if (!q) return;
   input.value = '';
+  input.style.height = 'auto';
   send.disabled = true;
   addAiMessage('user', q);
   const history = (chatHistories[activeCourseId] || []).slice(-8);
@@ -2723,16 +2695,16 @@ async function handleAiChatSend() {
       course_id: activeCourseId,
       course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
       topic_name: (currentTopic && currentTopic.topic_name) || '',
-      topic_text: String((currentTopic && currentTopic.topic_text) || '').slice(0, 2500),
+      topic_text: String((currentTopic && currentTopic.topic_text) || '').slice(0, 4000),
       question: q,
       history: history,
       preferred_lang: aiSelectedLang || getPreferredLang()
     });
-    const answer = res.answer || res.message || 'Sorry, I could not answer that. Please try again.';
+    const answer = (res && (res.answer || res.message)) || 'Sorry, I could not answer that. Please try again.';
     if (thinking) thinking.remove();
     addAiMessage('bot', answer);
     history.push({ role: 'user', content: q.slice(0, 600) });
-    history.push({ role: 'assistant', content: answer.slice(0, 2000) });
+    history.push({ role: 'assistant', content: String(answer).slice(0, 2000) });
     chatHistories[activeCourseId] = history;
     saveChatHistory();
   } catch (err) {
@@ -2742,6 +2714,7 @@ async function handleAiChatSend() {
   send.disabled = false;
   input.focus();
 }
+
 
 function on(id, event, handler) {
   const el = $(id);
@@ -2898,6 +2871,80 @@ domReady(() => {
     if (!user) return;
     window.location.href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent((userData && userData.referral_code) || '');
   });
+  
+  
+  on('btnAskQuestion', 'click', openAiModal);
+
+  on('btnExplainLang', 'click', () => {
+    openAiModal();
+    const lang = currentLang();
+    runExplain(lang, String(lang).indexOf('+') !== -1);
+  });
+
+  on('videoExplainFloat', 'click', () => {
+    openAiModal();
+    const lang = currentLang();
+    runExplain(lang, String(lang).indexOf('+') !== -1);
+  });
+
+  on('aiModalClose', 'click', closeAiModal);
+
+  const langSelect = $('aiLangSelect');
+  if (langSelect) {
+    langSelect.querySelectorAll('button[data-lang]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.lang === 'other') {
+          openLangPush();
+          return;
+        }
+        langSelect.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        const lang = btn.dataset.lang;
+        runExplain(lang, String(lang).indexOf('+') !== -1);
+      });
+    });
+  }
+
+  on('langPushClose', 'click', closeLangPush);
+
+  on('langPushSend', 'click', () => {
+    const input = $('langPushInput');
+    const lang = (input && input.value.trim()) || '';
+    if (!lang) {
+      showToast('error', 'Language Required', 'Please type the language you want.', '');
+      return;
+    }
+    if (input) input.value = '';
+    closeLangPush();
+    const ls = $('aiLangSelect');
+    if (ls) ls.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+    runExplain(lang, true);
+  });
+
+  on('langPushInput', 'keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const send = $('langPushSend');
+      if (send) send.click();
+    }
+  });
+
+  const aiSendBtn = $('aiSendBtn');
+  if (aiSendBtn) aiSendBtn.addEventListener('click', handleAiChatSend);
+  const aiInputEl = $('aiInput');
+  if (aiInputEl) {
+    aiInputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleAiChatSend();
+      }
+    });
+    aiInputEl.addEventListener('input', () => {
+      aiInputEl.style.height = 'auto';
+      aiInputEl.style.height = Math.min(aiInputEl.scrollHeight, 130) + 'px';
+    });
+  }
+  
 
   document.querySelectorAll('.social-chip').forEach((chip) => {
     chip.addEventListener('click', async () => {
@@ -2924,8 +2971,7 @@ domReady(() => {
     });
   });
 
-  on('btnDualLang', 'click', () => handleExplain(getPreferredLang(), true));
-
+ 
   on('userAvatar', 'click', openMyCourses);
 
   on('pendingCourseBox', 'click', () => {
@@ -2966,18 +3012,12 @@ domReady(() => {
     }
   });
 
-  on('btnAskQuestion', 'click', openChat);
-
-  on('chatClose', 'click', () => {
-    const o = $('chatOverlay');
-    if (o) o.classList.remove('open');
-  });
+ 
 
   on('btnExplainLang', 'click', openAiModal);
   on('videoExplainFloat', 'click', openAiModal);
   on('aiModalClose', 'click', closeAiModal);
-
-  const headerLangs = $('aiHeaderLangs');
+ 
   if (headerLangs) {
     headerLangs.querySelectorAll('button[data-lang]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -2988,66 +3028,9 @@ domReady(() => {
     });
   }
 
-  on('aiOtherLangBtn', 'click', () => {
-    const row = $('aiOtherLangRow');
-    if (!row) return;
-    row.classList.toggle('hidden');
-    if (!row.classList.contains('hidden')) {
-      const input = $('aiOtherLangInput');
-      if (input) input.focus();
-    }
-  });
+ 
 
-  on('aiOtherLangSend', 'click', () => {
-    const input = $('aiOtherLangInput');
-    const lang = (input && input.value.trim()) || '';
-    if (!lang) {
-      showToast('error', 'Language Required', 'Please type the language you want.', '');
-      return;
-    }
-    const row = $('aiOtherLangRow');
-    if (row) row.classList.add('hidden');
-    if (input) input.value = '';
-    const langs = $('aiHeaderLangs');
-    if (langs) langs.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
-    runExplain(lang, true);
-  });
-
-  const aiSendBtn = $('aiSendBtn');
-  if (aiSendBtn) aiSendBtn.addEventListener('click', handleAiChatSend);
-  const aiInputEl = $('aiInput');
-  if (aiInputEl) {
-    aiInputEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleAiChatSend();
-      }
-    });
-  }
-
-  on('chatForm', 'submit', handleChatSubmit);
-
-  on('explainClose', 'click', () => {
-    const overlay = $('explainOverlay');
-    if (overlay) overlay.classList.remove('open');
-  });
-
-  function handleExplain(lang, dual) {
-    const grid = $('langGrid');
-    const result = $('explainResult');
-    const note = $('explainNote');
-    const overlay = $('explainOverlay');
-    const otherRow = $('explainOtherLangRow');
-    if (otherRow) otherRow.classList.add('hidden');
-    if (grid) grid.classList.remove('hidden');
-    if (result) result.classList.add('hidden');
-    if (note) note.textContent = '';
-    if (overlay) overlay.classList.add('open');
-    if (lang && dual) {
-      runExplain(lang, dual);
-    }
-  }
-
+  
   on('assessClose', 'click', () => {
     const o = $('assessmentOverlay');
     if (o) o.classList.remove('open');
