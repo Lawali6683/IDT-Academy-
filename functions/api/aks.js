@@ -109,19 +109,22 @@ async function callOpenRouter(env, systemText, messages, jsonMode) {
     if (typeof messages === 'string') {
       openRouterMessages.push({ role: 'user', content: messages });
     } else if (Array.isArray(messages)) {
-      for (const msg of messages) {
+     for (const msg of messages) {
         const role = msg.role === 'model' ? 'assistant' : 'user';
-        let contentText = '';
         if (msg.parts && Array.isArray(msg.parts)) {
-          contentText = msg.parts.map(function (p) { return p.text || ''; }).join('\n');
+          const contentArr = [];
+          for (const p of msg.parts) {
+            if (p.text) contentArr.push({ type: 'text', text: p.text });
+            if (p.inline_data && p.inline_data.data) {
+              contentArr.push({ type: 'image_url', image_url: { url: 'data:' + (p.inline_data.mime_type || 'image/jpeg') + ';base64,' + p.inline_data.data } });
+            }
+          }
+          openRouterMessages.push({ role: role, content: contentArr });
         } else {
-          contentText = String(msg.content || '');
-        }
-        if (contentText) {
-          openRouterMessages.push({ role: role, content: contentText });
+          const contentText = String(msg.content || '');
+          if (contentText) openRouterMessages.push({ role: role, content: contentText });
         }
       }
-    }
 
     const payload = {
       model: FALLBACK_OPENROUTER_MODEL,
@@ -184,23 +187,47 @@ async function generateAIResponse(env, systemText, messages, jsonMode) {
   throw new Error('No valid AI API keys configured');
 }
 
+
+
+
+function buildImageParts(images) {
+  const parts = [];
+  const list = Array.isArray(images) ? images.slice(0, 3) : [];
+  for (const img of list) {
+    const s = String(img || '');
+    let mime = 'image/jpeg';
+    let b64 = s;
+    const m = s.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
+    if (m) {
+      mime = m[1];
+      b64 = m[2];
+    }
+    if (b64 && b64.length > 100) {
+      parts.push({ inline_data: { mime_type: mime, data: b64 } });
+    }
+  }
+  return parts;
+}
+
 async function handleAsk(env, body, userData) {
   const studentName = (userData && userData.full_name) || body.full_name || 'Student';
   const courseName = String(body.course_name || '');
   const topicName = String(body.topic_name || '');
   const topicText = String(body.topic_text || '').slice(0, 4000);
   const question = String(body.question || '').trim();
+  const imageParts = buildImageParts(body.images);
 
-  if (!question) return json({ success: false, error: 'question is required' }, 400);
+  if (!question && imageParts.length === 0) return json({ success: false, error: 'question is required' }, 400);
 
   const system = 'You are the official AI Teacher at IDT Academy (Intelligent Digital Technology Academy, www.idtacademy.com.ng). '
     + 'You understand and can reply in every language in the world including Hausa, Yoruba, Igbo, Arabic, French, Spanish and Swahili. '
     + 'The student\'s name is ' + studentName + '. Always call them by name, be warm, encouraging and patient. '
     + 'Detect the language of the student\'s question automatically. If they asked in a language other than English, answer mainly in that language but keep difficult technical words in English, explaining each one in simple local words like a good teacher. '
     + 'If the student requests two languages, answer first in English then repeat the key points in the second language. '
+    + 'IMAGE RULE (VERY IMPORTANT): The student may send screenshots or photos of their screen, code, error messages, books, exercises or anything they are learning. If images are attached, look at them carefully and explain exactly what you see: read the code or error, point out what is wrong or what is happening, and teach them how to fix it or understand it, step by step. If the images relate to the lesson topic, connect your explanation to that topic. Always acknowledge the image first, for example "Na ganin hoton da ka tura" or "I can see your screenshot". '
     + 'FORMATTING RULES (VERY IMPORTANT): Do NOT use markdown symbols anywhere. Never use asterisks *, hashes #, backticks, or underscores. Write plain clean text only. Use line breaks and numbered steps for structure. '
     + 'If the language requested is one you cannot write properly, say honestly that it is not available and offer English or another language. '
-    + 'Never invent facts. Use only the lesson notes provided. If you do not know, say so honestly and suggest what to do next.';
+    + 'Never invent facts. Use only the lesson notes provided and the images. If you do not know, say so honestly and suggest what to do next.';
 
   const contents = [];
 
@@ -216,11 +243,18 @@ async function handleAsk(env, body, userData) {
     if (content) contents.push({ role: role, parts: [{ text: content }] });
   }
 
-  contents.push({ role: 'user', parts: [{ text: studentName + ' asks: ' + question + '\n\n(Answer warmly in the language of the question, default English. Call them by name, explain step by step, use examples, show diagrams with text when helpful, and encourage them.)' }] });
+  const finalParts = [];
+  if (imageParts.length) {
+    finalParts.push(...imageParts);
+  }
+  finalParts.push({ text: (question ? studentName + ' asks: ' + question : studentName + ' sent image(s) without text.') + '\n\n(Answer warmly in the language of the question, default English. Call them by name, explain step by step, use examples, and if images were attached describe and explain them clearly.)' });
+  contents.push({ role: 'user', parts: finalParts });
 
   const answer = await generateAIResponse(env, system, contents, false);
   return json({ success: true, answer: answer, message: answer });
 }
+
+
 
 async function handleExplain(env, body, userData) {
   const studentName = (userData && userData.full_name) || body.full_name || 'Student';
