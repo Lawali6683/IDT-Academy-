@@ -209,6 +209,7 @@ let courseInfoMap = {};
 let topicsMap = {};
 let activeCourseId = '';
 let currentTopics = [];
+let pendingChatImages = [];
 let currentTopicIdx = 0;
 let currentTopic = null;
 let watchedMap = {};
@@ -1286,14 +1287,106 @@ function attachVideoWatcher(vid) {
   });
 }
 
+
+
 async function goToTopic(idx) {
-  if (idx < 0 || idx >= currentTopics.length) return;
-  currentTopicIdx = idx;
-  readingHistory[activeCourseId] = idx;
-  saveUpdate({ reading_history: readingHistory });
-  renderTopic();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  try {
+    if (!currentTopics.length) {
+      showToast('info', 'No Topics', 'This course has no topics yet. Please check back later.');
+      return;
+    }
+    if (idx < 0 || idx >= currentTopics.length) {
+      showToast('info', 'End Of Topics', 'You have reached the end of the available topics.');
+      return;
+    }
+    currentTopicIdx = idx;
+    readingHistory[activeCourseId] = idx;
+    saveUpdate({ reading_history: readingHistory });
+    renderTopic();
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { window.scrollTo(0, 0); }
+  } catch (err) {
+    showToast('error', 'Navigation Failed', 'Could not open this topic. Please try again.', err.message || String(err));
+  }
 }
+
+async function advanceTopic() {
+  try {
+    if (!currentTopics.length) {
+      showToast('info', 'No Topics', 'This course has no topics yet.');
+      return;
+    }
+    if (!currentTopic) {
+      currentTopic = currentTopics[currentTopicIdx] || null;
+    }
+    const nextIdx = currentTopicIdx + 1;
+    if (currentTopic && currentTopic.is_final === true) {
+      await finishCourse();
+      return;
+    }
+    if (nextIdx >= currentTopics.length) {
+      showToast('info', 'Wait Next Week Topic', 'You have finished all the available topics for now. The final topic will open next week. Please check back later.');
+      return;
+    }
+    if (currentTopics[nextIdx].is_final === true) {
+      renderTopic();
+      showToast('info', 'Wait Next Week Topic', 'You have finished all the available topics for now. The final topic will open next week. Please check back later.');
+      return;
+    }
+    if (topicNeedsWatch(currentTopicIdx) && !isWatched(currentTopicIdx)) {
+      showToast('info', 'Watch The Video First', 'Please watch the full video for this topic before moving on. This helps you understand better.');
+      return;
+    }
+    if (diplomaMode) {
+      const weeks = weeksSince(regDate);
+      if (nextIdx > weeks) {
+        showToast('info', 'Lesson Locked', 'Diploma lessons unlock one per week. Please wait for the next lesson to open.');
+        return;
+      }
+    }
+    pendingNextIdx = nextIdx;
+    openUnderstandModal();
+  } catch (err) {
+    pendingNextIdx = -1;
+    showToast('error', 'Something Went Wrong', 'The Next button could not work. Please refresh and try again.', err.message || String(err));
+  }
+}
+
+async function handleReady() {
+  try {
+    closeUnderstandModal();
+    if (pendingNextIdx < 0) {
+      await goToTopic(currentTopicIdx + 1);
+      return;
+    }
+    const idx = pendingNextIdx;
+    pendingNextIdx = -1;
+    const batch = idx;
+    if (batch % ASSESS_BATCH_SIZE === 0 && batch < currentTopics.length && currentTopics[batch] && currentTopics[batch].is_final !== true) {
+      const key = activeCourseId + '_' + batch;
+      if ((passedBatches[key] || []).indexOf(batch) !== -1) {
+        await goToTopic(idx);
+        return;
+      }
+      const failTs = lastAssessFail[key];
+      if (failTs) {
+        const waitMs = diplomaMode ? RETRY_DIPLOMA_MS : RETRY_REGULAR_MS;
+        const remain = failTs + waitMs - Date.now();
+        if (remain > 0) {
+          showToast('info', 'Assessment Locked', 'You can retry this assessment in ' + formatDuration(remain) + '. Keep reading and come back.');
+          await goToTopic(idx);
+          return;
+        }
+      }
+      openAssessment(batch);
+      return;
+    }
+    await goToTopic(idx);
+  } catch (err) {
+    showToast('error', 'Navigation Failed', 'Could not move to the next topic. Please try again.', err.message || String(err));
+  }
+}
+
+
 
 function topicNeedsWatch(idx) {
   const t = currentTopics[idx];
@@ -1310,37 +1403,6 @@ function closeUnderstandModal() {
   if (m) m.classList.remove('open');
 }
 
-async function advanceTopic() {
-  if (isProcessingNext) return;
-  if (!currentTopics.length) return;
-  const nextIdx = currentTopicIdx + 1;
-  if (currentTopic && currentTopic.is_final === true) {
-    await finishCourse();
-    return;
-  }
-  if (nextIdx >= currentTopics.length) {
-    showToast('info', 'Wait Next Week Topic', 'You have finished all the available topics for now. The final topic will open next week. Please check back later.');
-    return;
-  }
-  if (currentTopics[nextIdx].is_final === true) {
-    renderTopic();
-    showToast('info', 'Wait Next Week Topic', 'You have finished all the available topics for now. The final topic will open next week. Please check back later.');
-    return;
-  }
-  if (topicNeedsWatch(currentTopicIdx) && !isWatched(currentTopicIdx)) {
-    showToast('info', 'Watch The Video First', 'Please watch the full video for this topic before moving on. This helps you understand better.');
-    return;
-  }
-  if (diplomaMode) {
-    const weeks = weeksSince(regDate);
-    if (nextIdx > weeks) {
-      showToast('info', 'Lesson Locked', 'Diploma lessons unlock one per week. Please wait for the next lesson to open.');
-      return;
-    }
-  }
-  openUnderstandModal();
-  pendingNextIdx = nextIdx;
-}
 
 async function finishCourse() {
   const total = currentTopics.length;
@@ -1362,33 +1424,7 @@ async function finishCourse() {
   if (modal) modal.classList.add('open');
 }
 
-async function handleReady() {
-  closeUnderstandModal();
-  if (pendingNextIdx < 0) return;
-  const idx = pendingNextIdx;
-  pendingNextIdx = -1;
-  const batch = idx;
-  if (batch % ASSESS_BATCH_SIZE === 0 && batch < currentTopics.length && currentTopics[batch] && currentTopics[batch].is_final !== true) {
-    const key = activeCourseId + '_' + batch;
-    if ((passedBatches[key] || []).indexOf(batch) !== -1) {
-      await goToTopic(idx);
-      return;
-    }
-    const failTs = lastAssessFail[key];
-    if (failTs) {
-      const waitMs = diplomaMode ? RETRY_DIPLOMA_MS : RETRY_REGULAR_MS;
-      const remain = failTs + waitMs - Date.now();
-      if (remain > 0) {
-        showToast('info', 'Assessment Locked', 'You can retry this assessment in ' + formatDuration(remain) + '. Keep reading and come back.');
-        await goToTopic(idx);
-        return;
-      }
-    }
-    openAssessment(batch);
-    return;
-  }
-  await goToTopic(idx);
-}
+
 
 function formatDuration(ms) {
   const h = Math.floor(ms / (60 * 60 * 1000));
@@ -2562,6 +2598,73 @@ async function loadDashboard() {
   }
 }
 
+
+
+function compressImage(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const maxSide = 1024;
+          let w = img.naturalWidth || img.width;
+          let h = img.naturalHeight || img.height;
+          const scale = Math.min(1, maxSide / Math.max(w, h));
+          const c = document.createElement('canvas');
+          c.width = Math.round(w * scale);
+          c.height = Math.round(h * scale);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          let dataUrl = c.toDataURL('image/jpeg', 0.6);
+          let q = 0.6;
+          while (dataUrl.length > 280000 && q > 0.3) {
+            q -= 0.1;
+            dataUrl = c.toDataURL('image/jpeg', q);
+          }
+          resolve(dataUrl.split(',')[1] || '');
+        } catch (e) {
+          resolve('');
+        }
+      };
+      img.onerror = () => resolve('');
+      img.src = reader.result;
+    };
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderImgPreview() {
+  const box = $('chatImgPreview');
+  if (!box) return;
+  if (!pendingChatImages.length) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+  box.classList.remove('hidden');
+  box.innerHTML = pendingChatImages.map((src, i) =>
+    '<div class="cf-img-item"><img src="' + src + '" alt="photo"><button type="button" class="cf-img-x" data-i="' + i + '"><i class="fa-solid fa-xmark"></i></button></div>'
+  ).join('');
+  box.querySelectorAll('.cf-img-x').forEach((b) => {
+    b.addEventListener('click', () => {
+      pendingChatImages.splice(parseInt(b.dataset.i, 10), 1);
+      renderImgPreview();
+    });
+  });
+}
+
+function hideQuickButtons() {
+  const quick = document.querySelector('.cf-quick');
+  if (quick) quick.classList.add('hidden');
+}
+
+function showQuickButtons() {
+  const quick = document.querySelector('.cf-quick');
+  if (quick) quick.classList.remove('hidden');
+}
+
+
 let aiSelectedLang = 'english';
 
 function aiLabel(lang) {
@@ -2585,6 +2688,7 @@ function currentLang() {
   return aiSelectedLang || 'english';
 }
 
+
 function scrollChatToBottom() {
   const box = $('chatMsgs');
   if (box) box.scrollTop = box.scrollHeight;
@@ -2593,140 +2697,57 @@ function scrollChatToBottom() {
 function addAiMessage(role, content) {
   const area = $('chatMsgs');
   if (!area) return null;
-  const div = document.createElement('div');
-  div.className = 'chat-bubble ' + (role === 'bot' ? 'bot' : 'user');
-  if (role === 'bot') {
-    div.innerHTML = '<div style="font-size:10.5px;font-weight:800;opacity:.75;text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;display:flex;align-items:center;gap:6px"><img src="' + AI_ICON_URL + '" alt="AI" style="width:18px;height:18px;border-radius:50%;object-fit:cover"> AI Tutor</div><div>' + markdownToHtml(content) + '</div>';
-  } else {
-    div.innerHTML = '<div>' + escapeHtml(content) + '</div>';
+  const row = document.createElement('div');
+  row.className = 'cf-row ' + (role === 'bot' ? 'bot-row' : 'user-row');
+  if (imagesToSend.length) {
+    const area = $('chatMsgs');
+    if (area) {
+      const lastRow = area.querySelector('.cf-row.user-row:last-child .cf-bubble');
+      if (lastRow) {
+        lastRow.insertAdjacentHTML('beforeend', '<div class="cf-msg-imgs">' + imagesToSend.map((s) => '<img src="' + s + '" alt="photo">').join('') + '</div>');
+        scrollChatToBottom();
+      }
+    }
   }
-  if (role === 'user') {
-    div.style.alignSelf = 'flex-end';
-    div.style.background = 'linear-gradient(135deg,var(--violet),var(--violet-d))';
-    div.style.color = '#fff';
-    div.style.borderBottomRightRadius = '6px';
-  } else {
-    div.style.alignSelf = 'flex-start';
-    div.style.background = '#fff';
-    div.style.border = '1px solid var(--line)';
-    div.style.borderBottomLeftRadius = '6px';
-    div.style.boxShadow = '0 6px 18px rgba(80,40,160,.06)';
-  }
-  area.appendChild(div);
+  pendingChatImages = [];
+  renderImgPreview();
+  hideQuickButtons();
+  const avatar = role === 'bot' ? '<img class="cf-avatar-sm" src="' + AI_ICON_URL + '" alt="AI">' : '';
+  const who = role === 'bot' ? '<div class="cf-who">AI Tutor</div>' : '<div class="cf-who">You</div>';
+  const body = role === 'bot' ? '<div class="cf-bubble">' + markdownToHtml(content) + '</div>' : '<div class="cf-bubble">' + escapeHtml(content) + '</div>';
+  row.innerHTML = avatar + '<div class="cf-content">' + who + body + '</div>';
+  area.appendChild(row);
   scrollChatToBottom();
-  return div;
+  return row;
 }
 
 function aiThinking() {
   const area = $('chatMsgs');
   if (!area) return null;
-  const div = document.createElement('div');
-  div.className = 'chat-bubble ai-thinking-bubble';
-  div.style.alignSelf = 'flex-start';
-  div.style.background = '#fff';
-  div.style.border = '1px solid var(--line)';
-  div.style.borderBottomLeftRadius = '6px';
-  div.innerHTML = '<span style="display:inline-flex;gap:6px;align-items:center"><span style="width:8px;height:8px;border-radius:50%;background:#7c3aed;animation:typingDot 1.3s ease-in-out infinite"></span><span style="width:8px;height:8px;border-radius:50%;background:#7c3aed;animation:typingDot 1.3s ease-in-out .18s infinite"></span><span style="width:8px;height:8px;border-radius:50%;background:#7c3aed;animation:typingDot 1.3s ease-in-out .36s infinite"></span></span>';
-  const style = document.createElement('style');
-  style.id = 'idtTypingStyle';
-  style.textContent = '@keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}';
-  if (!document.getElementById('idtTypingStyle')) document.head.appendChild(style);
-  area.appendChild(div);
+  const row = document.createElement('div');
+  row.className = 'cf-row bot-row';
+  row.innerHTML = '<img class="cf-avatar-sm" src="' + AI_ICON_URL + '" alt="AI">' +
+    '<div class="cf-content"><div class="cf-bubble"><span class="cf-typing"><span></span><span></span><span></span></span></div></div>';
+  area.appendChild(row);
   scrollChatToBottom();
-  return div;
+  return row;
 }
 
 function openChat() {
   const overlay = $('chatOverlay');
   if (!overlay) return;
   overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
   const input = $('chatInput');
-  if (input) setTimeout(() => input.focus(), 150);
+  if (input) setTimeout(() => input.focus(), 200);
 }
 
 function closeChat() {
   const overlay = $('chatOverlay');
   if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
 }
 
-async function runExplain(lang, dual) {
-  if (!currentTopic) {
-    showToast('error', 'No Topic', 'Open a topic first, then ask for an explanation.');
-    return;
-  }
-  if (!lang) {
-    showToast('error', 'Language Required', 'Please pick a language first.');
-    return;
-  }
-  aiSelectedLang = lang;
-  setPreferredLang(lang);
-  openChat();
-  const label = aiLabel(lang);
-  addAiMessage('user', 'Explain "' + (currentTopic.topic_name || 'This topic') + '" in ' + label + ' like a teacher, with examples and 2 practice questions with answers.');
-  const thinking = aiThinking();
-  try {
-    const res = await explainText({
-      user_id: user.id,
-      academy_id: getAcademyId(),
-      course_id: activeCourseId,
-      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
-      topic_name: currentTopic.topic_name || '',
-      topic_text: String(currentTopic.topic_text || '').slice(0, 5000),
-      target_lang: lang,
-      explain_mode: dual ? 'dual' : 'single'
-    });
-    if (thinking) thinking.remove();
-    if (res && res.language_available === false) {
-      addAiMessage('bot', res.message || (label + ' is not available right now. Please try another language.'));
-      return;
-    }
-    const explanation = (res && (res.explanation || res.message)) || 'No explanation was returned.';
-    addAiMessage('bot', explanation);
-    showToast('success', 'Explanation Ready', 'Here is your explanation in ' + label + '.');
-  } catch (err) {
-    if (thinking) thinking.remove();
-    addAiMessage('bot', 'Sorry, I could not prepare the explanation right now. Please try again.');
-    showToast('error', 'Explain Failed', 'Could not create the explanation. Please try again.', err.message || String(err));
-  }
-}
-
-async function handleAiChatSend() {
-  const input = $('chatInput');
-  const send = $('chatSend');
-  if (!input || !send) return;
-  const q = input.value.trim();
-  if (!q) return;
-  input.value = '';
-  send.disabled = true;
-  addAiMessage('user', q);
-  const history = (chatHistories[activeCourseId] || []).slice(-8);
-  const thinking = aiThinking();
-  try {
-    const res = await askQuestion({
-      user_id: user.id,
-      academy_id: getAcademyId(),
-      course_id: activeCourseId,
-      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
-      topic_name: (currentTopic && currentTopic.topic_name) || '',
-      topic_text: String((currentTopic && currentTopic.topic_text) || '').slice(0, 4000),
-      question: q,
-      history: history,
-      preferred_lang: aiSelectedLang || getPreferredLang()
-    });
-    const answer = (res && (res.answer || res.message)) || 'Sorry, I could not answer that. Please try again.';
-    if (thinking) thinking.remove();
-    addAiMessage('bot', answer);
-    history.push({ role: 'user', content: q.slice(0, 600) });
-    history.push({ role: 'assistant', content: String(answer).slice(0, 2000) });
-    chatHistories[activeCourseId] = history;
-    saveChatHistory();
-  } catch (err) {
-    if (thinking) thinking.remove();
-    addAiMessage('bot', 'I am having trouble connecting right now. Please try again in a moment.');
-  }
-  send.disabled = false;
-  input.focus();
-}
 
 function on(id, event, handler) {
   const el = $(id);
@@ -2741,6 +2762,80 @@ function domReady(fn) {
     fn();
   }
 }
+
+
+async function handleAiChatSend() {
+  const input = $('chatInput');
+  const sendBtn = $('chatSend');
+  if (!input || !sendBtn) return;
+  const q = input.value.trim();
+  const hasImages = pendingChatImages.length > 0;
+  if (!q && !hasImages) return;
+  if (sendBtn.disabled) return;
+
+  const imagesToSend = pendingChatImages.slice();
+
+  addAiMessage('user', q);
+  if (imagesToSend.length) {
+    const area = $('chatMsgs');
+    if (area) {
+      const rows = area.querySelectorAll('.cf-row.user-row');
+      const lastRow = rows.length ? rows[rows.length - 1].querySelector('.cf-bubble') : null;
+      if (lastRow) {
+        lastRow.insertAdjacentHTML('beforeend', '<div class="cf-msg-imgs">' + imagesToSend.map((s) => '<img src="' + s + '" alt="photo">').join('') + '</div>');
+        scrollChatToBottom();
+      }
+    }
+  }
+  pendingChatImages = [];
+  renderImgPreview();
+  hideQuickButtons();
+
+  input.value = '';
+  input.style.height = 'auto';
+
+  const hist = chatHistories[activeCourseId] = chatHistories[activeCourseId] || [];
+  hist.push({ role: 'user', content: q || '[Images sent]' });
+
+  sendBtn.disabled = true;
+  sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+  const thinkingEl = aiThinking();
+
+  try {
+    const topicName = currentTopic ? (currentTopic.title || '') : '';
+    const courseName = courseInfoMap[activeCourseId] ? (courseInfoMap[activeCourseId].title || '') : '';
+    const res = await askQuestion({
+      user_id: user.id,
+      user_name: (userData && userData.full_name) || 'Student',
+      course_id: activeCourseId,
+      course_name: courseName,
+      topic_name: topicName,
+      topic_text: currentTopic ? (currentTopic.body || currentTopic.content || '') : '',
+      question: q,
+      images: imagesToSend,
+      lang: aiSelectedLang || getPreferredLang(),
+      academy_id: getAcademyId(),
+      history: hist.slice(-8)
+    });
+    if (thinkingEl && thinkingEl.parentNode) thinkingEl.parentNode.removeChild(thinkingEl);
+    const answer = (res && (res.answer || res.message)) || '';
+    if (!answer) throw new Error('Empty reply from AI');
+    addAiMessage('bot', answer);
+    hist.push({ role: 'assistant', content: answer });
+    saveChatHistory();
+    scrollChatToBottom();
+  } catch (err) {
+    if (thinkingEl && thinkingEl.parentNode) thinkingEl.parentNode.removeChild(thinkingEl);
+    addAiMessage('bot', 'Sorry, something went wrong: ' + (err.message || 'please try again.'));
+    scrollChatToBottom();
+    showToast('error', 'Chat Error', err.message || 'Failed to get a reply. Please try again.');
+  } finally {
+    sendBtn.disabled = false;
+    sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
+    input.focus();
+  }
+}
+
 
 domReady(() => {
   ensureAppFreshness();
@@ -2806,6 +2901,7 @@ domReady(() => {
       }
     });
   }
+      
 
   on('btnCopyUserId', 'click', async (e) => {
     const btn = e.currentTarget;
@@ -2889,7 +2985,7 @@ domReady(() => {
 
   on('chatClose', 'click', closeChat);
 
-  const chatForm = $('chatForm');
+const chatForm = $('chatForm');
   if (chatForm) {
     chatForm.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -2897,10 +2993,93 @@ domReady(() => {
     });
   }
 
+  const chatInput = $('chatInput');
+  if (chatInput) {
+    chatInput.addEventListener('input', () => {
+      chatInput.style.height = 'auto';
+      chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+    });
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleAiChatSend();
+      }
+    });
+  }
+
+  const quickWrap = document.querySelector('.cf-quick');
+  if (quickWrap) {
+    quickWrap.querySelectorAll('button[data-quick]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const input = $('chatInput');
+        if (input) {
+          input.value = btn.dataset.quick;
+          input.focus();
+          input.dispatchEvent(new Event('input'));
+        }
+        handleAiChatSend();
+      });
+    });
+  }
+
+  const btnChatImage = $('btnChatImage');
+  const chatImageInput = $('chatImageInput');
+  if (btnChatImage && chatImageInput) {
+    btnChatImage.addEventListener('click', () => chatImageInput.click());
+    chatImageInput.addEventListener('change', async () => {
+      const files = Array.from(chatImageInput.files || []);
+      chatImageInput.value = '';
+      const room = 3 - pendingChatImages.length;
+      if (room <= 0) {
+        showToast('info', 'Limit Reached', 'You can send a maximum of 3 images at once.');
+        return;
+      }
+      miniLoad('Preparing images...');
+      for (const f of files.slice(0, room)) {
+        const b64 = await compressImage(f);
+        if (b64) pendingChatImages.push('data:image/jpeg;base64,' + b64);
+      }
+      miniHide();
+      renderImgPreview();
+      if (!pendingChatImages.length) showToast('error', 'Image Failed', 'Could not read that image. Please try another one.');
+    });
+  }
+
+  const btnToggleQuick = $('btnToggleQuick');
+  if (btnToggleQuick) {
+    btnToggleQuick.addEventListener('click', () => {
+      const quick = document.querySelector('.cf-quick');
+      if (quick) quick.classList.toggle('hidden');
+    });
+  }
+  
+  
   on('chatSend', 'click', (e) => {
     e.preventDefault();
     handleAiChatSend();
   });
+
+
+const chatInputEl = $('chatInput');
+  if (chatInputEl) {
+    chatInputEl.addEventListener('input', () => {
+      chatInputEl.style.height = 'auto';
+      chatInputEl.style.height = Math.min(chatInputEl.scrollHeight, 120) + 'px';
+    });
+  }
+
+  document.querySelectorAll('.cf-quick button[data-quick]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const input = $('chatInput');
+      if (input) {
+        input.value = btn.dataset.quick;
+        handleAiChatSend();
+        const imagesToSend = pendingChatImages.slice();
+      }
+    });
+  });
+
+
 
   const headerLangs = $('aiHeaderLangs');
   if (headerLangs) {
@@ -2987,11 +3166,13 @@ domReady(() => {
   on('btnNextTopic', 'click', () => {
     if (isProcessingNext) return;
     isProcessingNext = true;
-    advanceTopic().finally(() => {
+    Promise.resolve(advanceTopic()).catch((err) => {
+      showToast('error', 'Error', 'Next button failed. Please try again.', err.message || String(err));
+    }).finally(() => {
       isProcessingNext = false;
     });
   });
-
+  
   on('btnNotReady', 'click', () => {
     closeUnderstandModal();
     pendingNextIdx = -1;
