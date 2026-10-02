@@ -3,12 +3,101 @@ import { askQuestion, explainText, getAssessment, gradeAssessment, createPayment
 
 window.__idtDashboardLoaded = false;
 
-const APP_VERSION = '2026-09-14.1';
+const APP_VERSION = '2026-10-01.1';
 
 const AI_ICON_URL = 'https://i.imgur.com/DPrM9ZJ.png';
 const SECURITY_ICON_URL = 'https://i.imgur.com/rMW6FMN.png';
+const LOGO_URL = 'https://i.imgur.com/oyqM5oF.png';
+const SIGN_CHAIR_URL = 'https://i.imgur.com/z8HOr4D.png';
+const SIGN_CEO_URL = 'https://i.imgur.com/leqHq9I.png';
 
+const PASS_MARK = 3;
+const MAX_MARKS = 6;
+const TOTAL_QUESTIONS = 5;
+const WRITE_MARKS = 2;
+const RETRY_MS = 2 * 60 * 60 * 1000;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const REGULAR_WATCH_SECONDS = 90;
+const ASSESS_BATCH_SIZE = 3;
+const STATUS_POLL_MS = 4000;
+const DATA_TTL_MS = 60 * 24 * 60 * 60 * 1000;
+const QUIZ_SECONDS = 180;
+const AI_TIMEOUT_MS = 60000;
+
+const $ = (id) => document.getElementById(id);
+
+let toastWrap = null;
 let securityShieldEl = null;
+let user = null;
+let profileData = null;
+let userData = null;
+let updateData = null;
+let updateReady = false;
+let courseList = [];
+let courseInfoMap = {};
+let topicsMap = {};
+let activeCourseId = '';
+let currentTopics = [];
+let pendingChatImages = [];
+let currentTopicIdx = 0;
+let currentTopic = null;
+let watchedMap = {};
+let readingHistory = {};
+let chatHistories = {};
+let passedBatches = {};
+let lastAssessFail = {};
+let assessmentHistory = [];
+let preferredLang = 'english';
+let aiSelectedLang = 'english';
+let adList = [];
+let adIdx = 0;
+let adTimer = null;
+let sessionSeconds = 0;
+let sessionTimer = null;
+let pendingNextIdx = -1;
+let quizState = null;
+let camStream = null;
+let lastResult = null;
+let assessBatch = 0;
+let assessStarting = false;
+let retryTimer = null;
+let lastFlagAt = 0;
+let quizStartedAt = 0;
+let paymentState = null;
+let diplomaMode = false;
+let videoWatchTimer = null;
+let videoWatched = false;
+let isProcessingNext = false;
+let regDate = null;
+let allCourses = [];
+let statusPollTimer = null;
+let aiBusy = false;
+let runnerTopicKey = '';
+let codeFrame = null;
+let codeHandler = null;
+let codeTimeout = null;
+
+function injectExtraStyles() {
+  if (document.getElementById('idt-extra-style')) return;
+  const st = document.createElement('style');
+  st.id = 'idt-extra-style';
+  st.textContent =
+    '.security-shield{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99998;display:flex;flex-direction:column;align-items:center;gap:8px;background:#fff;border:2px solid #7c3aed;border-radius:22px;padding:18px 26px;box-shadow:0 30px 70px rgba(15,12,41,.4);animation:shieldShow .3s ease,shieldTurn 2.4s ease-in-out .3s infinite;pointer-events:none}' +
+    '.security-shield.alert.fade{animation:none;transform:translate(-50%,-50%)}' +
+    '.ov-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid rgba(124,58,237,.15);flex-shrink:0}' +
+    '@keyframes typingDot{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}' +
+    '@keyframes chatIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}' +
+    'body.quiz-lock{-webkit-user-select:none;user-select:none}' +
+    'body.quiz-lock textarea{-webkit-user-select:text;user-select:text}' +
+    '.q-opt:disabled{cursor:not-allowed;opacity:.75}' +
+    '.q-write textarea:disabled{opacity:.75;cursor:not-allowed}' +
+    '.q-kind{display:inline-block;margin-left:8px;font-size:10.5px;font-weight:800;color:#0e7490;background:rgba(6,182,212,.12);padding:4px 10px;border-radius:999px}' +
+    '#assessLockNote{font-size:12px;color:#b45309;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:10px 12px;margin-bottom:12px;line-height:1.55;text-align:left}' +
+    '#btnReviewTopics{margin-top:0}' +
+    '.ri-mark.partial{background:rgba(245,158,11,.16);color:#b45309}' +
+    '.cf-bubble code{background:rgba(124,58,237,.1);padding:1px 6px;border-radius:6px}';
+  document.head.appendChild(st);
+}
 
 function showSecurityShield(mode) {
   try {
@@ -17,10 +106,11 @@ function showSecurityShield(mode) {
     securityShieldEl.className = 'security-shield' + (mode === 'alert' ? ' alert' : '');
     securityShieldEl.innerHTML = '<img src="' + SECURITY_ICON_URL + '" alt="Security"><span>' + (mode === 'alert' ? 'Security Alert!' : 'AI Security Active') + '</span>';
     document.body.appendChild(securityShieldEl);
-    setTimeout(() => { if (securityShieldEl) securityShieldEl.classList.add('fade'); }, 1800);
+    const el = securityShieldEl;
+    setTimeout(() => { el.classList.add('fade'); }, 1800);
     setTimeout(() => {
-      if (securityShieldEl) securityShieldEl.remove();
-      securityShieldEl = null;
+      el.remove();
+      if (securityShieldEl === el) securityShieldEl = null;
     }, 2600);
   } catch (_) {}
 }
@@ -53,24 +143,12 @@ function ensureAppFreshness() {
   } catch (_) {}
 }
 
-window.addEventListener('error', function(e) {
-  try {
-    var el = document.createElement('div');
-    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#f43f5e;color:#fff;padding:12px 16px;font-family:sans-serif;font-size:12.5px;font-weight:700;text-align:left;line-height:1.5';
-    el.textContent = 'JS Error: ' + (e.message || 'Unknown error');
-    document.body.appendChild(el);
-    setTimeout(function() { el.remove(); }, 10000);
-  } catch (_) {}
+window.addEventListener('error', (e) => {
+  if (e && e.preventDefault) e.preventDefault();
 });
 
-window.addEventListener('unhandledrejection', function(e) {
-  try {
-    var el = document.createElement('div');
-    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#f59e0b;color:#fff;padding:12px 16px;font-family:sans-serif;font-size:12.5px;font-weight:700;text-align:left;line-height:1.5';
-    el.textContent = 'API Error: ' + ((e.reason && e.reason.message) || 'Request failed');
-    document.body.appendChild(el);
-    setTimeout(function() { el.remove(); }, 10000);
-  } catch (_) {}
+window.addEventListener('unhandledrejection', (e) => {
+  if (e && e.preventDefault) e.preventDefault();
 });
 
 function showLoading() {
@@ -171,74 +249,33 @@ function showLoading() {
     `;
     document.body.insertAdjacentHTML('beforeend', loaderHTML);
   }
-  var n = document.getElementById('i2num');
-  var c = 0;
+  const n = document.getElementById('i2num');
+  let c = 0;
   if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
-  window.idtLoaderInterval = setInterval(function(){
+  window.idtLoaderInterval = setInterval(function () {
     c += 5;
-    if(n) n.textContent = (c >= 100 ? 100 : c);
-    if(c >= 100) clearInterval(window.idtLoaderInterval);
+    if (n) n.textContent = (c >= 100 ? 100 : c);
+    if (c >= 100) clearInterval(window.idtLoaderInterval);
   }, 30);
 }
 
 function hideLoading() {
-  var l = document.getElementById('idt-loader-2');
+  const l = document.getElementById('idt-loader-2');
   if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
   if (l) l.classList.add('idt-hide');
 }
-
-const $ = (id) => document.getElementById(id);
-let toastWrap = null;
-
-const PASS_MARK = 3;
-const RETRY_REGULAR_MS = 2 * 60 * 60 * 1000;
-const RETRY_DIPLOMA_MS = 7 * 24 * 60 * 60 * 1000;
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-const REGULAR_WATCH_SECONDS = 90;
-const ASSESS_BATCH_SIZE = 3;
-const STATUS_POLL_MS = 4000;
-const DATA_TTL_MS = 60 * 24 * 60 * 60 * 1000;
-const QUIZ_SECONDS = 180;
-
-let user = null;
-let profileData = null;
-let userData = null;
-let updateData = null;
-let courseList = [];
-let courseInfoMap = {};
-let topicsMap = {};
-let activeCourseId = '';
-let currentTopics = [];
-let pendingChatImages = [];
-let currentTopicIdx = 0;
-let currentTopic = null;
-let watchedMap = {};
-let readingHistory = {};
-let chatHistories = {};
-let passedBatches = {};
-let lastAssessFail = {};
-let preferredLang = 'English';
-let adList = [];
-let adIdx = 0;
-let adTimer = null;
-let sessionSeconds = 0;
-let sessionTimer = null;
-let pendingNextIdx = -1;
-let quizState = null;
-let paymentState = null;
-let diplomaMode = false;
-let videoWatchTimer = null;
-let videoWatched = false;
-let isProcessingNext = false;
-let isDiplomaReg = false;
-let regDate = null;
-let allCourses = [];
-let statusPollTimer = null;
 
 function escapeHtml(str) {
   return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[ch]));
+}
+
+function withTimeout(promise, ms, message) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(message || 'The request took too long. Please try again.')), ms);
+    Promise.resolve(promise).then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
 }
 
 function getAcademyId() {
@@ -270,25 +307,33 @@ function ensureToastWrap() {
 }
 
 function removeToast(el) {
+  if (!el || el.dataset.leaving === '1') return;
+  el.dataset.leaving = '1';
   el.classList.add('out');
   setTimeout(() => el.remove(), 320);
 }
 
-function showToast(type, title, message, raw) {
-  if (!toastWrap) ensureToastWrap();
+function showToast(type, title, message) {
+  ensureToastWrap();
   const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
+  const sig = type + '|' + title + '|' + message;
+  const existing = Array.from(toastWrap.children).find((c) => c.dataset.sig === sig && c.dataset.leaving !== '1');
+  if (existing) return existing;
   const el = document.createElement('div');
   el.className = 'toast ' + type;
-  const rawHtml = raw ? '<small class="toast-raw"><i class="fa-solid fa-bug"></i> ' + escapeHtml(raw) + '</small>' : '';
+  el.dataset.sig = sig;
   el.innerHTML = '<i class="fa-solid ' + (icons[type] || 'fa-circle-info') + '"></i>' +
-    '<div class="toast-body"><b>' + escapeHtml(title) + '</b><p>' + escapeHtml(message) + '</p>' + rawHtml + '</div>' +
+    '<div class="toast-body"><b>' + escapeHtml(title) + '</b><p>' + escapeHtml(message) + '</p></div>' +
     '<button class="toast-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>';
   const xBtn = el.querySelector('.toast-x');
   if (xBtn) xBtn.addEventListener('click', () => removeToast(el));
   toastWrap.appendChild(el);
-  if (type === 'success') {
-    setTimeout(() => removeToast(el), 3600);
+  while (toastWrap.children.length > 4) {
+    removeToast(toastWrap.children[0]);
+    break;
   }
+  const life = type === 'success' ? 3600 : (type === 'error' ? 7000 : 5200);
+  setTimeout(() => removeToast(el), life);
   return el;
 }
 
@@ -305,22 +350,60 @@ function miniHide() {
 }
 
 async function copyText(txt) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    await navigator.clipboard.writeText(txt);
-  } else {
-    const ta = document.createElement('textarea');
-    ta.value = txt;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
-  }
+  const value = String(txt == null ? '' : txt);
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+  } catch (_) {}
+  const ta = document.createElement('textarea');
+  ta.value = value;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.top = '0';
+  ta.style.left = '0';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+  ta.remove();
+  if (!ok) throw new Error('Copy is not supported on this device');
 }
 
 function formatMoney(n) {
   return '₦' + Number(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatDuration(ms) {
+  const h = Math.floor(ms / (60 * 60 * 1000));
+  const m = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
+  if (h > 0) return h + 'h ' + m + 'm';
+  return Math.max(1, m) + ' minutes';
+}
+
+function formatClock(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return h + ':' + pad(m) + ':' + pad(s);
+}
+
+function formatDateLong(d) {
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+function formatTimeShort(d) {
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtMarks(n) {
+  const v = Number(n) || 0;
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
 
 function getYouTubeId(url) {
@@ -340,6 +423,31 @@ function buildReferralLink() {
   return 'https://www.idtacademy.com.ng/index/ref/' + code;
 }
 
+function normalizeLangCode(v) {
+  const s = String(v || '').trim();
+  if (!s) return 'english';
+  const low = s.toLowerCase();
+  const known = ['english', 'english+hausa', 'english+yoruba', 'english+igbo', 'english+pidgin'];
+  if (known.indexOf(low) !== -1) return low;
+  return s;
+}
+
+function aiLabel(lang) {
+  const map = {
+    'english': 'English',
+    'english+hausa': 'English + Hausa',
+    'english+yoruba': 'English + Yoruba',
+    'english+igbo': 'English + Igbo',
+    'english+pidgin': 'English + Pidgin'
+  };
+  const key = String(lang || '').toLowerCase();
+  return map[key] || String(lang || 'English');
+}
+
+function currentLang() {
+  return aiSelectedLang || 'english';
+}
+
 function getPreferredLang() {
   return (updateData && updateData.preferred_lang) || preferredLang;
 }
@@ -347,7 +455,7 @@ function getPreferredLang() {
 function setPreferredLang(lang) {
   preferredLang = lang;
   if (updateData) updateData.preferred_lang = lang;
-  saveUpdate({ preferred_lang: lang });
+  saveUpdate({ preferred_lang: lang }, true);
 }
 
 function weeksSince(isoDate) {
@@ -449,48 +557,72 @@ function getPrimaryCourse() {
   return { course_id: '', course_name: '', course_number: '', course_price: 0, valid: false };
 }
 
+function applyUpdateData(raw) {
+  updateData = (raw && typeof raw === 'object') ? raw : {};
+  watchedMap = (updateData.watched && typeof updateData.watched === 'object') ? updateData.watched : {};
+  readingHistory = (updateData.reading_history && typeof updateData.reading_history === 'object') ? updateData.reading_history : {};
+  chatHistories = (updateData.chat_history && typeof updateData.chat_history === 'object') ? updateData.chat_history : {};
+  passedBatches = (updateData.passed_batches && typeof updateData.passed_batches === 'object') ? updateData.passed_batches : {};
+  lastAssessFail = (updateData.last_assess_fail && typeof updateData.last_assess_fail === 'object') ? updateData.last_assess_fail : {};
+  assessmentHistory = Array.isArray(updateData.assessment_history) ? updateData.assessment_history : [];
+  preferredLang = normalizeLangCode(updateData.preferred_lang || 'english');
+  aiSelectedLang = preferredLang;
+  sessionSeconds = Number(updateData.reading_seconds) || 0;
+}
+
+async function fetchUpdateRow() {
+  const { data, error } = await supabase
+    .from('update')
+    .select('*')
+    .eq('id', user.id)
+    .limit(1);
+  if (error) throw error;
+  return (data && data[0]) || null;
+}
+
 async function loadUpdateTable() {
+  let row = null;
+  let ok = false;
+  for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+    try {
+      row = await fetchUpdateRow();
+      ok = true;
+    } catch (_) {}
+  }
+  updateReady = ok;
+  const raw = row && row.uset_update && typeof row.uset_update === 'object' ? row.uset_update : {};
+  applyUpdateData(raw);
+}
+
+async function retryUpdateLoad() {
   try {
-    const { data, error } = await supabase
-      .from('update')
-      .select('*')
-      .eq('id', user.id)
-      .limit(1);
-    if (error) throw error;
-    const row = (data && data[0]) || null;
-    if (row && row.uset_update) {
-      updateData = row.uset_update;
-    } else {
-      updateData = {};
-    }
-    watchedMap = updateData.watched || {};
-    readingHistory = updateData.reading_history || {};
-    chatHistories = updateData.chat_history || {};
-    passedBatches = updateData.passed_batches || {};
-    lastAssessFail = updateData.last_assess_fail || {};
-    preferredLang = updateData.preferred_lang || 'English';
-    sessionSeconds = Number(updateData.reading_seconds) || 0;
-  } catch (err) {
-    updateData = {};
-    watchedMap = {};
-    readingHistory = {};
-    chatHistories = {};
-    passedBatches = {};
-    lastAssessFail = {};
-    sessionSeconds = 0;
+    const row = await fetchUpdateRow();
+    const remote = row && row.uset_update && typeof row.uset_update === 'object' ? row.uset_update : {};
+    updateData = Object.assign({}, remote, updateData || {});
+    updateReady = true;
+    return true;
+  } catch (_) {
+    return false;
   }
 }
 
-async function saveUpdate(patch) {
+async function saveUpdate(patch, silent) {
+  if (!user) return false;
+  if (!updateData) updateData = {};
+  Object.assign(updateData, patch || {});
+  if (!updateReady) {
+    const loaded = await retryUpdateLoad();
+    if (!loaded) return false;
+  }
   try {
-    if (!updateData) updateData = {};
-    Object.assign(updateData, patch);
     const { error } = await supabase
       .from('update')
       .upsert({ id: user.id, uset_update: updateData }, { onConflict: 'id' });
     if (error) throw error;
+    return true;
   } catch (err) {
-    showToast('error', 'Save Failed', 'Could not save your progress.', err.message || String(err));
+    if (!silent) showToast('error', 'Save Failed', 'Could not save your progress. Check your internet connection.');
+    return false;
   }
 }
 
@@ -537,7 +669,7 @@ function markWatched(topicIdx) {
   if (arr.indexOf(topicIdx) === -1) {
     arr.push(topicIdx);
     watchedMap[activeCourseId] = arr;
-    saveUpdate({ watched: watchedMap });
+    saveUpdate({ watched: watchedMap }, true);
   }
   videoWatched = true;
   renderProgress();
@@ -565,8 +697,8 @@ function renderSessionClock() {
   const daysEl = $('sessionDays');
   if (daysEl) {
     const reg = regDate || (userData && userData.date_registered);
-    const days = weeksSince(reg);
-    daysEl.textContent = days > 0 ? (days + (days === 1 ? ' week' : ' weeks')) : 'First week';
+    const weeks = weeksSince(reg);
+    daysEl.textContent = weeks > 0 ? (weeks + (weeks === 1 ? ' week' : ' weeks')) : 'First week';
   }
 }
 
@@ -575,10 +707,11 @@ function startSessionClock() {
   renderSessionClock();
   if (sessionTimer) clearInterval(sessionTimer);
   sessionTimer = setInterval(() => {
+    if (document.hidden) return;
     sessionSeconds++;
     renderSessionClock();
     if (sessionSeconds % 60 === 0) {
-      saveUpdate({ reading_seconds: sessionSeconds, last_active: new Date().toISOString() });
+      saveUpdate({ reading_seconds: sessionSeconds, last_active: new Date().toISOString() }, true);
     }
   }, 1000);
 }
@@ -629,12 +762,15 @@ async function loadAd() {
       return;
     }
     box.classList.remove('hidden');
+    adIdx = 0;
     showAdSlide(0);
     if (adTimer) clearInterval(adTimer);
-    adTimer = setInterval(() => {
-      adIdx = (adIdx + 1) % adList.length;
-      showAdSlide(adIdx);
-    }, 10000);
+    if (adList.length > 1) {
+      adTimer = setInterval(() => {
+        adIdx = (adIdx + 1) % adList.length;
+        showAdSlide(adIdx);
+      }, 10000);
+    }
   } catch (err) {
     const box = $('adBox');
     if (box) box.classList.add('hidden');
@@ -648,8 +784,12 @@ function showAdSlide(i) {
   window._adtLink = row.ad_link;
   img.classList.add('fade');
   setTimeout(() => {
-    img.src = row.ad_image;
     img.onload = () => img.classList.remove('fade');
+    img.onerror = () => {
+      const box = $('adBox');
+      if (box && adList.length <= 1) box.classList.add('hidden');
+    };
+    img.src = row.ad_image;
   }, 500);
 }
 
@@ -664,21 +804,7 @@ async function loadCourseInfos() {
       courseInfoMap[row.id] = row.course_data || {};
     });
   } catch (err) {
-    showToast('error', 'Error', 'Could not load course details.', err.message || String(err));
-  }
-  const missing = courseList.map((c) => c.course_id).filter((id) => id && !courseInfoMap[id]);
-  if (missing.length) {
-    try {
-      const { data, error } = await supabase
-        .from('courses')
-        .select('*')
-        .in('id', missing);
-      if (!error) {
-        (data || []).forEach((row) => {
-          courseInfoMap[row.id] = row.course_data || {};
-        });
-      }
-    } catch (err) {}
+    showToast('error', 'Courses Not Loaded', 'Could not load course details. Please check your internet connection.');
   }
 }
 
@@ -706,15 +832,19 @@ async function loadTopicsFor(courseId) {
   }
 }
 
-function pickDefaultCourse() {
-  if (courseList.length === 1) return courseList[0].course_id;
-  const unfinished = courseList.find((c) => {
+function pickDefaultCourse(list) {
+  const src = list && list.length ? list : courseList;
+  if (!src.length) return '';
+  if (src.length === 1) return src[0].course_id;
+  const saved = updateData && updateData.last_course;
+  if (saved && src.some((c) => c.course_id === saved)) return saved;
+  const unfinished = src.find((c) => {
     const topicCount = (topicsMap[c.course_id] || []).length;
-    const batch = readingHistory[c.course_id];
-    if (typeof batch === 'number' && topicCount > 0 && batch >= topicCount - 1) return false;
+    const idx = readingHistory[c.course_id];
+    if (typeof idx === 'number' && topicCount > 0 && idx >= topicCount - 1) return false;
     return true;
   });
-  return unfinished ? unfinished.course_id : '';
+  return unfinished ? unfinished.course_id : src[0].course_id;
 }
 
 function categoryLabel(cat) {
@@ -746,14 +876,14 @@ function renderCoursePush() {
     html += '<div class="pn-cat"><i class="fa-solid fa-layer-group"></i> ' + escapeHtml(cat) + '</div>';
     html += '<div class="pn-row">';
     groups[cat].forEach((item) => {
-      const img = item.cd.image_url || 'https://i.imgur.com/oyqM5oF.png';
+      const img = item.cd.image_url || LOGO_URL;
       const price = Number(item.cd.price || item.cd.course_price || 0);
       html += '<div class="pn-course" data-cid="' + escapeHtml(item.id) + '">' +
         '<img src="' + escapeHtml(img) + '" alt="' + escapeHtml(item.cd.course_name || 'Course') + '" loading="lazy">' +
         '<div class="pnc-in">' +
         '<b>' + escapeHtml(item.cd.course_name || 'Course') + '</b>' +
         '<small><i class="fa-solid fa-hashtag"></i> ' + escapeHtml(item.cd.course_number || '000') + '</small>' +
-        '<span class="pnc-price"><i class="fa-solid fa-naira-sign"></i> ' + formatMoney(price) + '</span>' +
+        '<span class="pnc-price"><i class="fa-solid fa-naira-sign"></i> ' + escapeHtml(formatMoney(price)) + '</span>' +
         '</div></div>';
     });
     html += '</div>';
@@ -772,9 +902,9 @@ function renderMyCourses() {
   html += '<div class="pn-row">';
   courseList.forEach((c) => {
     const info = courseInfoMap[c.course_id] || {};
-    const img = info.image_url || 'https://i.imgur.com/oyqM5oF.png';
+    const img = info.image_url || LOGO_URL;
     const isActive = c.course_id === activeCourseId;
-    const lv = String(userData.level_completed || '');
+    const lv = String((userData && userData.level_completed) || '');
     const done = lv === 'final' && isActive;
     html += '<div class="pn-course" data-mcid="' + escapeHtml(c.course_id) + '">' +
       '<img src="' + escapeHtml(img) + '" alt="' + escapeHtml(c.course_name || 'Course') + '" loading="lazy">' +
@@ -797,11 +927,14 @@ function renderMyCourses() {
         return;
       }
       miniLoad('Opening your course...');
-      if (!topicsMap[cid]) await loadTopicsFor(cid);
-      await selectCourse(cid);
-      const app = $('app');
-      if (app) app.classList.remove('hidden');
-      miniHide();
+      try {
+        if (!topicsMap[cid]) await loadTopicsFor(cid);
+        await selectCourse(cid, true);
+        const app = $('app');
+        if (app) app.classList.remove('hidden');
+      } finally {
+        miniHide();
+      }
     });
   });
   return true;
@@ -819,6 +952,10 @@ function openMyCourses() {
     openCoursePush();
     return;
   }
+  const t = $('pnTitle');
+  const s = $('pnSub');
+  if (t) t.textContent = 'My Courses';
+  if (s) s.textContent = 'Tap a course to open it.';
   const p = $('coursePush');
   if (p) p.classList.add('open');
 }
@@ -830,15 +967,14 @@ function closeCoursePush() {
 
 async function chooseCourse(courseId) {
   if (!courseId) return;
-  const clickedCard = document.querySelector('.pn-course[data-cid="' + courseId.replace(/"/g, '\\"') + '"]');
+  const clickedCard = Array.from(document.querySelectorAll('.pn-course[data-cid]')).find((c) => c.dataset.cid === courseId);
   if (clickedCard) {
     if (clickedCard.dataset.busy === '1') return;
     clickedCard.dataset.busy = '1';
-    const oldHtml = clickedCard.innerHTML;
+    clickedCard._oldHtml = clickedCard.innerHTML;
     clickedCard.style.opacity = '0.6';
     clickedCard.style.pointerEvents = 'none';
-    clickedCard.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:40px 10px"><span style="width:26px;height:26px;border-radius:50%;border:3px solid rgba(124,58,237,.2);border-top-color:#7c3aed;display:inline-block;animation:pnSpin .8s linear infinite"></span><small style="font-size:10.5px;font-weight:800;color:#6d28d9">Loading...</small></div><style>@keyframes pnSpin{to{transform:rotate(360deg)}}</style>';
-    clickedCard._oldHtml = oldHtml;
+    clickedCard.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:40px 10px"><span style="width:26px;height:26px;border-radius:50%;border:3px solid rgba(124,58,237,.2);border-top-color:#7c3aed;display:inline-block;animation:mlSpin .8s linear infinite"></span><small style="font-size:10.5px;font-weight:800;color:#6d28d9">Loading...</small></div>';
   }
   try {
     const info = courseInfoMap[courseId] || {};
@@ -859,13 +995,13 @@ async function chooseCourse(courseId) {
           courseNumber = cd.course_number || courseNumber;
           price = Number(cd.price || cd.course_price || price);
         }
-      } catch (err) {}
+      } catch (_) {}
     }
     if (!courseName || !price) {
       throw new Error('Course details not found for this course');
     }
     miniLoad('Saving your course...');
-    const res = await fetch('/api/chengeCourse', {
+    const res = await withTimeout(fetch('/api/chengeCourse', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -875,7 +1011,7 @@ async function chooseCourse(courseId) {
         course_number: courseNumber,
         course_price: price
       })
-    });
+    }), 30000, 'Saving your course took too long');
     const data = await res.json().catch(() => ({}));
     miniHide();
     if (!res.ok || data.success !== true) {
@@ -886,11 +1022,9 @@ async function chooseCourse(courseId) {
     userData.course_number = courseNumber;
     userData.course_price = price;
     userData.status = 'pending';
-
     try {
       await saveUserData();
-    } catch (err) {}
-
+    } catch (_) {}
     courseList = collectCourses(userData);
     renderPendingGate();
     closeCoursePush();
@@ -898,7 +1032,8 @@ async function chooseCourse(courseId) {
     if (gate) gate.classList.add('open');
     showToast('success', 'Course Selected ✓', 'You selected ' + courseName + ' for ' + formatMoney(price) + '. Tap Pay Now to complete your payment.');
   } catch (err) {
-    showToast('error', 'Selection Failed', err.message || 'Could not select this course. Please try again.', err.message || String(err));
+    miniHide();
+    showToast('error', 'Selection Failed', (err && err.message) || 'Could not select this course. Please try again.');
   } finally {
     if (clickedCard) {
       delete clickedCard.dataset.busy;
@@ -921,7 +1056,7 @@ function renderPendingGate() {
   if (sn) sn.textContent = (userData && userData.full_name) || 'Student';
   if (cn) cn.textContent = course.course_name || 'Selected Course';
   if (cnum) cnum.textContent = course.course_number || '000';
-  if (pr) pr.textContent = formatMoney(course.course_price || 0);
+  if (pr) pr.textContent = Number(course.course_price || 0).toLocaleString('en-NG');
   const info = courseInfoMap[course.course_id] || {};
   const img = $('pendingCourseImg');
   if (info.image_url && img) {
@@ -938,12 +1073,12 @@ function renderCourseSwitch() {
     return;
   }
   wrap.classList.remove('hidden');
+  const lv = String((userData && userData.level_completed) || '');
+  const done = lv === 'final';
   let html = '';
   courseList.forEach((c) => {
-    const lv = String(userData.level_completed || '');
-    const done = lv === 'final';
     const isActive = c.course_id === activeCourseId;
-    html += '<button class="cs-chip' + (isActive ? ' active' : '') + '" data-cid="' + escapeHtml(c.course_id) + '">' +
+    html += '<button type="button" class="cs-chip' + (isActive ? ' active' : '') + '" data-cid="' + escapeHtml(c.course_id) + '">' +
       '<i class="fa-solid fa-graduation-cap"></i> ' + escapeHtml(c.course_name) +
       (done && isActive ? ' <span class="cs-done"><i class="fa-solid fa-circle-check"></i></span>' : '') +
       '</button>';
@@ -953,24 +1088,26 @@ function renderCourseSwitch() {
     chip.addEventListener('click', async () => {
       const cid = chip.dataset.cid;
       if (cid === activeCourseId) return;
-      await selectCourse(cid);
+      await selectCourse(cid, true);
     });
   });
 }
 
-async function selectCourse(courseId) {
+async function selectCourse(courseId, announce) {
   activeCourseId = courseId;
   renderCourseSwitch();
   if (!topicsMap[courseId]) await loadTopicsFor(courseId);
   currentTopics = topicsMap[courseId] || [];
   diplomaMode = isDiploma(courseId);
-  regDate = userData.date_registered || null;
+  regDate = (userData && userData.date_registered) || null;
   const savedIdx = typeof readingHistory[courseId] === 'number' ? readingHistory[courseId] : 0;
   currentTopicIdx = Math.min(Math.max(0, savedIdx), Math.max(0, currentTopics.length - 1));
   const topicCard = $('topicCard');
   const emptyState = $('emptyState');
   renderUserGreet();
+  saveUpdate({ last_course: courseId }, true);
   if (currentTopics.length === 0) {
+    currentTopic = null;
     if (topicCard) topicCard.classList.add('hidden');
     if (emptyState) emptyState.classList.remove('hidden');
     renderProgress();
@@ -978,9 +1115,10 @@ async function selectCourse(courseId) {
   }
   if (emptyState) emptyState.classList.add('hidden');
   if (topicCard) topicCard.classList.remove('hidden');
-  renderProgress();
   renderTopic();
-  showToast('success', 'Course Loaded', 'Welcome to ' + ((courseInfoMap[courseId] || {}).course_name || 'your course') + '. Happy learning!');
+  if (announce) {
+    showToast('success', 'Course Loaded', 'Welcome to ' + ((courseInfoMap[courseId] || {}).course_name || 'your course') + '. Happy learning!');
+  }
 }
 
 function renderProgress() {
@@ -993,6 +1131,7 @@ function renderProgress() {
   if (typeof readingHistory[activeCourseId] === 'number') {
     completed = Math.max(completed, Math.min(readingHistory[activeCourseId] + 1, total));
   }
+  completed = Math.min(completed, total);
   const pct = total ? Math.round((completed / total) * 100) : 0;
   const pc = $('progressCount');
   const pp = $('progressPct');
@@ -1020,43 +1159,28 @@ function renderProgress() {
   }
 }
 
-function detectTopicLanguageLocal(text) {
-  const t = String(text || '').toLowerCase();
-  if (!t.trim()) return 'English';
-  const scores = { Hausa: 0, Yoruba: 0, Igbo: 0, French: 0, Spanish: 0 };
-  const hausa = [' yana ', ' kuma ', ' wannan ', ' domin ', ' nufin ', ' yara ', ' abin ', ' kana ', ' kamar ', ' sai ', ' zai ', ' mutane ', ' gaskiya '];
-  const yoruba = [' nitori ', ' pupo ', ' jare ', ' ejo ', ' ko ni ', ' ti o ', ' fun ', ' won ', ' mo fe '];
-  const igbo = [' na ', ' nke ', ' maka ', ' anyi ', ' gi ', ' ha ', ' oma ', ' biko '];
-  const french = [' le ', ' la ', ' les ', ' une ', ' est ', ' pour ', ' avec ', ' vous ', ' nous '];
-  const spanish = [' el ', ' la ', ' los ', ' una ', ' es ', ' para ', ' con ', ' usted ', ' nosotros '];
-  const count = (list) => list.reduce((n, w) => n + (t.split(w).length - 1), 0);
-  scores.Hausa = count(hausa);
-  scores.Yoruba = count(yoruba);
-  scores.Igbo = count(igbo);
-  scores.French = count(french);
-  scores.Spanish = count(spanish);
-  let best = 'English';
-  let bestScore = 2;
-  Object.keys(scores).forEach((lang) => {
-    if (scores[lang] > bestScore) {
-      bestScore = scores[lang];
-      best = lang;
-    }
-  });
-  return best;
-}
-
 async function cleanupOldSupabaseData() {
   try {
     const cutoff = Date.now() - DATA_TTL_MS;
     let changed = false;
-    if (Array.isArray(userData.assessment_grade) && userData.assessment_grade.length) {
+    let userChanged = false;
+    if (userData && Array.isArray(userData.assessment_grade) && userData.assessment_grade.length) {
       const keep = userData.assessment_grade.filter((g) => {
         const ts = g && g.date ? new Date(g.date).getTime() : Date.now();
         return isFinite(ts) && ts >= cutoff;
       });
       if (keep.length !== userData.assessment_grade.length) {
         userData.assessment_grade = keep;
+        userChanged = true;
+      }
+    }
+    if (assessmentHistory.length) {
+      const keepHist = assessmentHistory.filter((h) => {
+        const ts = h && h.date ? new Date(h.date).getTime() : Date.now();
+        return isFinite(ts) && ts >= cutoff;
+      });
+      if (keepHist.length !== assessmentHistory.length) {
+        assessmentHistory = keepHist;
         changed = true;
       }
     }
@@ -1079,10 +1203,15 @@ async function cleanupOldSupabaseData() {
       }
     });
     if (changed) {
-      await saveUpdate({ passed_batches: passedBatches, last_assess_fail: lastAssessFail, chat_history: chatHistories });
-      try {
-        await saveUserData();
-      } catch (_) {}
+      await saveUpdate({
+        passed_batches: passedBatches,
+        last_assess_fail: lastAssessFail,
+        chat_history: chatHistories,
+        assessment_history: assessmentHistory
+      }, true);
+    }
+    if (userChanged) {
+      try { await saveUserData(); } catch (_) {}
     }
   } catch (_) {}
 }
@@ -1093,8 +1222,8 @@ function renderDiplomaLock() {
   const idx = currentTopicIdx;
   const weeks = regDate ? weeksSince(regDate) : 0;
   if (idx > weeks) {
-    const unlockAt = new Date((regDate ? new Date(regDate).getTime() : Date.now()) + (idx) * WEEK_MS);
-    const diff = unlockAt.getTime() - Date.now();
+    const unlockAt = new Date((regDate ? new Date(regDate).getTime() : Date.now()) + idx * WEEK_MS);
+    const diff = Math.max(0, unlockAt.getTime() - Date.now());
     const d = Math.floor(diff / (24 * 60 * 60 * 1000));
     const h = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
     const m = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
@@ -1107,6 +1236,36 @@ function renderDiplomaLock() {
   }
   lock.classList.add('hidden');
   return false;
+}
+
+function renderLessonHtml(text) {
+  const src = String(text || '');
+  const re = /```([a-zA-Z0-9]*)\n?([\s\S]*?)```/g;
+  let out = '';
+  let last = 0;
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    out += escapeHtml(src.slice(last, m.index).replace(/\n+$/, ''));
+    out += '<pre><code>' + escapeHtml(m[2].replace(/\n$/, '')) + '</code></pre>';
+    last = re.lastIndex;
+    if (src.charAt(last) === '\n') last++;
+  }
+  out += escapeHtml(src.slice(last));
+  return out;
+}
+
+function lessonHasCode(text) {
+  const s = String(text || '');
+  if (/```/.test(s)) return true;
+  if (/<(html|div|script|body|h1|p|span|ul|button)\b/i.test(s)) return true;
+  if (/\b(console\.log|function\s+\w+\s*\(|document\.|window\.|print\(|=>|let\s+\w+\s*=|const\s+\w+\s*=)/.test(s)) return true;
+  return false;
+}
+
+function extractCodeBlock(text) {
+  const m = /```([a-zA-Z0-9]*)\n?([\s\S]*?)```/.exec(String(text || ''));
+  if (!m) return null;
+  return { lang: String(m[1] || '').toLowerCase(), code: m[2].replace(/\n$/, '') };
 }
 
 function renderTopic() {
@@ -1135,8 +1294,19 @@ function renderTopic() {
     }
   }
   const txt = $('topicText');
-  if (txt) txt.textContent = currentTopic.topic_text || '';
+  if (txt) {
+    txt.innerHTML = renderLessonHtml(currentTopic.topic_text || '');
+    txt.scrollTop = 0;
+  }
   if (num) num.classList.toggle('final-num', isFinalTopic);
+  const hasCode = lessonHasCode(currentTopic.topic_text);
+  const btnCodeRun = $('btnCodeRun');
+  const btnRunCode = $('btnRunCode');
+  if (btnCodeRun) btnCodeRun.classList.toggle('hidden', !hasCode);
+  if (btnRunCode) btnRunCode.classList.toggle('hidden', !hasCode);
+  const runner = $('codeRunner');
+  if (runner) runner.classList.add('hidden');
+  runnerTopicKey = '';
   renderVideo();
   const watched = isWatched(currentTopicIdx);
   videoWatched = watched;
@@ -1154,7 +1324,7 @@ function renderTopic() {
   const btnNext = $('btnNextTopic');
   if (btnNext) {
     if (isFinalTopic) {
-      btnNext.textContent = 'Finish Course';
+      btnNext.innerHTML = 'Finish Course <i class="fa-solid fa-flag-checkered"></i>';
       btnNext.classList.add('finish');
       btnNext.disabled = false;
       btnNext.classList.remove('hidden');
@@ -1162,14 +1332,10 @@ function renderTopic() {
       btnNext.classList.add('hidden');
       btnNext.disabled = true;
     } else {
-      btnNext.textContent = 'Next';
+      btnNext.innerHTML = 'Next <i class="fa-solid fa-arrow-right"></i>';
       btnNext.classList.remove('finish');
       btnNext.classList.remove('hidden');
-      if (diplomaMode && currentTopicIdx > weeksSince(regDate)) {
-        btnNext.disabled = true;
-      } else {
-        btnNext.disabled = false;
-      }
+      btnNext.disabled = Boolean(diplomaMode && currentTopicIdx > weeksSince(regDate));
     }
   }
   const btnPrev = $('btnPrevTopic');
@@ -1193,52 +1359,45 @@ function renderTopic() {
   renderProgress();
 }
 
+function clearVideoContent(wrap) {
+  Array.from(wrap.children).forEach((c) => {
+    if (c.id !== 'videoLock' && c.id !== 'videoExplainFloat') c.remove();
+  });
+}
+
 function renderVideo() {
   const wrap = $('videoWrap');
   if (!wrap) return;
-  wrap.innerHTML = '';
+  clearVideoContent(wrap);
   if (videoWatchTimer) clearInterval(videoWatchTimer);
   videoWatchTimer = null;
   const lock = $('videoLock');
+  const floatBtn = $('videoExplainFloat');
+  if (floatBtn) floatBtn.classList.remove('visible');
   if (diplomaMode) {
     const locked = renderDiplomaLock();
-    if (locked) {
-      const floatBtn = $('videoExplainFloat');
-      if (floatBtn) floatBtn.remove();
-      return;
-    }
+    if (locked) return;
   } else if (lock) {
     lock.classList.add('hidden');
-  }
-  let floatBtn = $('videoExplainFloat');
-  if (!floatBtn) {
-    floatBtn = document.createElement('button');
-    floatBtn.id = 'videoExplainFloat';
-    floatBtn.className = 'video-explain-float';
-    floatBtn.setAttribute('aria-label', 'Explain in my language');
-    floatBtn.innerHTML = '<i class="fa-solid fa-language"></i><span>Explain</span>';
-    floatBtn.addEventListener('click', () => {
-      openChat();
-      runExplain(currentLang(), String(currentLang()).indexOf('+') !== -1);
-    });
   }
   const url = (currentTopic && currentTopic.video_url) || '';
   if (!url) {
     const ph = document.createElement('div');
     ph.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#94a3b8;background:#0b0d1a;text-align:center;padding:20px';
     ph.innerHTML = '<i class="fa-solid fa-book-open" style="font-size:30px;color:#7c3aed"></i><span style="font-size:12.5px">No video for this topic. Read the lesson notes below.</span>';
-    wrap.appendChild(ph);
+    wrap.insertBefore(ph, wrap.firstChild);
     return;
   }
   const yt = getYouTubeId(url);
   if (yt) {
     const iframe = document.createElement('iframe');
-    iframe.src = 'https://www.youtube.com/embed/' + yt + '?rel=0&modestbranding=1&playsinline=1&controls=1&fs=1&color=white&iv_load_policy=3';
-    iframe.allow = 'accelerometer; clipboard-write; gyroscope; picture-in-picture';
+    iframe.src = 'https://www.youtube-nocookie.com/embed/' + yt + '?rel=0&modestbranding=1&playsinline=1&controls=1&fs=1&color=white&iv_load_policy=3';
+    iframe.setAttribute('allow', 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture');
+    iframe.setAttribute('title', 'Lesson video');
     iframe.allowFullscreen = true;
     iframe.referrerPolicy = 'strict-origin-when-cross-origin';
-    wrap.appendChild(iframe);
-    wrap.appendChild(floatBtn);
+    wrap.insertBefore(iframe, wrap.firstChild);
+    if (floatBtn) floatBtn.classList.add('visible');
     startVideoDwellTimer();
   } else if (isDirectVideo(url)) {
     const vid = document.createElement('video');
@@ -1246,15 +1405,16 @@ function renderVideo() {
     vid.controls = true;
     vid.playsInline = true;
     vid.preload = 'metadata';
-    wrap.appendChild(vid);
-    wrap.appendChild(floatBtn);
+    wrap.insertBefore(vid, wrap.firstChild);
+    if (floatBtn) floatBtn.classList.add('visible');
     attachVideoWatcher(vid);
   } else {
     const iframe = document.createElement('iframe');
     iframe.src = url;
+    iframe.setAttribute('title', 'Lesson video');
     iframe.allowFullscreen = true;
-    wrap.appendChild(iframe);
-    wrap.appendChild(floatBtn);
+    wrap.insertBefore(iframe, wrap.firstChild);
+    if (floatBtn) floatBtn.classList.add('visible');
     startVideoDwellTimer();
   }
 }
@@ -1262,7 +1422,14 @@ function renderVideo() {
 function startVideoDwellTimer() {
   if (videoWatched) return;
   let secs = 0;
+  const topicAtStart = currentTopicIdx;
   videoWatchTimer = setInterval(() => {
+    if (document.hidden) return;
+    if (topicAtStart !== currentTopicIdx) {
+      clearInterval(videoWatchTimer);
+      videoWatchTimer = null;
+      return;
+    }
     secs++;
     if (secs >= REGULAR_WATCH_SECONDS && !isWatched(currentTopicIdx)) {
       markWatched(currentTopicIdx);
@@ -1275,7 +1442,9 @@ function startVideoDwellTimer() {
 
 function attachVideoWatcher(vid) {
   if (videoWatched) return;
+  const idxAtStart = currentTopicIdx;
   vid.addEventListener('timeupdate', () => {
+    if (idxAtStart !== currentTopicIdx) return;
     if (!vid.duration || !isFinite(vid.duration)) return;
     const pct = vid.currentTime / vid.duration;
     if (pct >= 0.8 && !isWatched(currentTopicIdx)) {
@@ -1283,11 +1452,15 @@ function attachVideoWatcher(vid) {
     }
   });
   vid.addEventListener('ended', () => {
+    if (idxAtStart !== currentTopicIdx) return;
     if (!isWatched(currentTopicIdx)) markWatched(currentTopicIdx);
   });
 }
 
-
+function topicNeedsWatch(idx) {
+  const t = currentTopics[idx];
+  return Boolean(t && t.video_url);
+}
 
 async function goToTopic(idx) {
   try {
@@ -1300,13 +1473,40 @@ async function goToTopic(idx) {
       return;
     }
     currentTopicIdx = idx;
-    readingHistory[activeCourseId] = idx;
-    saveUpdate({ reading_history: readingHistory });
+    readingHistory[activeCourseId] = Math.max(idx, typeof readingHistory[activeCourseId] === 'number' ? readingHistory[activeCourseId] : 0);
+    saveUpdate({ reading_history: readingHistory }, true);
     renderTopic();
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { window.scrollTo(0, 0); }
   } catch (err) {
-    showToast('error', 'Navigation Failed', 'Could not open this topic. Please try again.', err.message || String(err));
+    showToast('error', 'Navigation Failed', 'Could not open this topic. Please try again.');
   }
+}
+
+async function goBackToTopic(idx) {
+  if (idx < 0 || idx >= currentTopics.length) return;
+  currentTopicIdx = idx;
+  renderTopic();
+  try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { window.scrollTo(0, 0); }
+}
+
+function isBatchPassed(batch) {
+  const key = activeCourseId + '_' + batch;
+  return (passedBatches[key] || []).indexOf(batch) !== -1;
+}
+
+function getLockRemain(batch) {
+  const key = activeCourseId + '_' + batch;
+  const ts = Number(lastAssessFail[key] || 0);
+  if (!ts) return 0;
+  return ts + RETRY_MS - Date.now();
+}
+
+function needsAssessment(idx) {
+  if (idx <= 0) return false;
+  if (idx % ASSESS_BATCH_SIZE !== 0) return false;
+  const t = currentTopics[idx];
+  if (!t || t.is_final === true) return false;
+  return !isBatchPassed(idx);
 }
 
 async function advanceTopic() {
@@ -1347,50 +1547,24 @@ async function advanceTopic() {
     openUnderstandModal();
   } catch (err) {
     pendingNextIdx = -1;
-    showToast('error', 'Something Went Wrong', 'The Next button could not work. Please refresh and try again.', err.message || String(err));
+    showToast('error', 'Something Went Wrong', 'The Next button could not work. Please try again.');
   }
 }
 
 async function handleReady() {
   try {
     closeUnderstandModal();
-    if (pendingNextIdx < 0) {
-      await goToTopic(currentTopicIdx + 1);
-      return;
-    }
+    if (pendingNextIdx < 0) return;
     const idx = pendingNextIdx;
     pendingNextIdx = -1;
-    const batch = idx;
-    if (batch % ASSESS_BATCH_SIZE === 0 && batch < currentTopics.length && currentTopics[batch] && currentTopics[batch].is_final !== true) {
-      const key = activeCourseId + '_' + batch;
-      if ((passedBatches[key] || []).indexOf(batch) !== -1) {
-        await goToTopic(idx);
-        return;
-      }
-      const failTs = lastAssessFail[key];
-      if (failTs) {
-        const waitMs = diplomaMode ? RETRY_DIPLOMA_MS : RETRY_REGULAR_MS;
-        const remain = failTs + waitMs - Date.now();
-        if (remain > 0) {
-          showToast('info', 'Assessment Locked', 'You can retry this assessment in ' + formatDuration(remain) + '. Keep reading and come back.');
-          await goToTopic(idx);
-          return;
-        }
-      }
-      openAssessment(batch);
+    if (needsAssessment(idx)) {
+      openAssessment(idx);
       return;
     }
     await goToTopic(idx);
   } catch (err) {
-    showToast('error', 'Navigation Failed', 'Could not move to the next topic. Please try again.', err.message || String(err));
+    showToast('error', 'Navigation Failed', 'Could not move to the next topic. Please try again.');
   }
-}
-
-
-
-function topicNeedsWatch(idx) {
-  const t = currentTopics[idx];
-  return Boolean(t && t.video_url);
 }
 
 function openUnderstandModal() {
@@ -1403,18 +1577,24 @@ function closeUnderstandModal() {
   if (m) m.classList.remove('open');
 }
 
-
 async function finishCourse() {
   const total = currentTopics.length;
-  const lv = String(userData.level_completed || '');
+  const lv = String((userData && userData.level_completed) || '');
   if (lv !== 'final') {
     userData.level_completed = 'final';
     userData.date_complet = new Date().toISOString();
     try {
       await saveUserData();
     } catch (err) {
-      showToast('error', 'Save Failed', 'Could not save your completion.', err.message || String(err));
+      showToast('error', 'Save Failed', 'Could not save your completion.');
     }
+  }
+  const finalIdx = currentTopics.findIndex((t) => t.is_final === true);
+  if (finalIdx !== -1 && !isWatched(finalIdx)) {
+    const arr = watchedMap[activeCourseId] || [];
+    arr.push(finalIdx);
+    watchedMap[activeCourseId] = arr;
+    saveUpdate({ watched: watchedMap }, true);
   }
   renderProgress();
   const msg = 'You have completed all ' + total + ' topics in ' + ((courseInfoMap[activeCourseId] || {}).course_name || 'this course') + '. You are now ready for the final exam to earn your certificate.';
@@ -1424,40 +1604,56 @@ async function finishCourse() {
   if (modal) modal.classList.add('open');
 }
 
-
-
-function formatDuration(ms) {
-  const h = Math.floor(ms / (60 * 60 * 1000));
-  const m = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
-  if (h > 0) return h + 'h ' + m + 'm';
-  return m + ' minutes';
+function stopRetryTimer() {
+  if (retryTimer) {
+    clearInterval(retryTimer);
+    retryTimer = null;
+  }
 }
 
-async function openAssessment(batch) {
-  const startIdx = batch - ASSESS_BATCH_SIZE;
-  const batchTopics = currentTopics.slice(Math.max(0, startIdx), batch);
+function refreshStartButton() {
+  const btn = $('btnStartAssessment');
+  if (!btn) return;
+  if (assessStarting) return;
+  const remain = getLockRemain(assessBatch);
+  let note = $('assessLockNote');
+  if (remain > 0) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Retake In ' + formatClock(remain);
+    if (!note) {
+      note = document.createElement('div');
+      note.id = 'assessLockNote';
+      btn.parentElement.insertBefore(note, btn);
+    }
+    note.innerHTML = '<i class="fa-solid fa-circle-info"></i> You did not reach the pass mark of ' + PASS_MARK + ' out of ' + MAX_MARKS + ' marks. Go back, read the topics again, then come back to retake the assessment when the timer finishes.';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-play"></i> Start Assessment';
+    if (note) note.remove();
+    if (retryTimer) {
+      stopRetryTimer();
+      showToast('success', 'Assessment Ready', 'You can retake the assessment now.');
+    }
+  }
+}
+
+function openAssessment(batch) {
+  assessBatch = batch;
+  const startIdx = Math.max(0, batch - ASSESS_BATCH_SIZE);
+  const batchTopics = currentTopics.slice(startIdx, batch);
   const list = $('assessTopicsList');
   if (list) {
     list.innerHTML = batchTopics.map((t) =>
-      '<div class="ai-topic"><i class="fa-solid fa-circle-check"></i> Topic ' + (t.topic_number || '') + ': ' + escapeHtml(t.topic_name || '') + '</div>'
+      '<div class="ai-topic"><i class="fa-solid fa-circle-check"></i> Topic ' + escapeHtml(t.topic_number || '') + ': ' + escapeHtml(t.topic_name || '') + '</div>'
     ).join('');
   }
   const title = $('assessTitle');
   if (title) title.textContent = 'Assessment • Topics ' + (startIdx + 1) + ' - ' + batch;
-  const key = activeCourseId + '_' + batch;
-  const failTs = lastAssessFail[key];
-  const btn = $('btnStartAssessment');
-  if (failTs) {
-    const waitMs = diplomaMode ? RETRY_DIPLOMA_MS : RETRY_REGULAR_MS;
-    const remain = failTs + waitMs - Date.now();
-    if (remain > 0 && btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Retry In ' + formatDuration(remain);
-      showToast('info', 'Assessment Locked', 'You can retry in ' + formatDuration(remain) + '. Read the topics again and come back.');
-    }
-  } else if (btn) {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-play"></i> Start Assessment';
+  const infos = document.querySelectorAll('#assessIntro .ai-info b');
+  if (infos.length >= 3) {
+    infos[0].textContent = String(TOTAL_QUESTIONS);
+    infos[1].textContent = Math.floor(QUIZ_SECONDS / 60) + ':' + String(QUIZ_SECONDS % 60).padStart(2, '0');
+    infos[2].textContent = PASS_MARK + '/' + MAX_MARKS;
   }
   const intro = $('assessIntro');
   const quiz = $('assessQuiz');
@@ -1467,39 +1663,203 @@ async function openAssessment(batch) {
   if (quiz) quiz.classList.add('hidden');
   if (result) result.classList.add('hidden');
   if (overlay) overlay.classList.add('open');
-  window._assessBatch = batch;
+  stopRetryTimer();
+  const remain = getLockRemain(batch);
+  if (remain > 0) {
+    refreshStartButton();
+    retryTimer = setInterval(refreshStartButton, 1000);
+  } else {
+    refreshStartButton();
+  }
+}
+
+function mapQuestionType(t) {
+  const s = String(t || '').toLowerCase().replace(/[^a-z]/g, '');
+  if (['mcq', 'multiplechoice', 'multiple', 'choice', 'objective'].indexOf(s) !== -1) return 'mcq';
+  if (['tf', 'truefalse', 'trueorfalse', 'boolean', 'bool'].indexOf(s) !== -1) return 'tf';
+  if (['write', 'written', 'essay', 'open', 'shortanswer', 'text', 'theory'].indexOf(s) !== -1) return 'write';
+  return '';
+}
+
+function cleanOptionText(o) {
+  let s = (o && typeof o === 'object') ? (o.text || o.label || o.value || '') : o;
+  s = String(s == null ? '' : s).trim();
+  return s.replace(/^[A-Da-d][\).:\-]\s+/, '').trim();
+}
+
+function resolveMcqIndex(correct, options) {
+  if (typeof correct === 'number' && correct >= 0 && correct < options.length) return correct;
+  const s = String(correct == null ? '' : correct).trim();
+  if (/^[0-3]$/.test(s)) return parseInt(s, 10);
+  if (/^[A-Da-d]$/.test(s)) return s.toUpperCase().charCodeAt(0) - 65;
+  const m = /^([A-Da-d])[\).:\-\s]/.exec(s);
+  if (m) return m[1].toUpperCase().charCodeAt(0) - 65;
+  const idx = options.findIndex((o) => o.toLowerCase() === s.toLowerCase());
+  return idx;
+}
+
+function resolveTfIndex(correct) {
+  if (correct === true) return 0;
+  if (correct === false) return 1;
+  const s = String(correct == null ? '' : correct).trim().toLowerCase();
+  if (['true', 't', 'a', '0', 'yes', 'gaskiya'].indexOf(s) !== -1) return 0;
+  if (['false', 'f', 'b', '1', 'no', 'karya'].indexOf(s) !== -1) return 1;
+  return -1;
+}
+
+function buildQuestionItem(type, q, text) {
+  const explanation = String(q.explanation || q.reason || q.feedback || '').trim();
+  if (type === 'mcq') {
+    let opts = q.options || q.choices || q.answers || [];
+    if (opts && !Array.isArray(opts) && typeof opts === 'object') opts = Object.keys(opts).sort().map((k) => opts[k]);
+    if (!Array.isArray(opts)) return null;
+    const options = opts.map(cleanOptionText).filter((o) => o);
+    if (options.length < 4) return null;
+    const four = options.slice(0, 4);
+    const ci = resolveMcqIndex(q.correct != null ? q.correct : (q.answer != null ? q.answer : q.correct_answer), four);
+    if (ci < 0 || ci > 3) return null;
+    return { type: 'mcq', question: text, options: four, correctIndex: ci, reference: four[ci], explanation: explanation };
+  }
+  if (type === 'tf') {
+    const ci = resolveTfIndex(q.correct != null ? q.correct : (q.answer != null ? q.answer : q.correct_answer));
+    if (ci < 0) return null;
+    const options = ['True', 'False'];
+    return { type: 'tf', question: text, options: options, correctIndex: ci, reference: options[ci], explanation: explanation };
+  }
+  const ref = String(q.correct != null ? q.correct : (q.answer != null ? q.answer : (q.model_answer || q.correct_answer || ''))).trim();
+  return { type: 'write', question: text, options: [], correctIndex: -1, reference: ref, explanation: explanation };
+}
+
+function normalizeAssessment(res, batchTopics) {
+  const raw = (res && (res.questions || (res.data && res.data.questions) || (res.assessment && res.assessment.questions))) || [];
+  if (!Array.isArray(raw) || !raw.length) throw new Error('The AI did not return any questions');
+  const buckets = { mcq: [], tf: [], write: [] };
+  const seen = {};
+  raw.forEach((q, i) => {
+    if (!q || typeof q !== 'object') return;
+    const text = String(q.question || q.text || q.q || '').trim();
+    if (!text) return;
+    const key = text.toLowerCase();
+    if (seen[key]) return;
+    let type = mapQuestionType(q.type);
+    if (!type) type = i < 2 ? 'mcq' : (i < 4 ? 'tf' : 'write');
+    const item = buildQuestionItem(type, q, text);
+    if (!item) return;
+    seen[key] = true;
+    buckets[type].push(item);
+  });
+  if (buckets.mcq.length < 2 || buckets.tf.length < 2 || buckets.write.length < 1) {
+    throw new Error('The AI returned an incomplete assessment');
+  }
+  const t1 = batchTopics[0] || {};
+  const t2 = batchTopics[1] || t1;
+  const t3 = batchTopics[2] || t2;
+  const out = [];
+  buckets.mcq.slice(0, 2).forEach((q) => { q.topic_name = t1.topic_name || ''; q.topic_number = t1.topic_number; q.max = 1; out.push(q); });
+  buckets.tf.slice(0, 2).forEach((q) => { q.topic_name = t2.topic_name || ''; q.topic_number = t2.topic_number; q.max = 1; out.push(q); });
+  buckets.write.slice(0, 1).forEach((q) => { q.topic_name = t3.topic_name || ''; q.topic_number = t3.topic_number; q.max = WRITE_MARKS; out.push(q); });
+  return out;
+}
+
+function stopStream(stream) {
+  try {
+    if (stream && stream.getTracks) stream.getTracks().forEach((t) => t.stop());
+  } catch (_) {}
+}
+
+async function requestCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    throw new Error('Camera is not supported on this device');
+  }
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } },
+      audio: false
+    });
+  } catch (err) {
+    const msg = $('quizCamLockMsg');
+    if (msg) msg.textContent = 'Camera access is required so we can verify you take the assessment honestly. Please allow camera and try again.';
+    throw new Error('Please allow camera access to take this assessment');
+  }
+}
+
+function attachCameraToVideo(stream) {
+  camStream = stream;
+  const video = $('quizCam');
+  const lock = $('quizCamLock');
+  if (video) {
+    video.srcObject = stream;
+    video.muted = true;
+    const p = video.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+  if (lock) lock.classList.add('hidden');
+}
+
+function stopCamera() {
+  stopStream(camStream);
+  camStream = null;
+  const video = $('quizCam');
+  if (video && video.srcObject) video.srcObject = null;
+  const lock = $('quizCamLock');
+  const msg = $('quizCamLockMsg');
+  if (lock) lock.classList.remove('hidden');
+  if (msg) msg.textContent = 'Camera stopped. You can close this assessment.';
+}
+
+function newAssessmentId() {
+  try {
+    if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+  } catch (_) {}
+  return 'as_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
 }
 
 async function startAssessmentFlow() {
-  const batch = window._assessBatch || 0;
+  if (assessStarting || quizState) return;
+  const batch = assessBatch;
+  if (getLockRemain(batch) > 0) {
+    refreshStartButton();
+    return;
+  }
   const startIdx = Math.max(0, batch - ASSESS_BATCH_SIZE);
   const batchTopics = currentTopics.slice(startIdx, batch).map((t) => ({
     topic_number: t.topic_number,
     topic_name: t.topic_name,
     topic_text: String(t.topic_text || '').slice(0, 2500)
   }));
-  if (batchTopics.length === 0) {
-    showToast('error', 'No Topics', 'No topics found for this assessment.');
+  if (batchTopics.length < ASSESS_BATCH_SIZE) {
+    showToast('error', 'No Topics', 'Not enough topics were found for this assessment.');
     return;
   }
+  assessStarting = true;
+  const startBtn = $('btnStartAssessment');
+  if (startBtn) {
+    startBtn.disabled = true;
+    startBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Preparing...';
+  }
   miniLoad('Creating your assessment...');
+  let stream = null;
   try {
-    const res = await getAssessment({
+    stream = await requestCamera();
+    const res = await withTimeout(getAssessment({
       user_id: user.id,
       academy_id: getAcademyId(),
       course_id: activeCourseId,
-      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
-      topics: batchTopics
-    });
-    let questions = Array.isArray(res.questions) ? res.questions.slice() : [];
-    const seenQ = {};
-    questions = questions.filter((q) => {
-      const k = String((q && q.question) || '').trim().toLowerCase();
-      if (!k || seenQ[k]) return false;
-      seenQ[k] = true;
-      return true;
-    });
-    if (!questions.length) throw new Error('No valid questions returned');
+      course_name: (courseInfoMap[activeCourseId] || {}).course_name || (userData && userData.course_name) || '',
+      language: 'English',
+      topics: batchTopics,
+      total_questions: TOTAL_QUESTIONS,
+      structure: [
+        { number: 1, topic_index: 0, type: 'mcq', options: 4, marks: 1 },
+        { number: 2, topic_index: 0, type: 'mcq', options: 4, marks: 1 },
+        { number: 3, topic_index: 1, type: 'tf', options: 2, marks: 1 },
+        { number: 4, topic_index: 1, type: 'tf', options: 2, marks: 1 },
+        { number: 5, topic_index: 2, type: 'write', marks: WRITE_MARKS }
+      ],
+      instructions: 'Create exactly 5 questions from the supplied topic texts only. Questions 1 and 2 come from topic index 0 and are multiple choice with exactly 4 options and one correct option given as a letter A, B, C or D in the field correct. Questions 3 and 4 come from topic index 1 and are true or false with correct set to true or false. Question 5 comes from topic index 2 and is a written question worth 2 marks, with correct holding a short model answer. Every question needs an explanation. Return JSON only: {"assessment_id": string, "questions": [{"number": number, "type": "mcq" | "tf" | "write", "topic_index": number, "question": string, "options": string[], "correct": string, "explanation": string}]}',
+      mode: 'assessment_generate'
+    }), AI_TIMEOUT_MS, 'The assessment took too long to prepare. Please try again.');
+    const questions = normalizeAssessment(res, batchTopics);
     quizState = {
       questions: questions,
       answers: questions.map(() => ''),
@@ -1507,69 +1867,48 @@ async function startAssessmentFlow() {
       secondsLeft: QUIZ_SECONDS,
       timer: null,
       flags: 0,
-      stream: null,
-      assessmentId: res.assessment_id || ('as_' + Date.now()),
+      assessmentId: String((res && (res.assessment_id || (res.data && res.data.assessment_id))) || newAssessmentId()),
       batch: batch,
-      submitted: false
+      batchTopics: batchTopics,
+      submitted: false,
+      grading: false,
+      locked: false
     };
-    const camOk = await startCamera();
-    if (!camOk) return;
+    attachCameraToVideo(stream);
+    stream = null;
     const intro = $('assessIntro');
     const result = $('assessResult');
     const quiz = $('assessQuiz');
     if (intro) intro.classList.add('hidden');
     if (result) result.classList.add('hidden');
     if (quiz) quiz.classList.remove('hidden');
+    const timerEl = $('quizTimer');
+    if (timerEl) {
+      timerEl.classList.remove('danger');
+      const span = timerEl.querySelector('span');
+      if (span) span.textContent = Math.floor(QUIZ_SECONDS / 60) + ':' + String(QUIZ_SECONDS % 60).padStart(2, '0');
+    }
+    makeCamDraggable($('quizCamWrap'));
     renderQuestion();
     startQuizTimer();
     attachAntiCheat();
     miniHide();
   } catch (err) {
+    if (stream) stopStream(stream);
+    stopCamera();
+    quizState = null;
     miniHide();
-    showToast('error', 'Assessment Failed', 'Could not create the assessment. Please try again.', err.message || String(err));
+    showToast('error', 'Assessment Not Started', (err && err.message) || 'Could not create the assessment. Please try again.');
+  } finally {
+    assessStarting = false;
+    if (!quizState) refreshStartButton();
   }
 }
 
-async function startCamera() {
-  const video = $('quizCam');
-  const lock = $('quizCamLock');
-  try {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      makeCamDraggable($('quizCamWrap'));
-      showSecurityShield('info');
-      throw new Error('Camera not supported on this device');
-    }
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } }, audio: false });
-    if (quizState) quizState.stream = stream;
-    if (video) {
-      video.srcObject = stream;
-      video.muted = true;
-      await video.play().catch(() => {});
-    }
-    if (lock) lock.classList.add('hidden');
-    return true;
-  } catch (err) {
-    miniHide();
-    showToast('error', 'Camera Required', 'Please allow camera access to take this assessment.', err.message || String(err));
-    const msg = $('quizCamLockMsg');
-    if (msg) msg.textContent = 'Camera access is required so we can verify you take the assessment honestly. Please allow camera and try again.';
-    return false;
-  }
-}
-
-function stopCamera() {
-  if (quizState && quizState.stream) {
-    quizState.stream.getTracks().forEach((t) => t.stop());
-    quizState.stream = null;
-  }
-  const video = $('quizCam');
-  if (video && video.srcObject) {
-    video.srcObject = null;
-  }
-  const lock = $('quizCamLock');
-  const msg = $('quizCamLockMsg');
-  if (lock) lock.classList.remove('hidden');
-  if (msg) msg.textContent = 'Camera stopped. You can close this assessment.';
+function questionKindLabel(q) {
+  if (q.type === 'mcq') return 'Multiple Choice • 1 mark';
+  if (q.type === 'tf') return 'True or False • 1 mark';
+  return 'Write Your Answer • ' + WRITE_MARKS + ' marks';
 }
 
 function renderQuestion() {
@@ -1583,29 +1922,35 @@ function renderQuestion() {
   const btnPrev = $('btnPrevQ');
   const btnNext = $('btnNextQ');
   const btnSubmit = $('btnSubmitQuiz');
-  if (btnPrev) btnPrev.disabled = quizState.currentQ === 0;
+  if (btnPrev) btnPrev.disabled = quizState.currentQ === 0 || quizState.grading;
   if (btnNext) btnNext.classList.toggle('hidden', isLast);
-  if (btnSubmit) btnSubmit.classList.toggle('hidden', !isLast);
+  if (btnSubmit) {
+    btnSubmit.classList.toggle('hidden', !isLast);
+    btnSubmit.disabled = quizState.grading;
+  }
+  const locked = quizState.locked ? ' disabled' : '';
   let optionsHtml = '';
-  if (q.type === 'write' || !Array.isArray(q.options) || q.options.length === 0) {
+  if (q.type === 'write') {
     const val = escapeHtml(quizState.answers[quizState.currentQ] || '');
-    optionsHtml = '<div class="q-write"><textarea placeholder="Type your answer here..." data-q="' + quizState.currentQ + '">' + val + '</textarea></div>';
+    optionsHtml = '<div class="q-write"><textarea maxlength="600" placeholder="Type your answer here..." data-q="' + quizState.currentQ + '"' + locked + '>' + val + '</textarea></div>';
   } else {
-    const letters = ['A', 'B', 'C', 'D', 'E'];
+    const letters = ['A', 'B', 'C', 'D'];
     optionsHtml = '<div class="q-options">' + q.options.map((opt, i) => {
       const selected = quizState.answers[quizState.currentQ] === String(i);
-      return '<button type="button" class="q-opt' + (selected ? ' selected' : '') + '" data-q="' + quizState.currentQ + '" data-opt="' + i + '">' +
+      return '<button type="button" class="q-opt' + (selected ? ' selected' : '') + '" data-q="' + quizState.currentQ + '" data-opt="' + i + '"' + locked + '>' +
         '<span class="q-letter">' + letters[i] + '</span><span>' + escapeHtml(opt) + '</span></button>';
     }).join('') + '</div>';
   }
   card.innerHTML =
     '<div class="question-card">' +
     '<span class="q-num"><i class="fa-solid fa-circle-question"></i> Question ' + (quizState.currentQ + 1) + ' of ' + totalQ + '</span>' +
-    '<div class="q-text">' + escapeHtml(q.question || '') + '</div>' +
+    '<span class="q-kind">' + escapeHtml(questionKindLabel(q)) + '</span>' +
+    '<div class="q-text" style="margin-top:10px">' + escapeHtml(q.question || '') + '</div>' +
     optionsHtml +
     '</div>';
   card.querySelectorAll('.q-opt').forEach((btn) => {
     btn.addEventListener('click', () => {
+      if (!quizState || quizState.locked) return;
       const qi = parseInt(btn.dataset.q, 10);
       quizState.answers[qi] = btn.dataset.opt;
       renderQuestion();
@@ -1614,6 +1959,7 @@ function renderQuestion() {
   const ta = card.querySelector('textarea');
   if (ta) {
     ta.addEventListener('input', (e) => {
+      if (!quizState || quizState.locked) return;
       const qi = parseInt(e.target.dataset.q, 10);
       quizState.answers[qi] = e.target.value;
     });
@@ -1623,20 +1969,24 @@ function renderQuestion() {
 function startQuizTimer() {
   if (!quizState) return;
   if (quizState.timer) clearInterval(quizState.timer);
+  quizStartedAt = Date.now();
+  lastFlagAt = 0;
   quizState.timer = setInterval(() => {
     if (!quizState) return;
     quizState.secondsLeft--;
-    const m = Math.floor(quizState.secondsLeft / 60);
-    const s = quizState.secondsLeft % 60;
+    const left = Math.max(0, quizState.secondsLeft);
+    const m = Math.floor(left / 60);
+    const s = left % 60;
     const timerEl = $('quizTimer');
     if (timerEl) {
       const span = timerEl.querySelector('span');
       if (span) span.textContent = m + ':' + String(s).padStart(2, '0');
-      if (quizState.secondsLeft <= 60) timerEl.classList.add('danger');
+      if (left <= 60) timerEl.classList.add('danger');
     }
     if (quizState.secondsLeft <= 0) {
       clearInterval(quizState.timer);
-      submitQuiz(true);
+      quizState.timer = null;
+      submitQuiz('time');
     }
   }, 1000);
 }
@@ -1647,6 +1997,7 @@ function attachAntiCheat() {
   document.addEventListener('visibilitychange', antiCheatHandler);
   document.addEventListener('copy', antiCheatCopy);
   document.addEventListener('cut', antiCheatCopy);
+  document.addEventListener('paste', antiCheatCopy);
   document.addEventListener('contextmenu', antiCheatContext);
   document.addEventListener('selectstart', antiCheatSelect);
   window.addEventListener('blur', antiCheatBlur);
@@ -1658,24 +2009,38 @@ function detachAntiCheat() {
   document.removeEventListener('visibilitychange', antiCheatHandler);
   document.removeEventListener('copy', antiCheatCopy);
   document.removeEventListener('cut', antiCheatCopy);
+  document.removeEventListener('paste', antiCheatCopy);
   document.removeEventListener('contextmenu', antiCheatContext);
   document.removeEventListener('selectstart', antiCheatSelect);
   window.removeEventListener('blur', antiCheatBlur);
   document.removeEventListener('keydown', antiCheatKeys);
 }
 
+function flagAntiCheat(msg) {
+  if (!quizState || quizState.submitted || quizState.grading) return;
+  const now = Date.now();
+  if (now - quizStartedAt < 2500) return;
+  if (now - lastFlagAt < 1500) return;
+  lastFlagAt = now;
+  quizState.flags++;
+  showSecurityShield('alert');
+  if (quizState.flags >= 2) {
+    submitQuiz('flag');
+  } else {
+    showToast('error', 'Warning!', msg + ' One more time and your assessment will be submitted.');
+  }
+}
+
 function antiCheatKeys(e) {
-  if (!quizState) return;
+  if (!quizState || quizState.grading) return;
   const k = (e.key || '').toLowerCase();
-  if ((e.ctrlKey || e.metaKey) && ['c', 'x', 'v', 'a', 'u', 's', 'p'].indexOf(k) !== -1) {
+  if ((e.ctrlKey || e.metaKey) && ['c', 'x', 'v', 'u', 's', 'p'].indexOf(k) !== -1) {
     e.preventDefault();
-    showSecurityShield('alert');
     flagAntiCheat('Copying is not allowed during the assessment.');
     return;
   }
   if (k === 'printscreen' || k === 'print') {
     e.preventDefault();
-    showSecurityShield('alert');
     flagAntiCheat('Screenshots are not allowed during the assessment.');
   }
 }
@@ -1683,29 +2048,18 @@ function antiCheatKeys(e) {
 function antiCheatContext(e) {
   if (!quizState) return;
   e.preventDefault();
-  showSecurityShield('alert');
   flagAntiCheat('Right click is disabled during the assessment.');
 }
 
 function antiCheatSelect(e) {
   if (!quizState) return;
+  const t = e.target;
+  if (t && t.closest && t.closest('textarea,input')) return;
   e.preventDefault();
-  showSecurityShield('info');
-}
-
-function flagAntiCheat(msg) {
-  if (!quizState) return;
-  quizState.flags++;
-  if (quizState.flags >= 2) {
-    submitQuiz(true);
-  } else {
-    showToast('error', 'Warning!', msg + ' One more time and your assessment will be submitted.');
-  }
 }
 
 function antiCheatHandler() {
   if (document.hidden && quizState) {
-    showSecurityShield('alert');
     flagAntiCheat('Do not leave the assessment page.');
   }
 }
@@ -1713,13 +2067,11 @@ function antiCheatHandler() {
 function antiCheatCopy(e) {
   if (!quizState) return;
   e.preventDefault();
-  showSecurityShield('alert');
   flagAntiCheat('Copying is not allowed during the assessment.');
 }
 
 function antiCheatBlur() {
   if (quizState) {
-    showSecurityShield('alert');
     flagAntiCheat('Stay on the assessment page.');
   }
 }
@@ -1738,6 +2090,10 @@ function makeCamDraggable(wrap) {
       e.stopPropagation();
       floating = !floating;
       wrap.classList.toggle('floating', floating);
+      if (!floating) {
+        wrap.style.left = '';
+        wrap.style.top = '';
+      }
     });
   }
   let dragging = false;
@@ -1764,6 +2120,7 @@ function makeCamDraggable(wrap) {
     const ny = Math.min(Math.max(4, startTop + (t.clientY - startY)), window.innerHeight - 70);
     wrap.style.left = nx + 'px';
     wrap.style.top = ny + 'px';
+    wrap.style.right = 'auto';
     e.preventDefault();
   }
   function onUp() { dragging = false; }
@@ -1775,113 +2132,312 @@ function makeCamDraggable(wrap) {
   document.addEventListener('touchend', onUp);
 }
 
-async function submitQuiz(timedOut) {
-  if (!quizState || quizState.submitted) return;
-  quizState.submitted = true;
-  if (quizState.timer) clearInterval(quizState.timer);
+function parseWrittenGrade(res) {
+  const first = res && Array.isArray(res.results) && res.results[0] ? res.results[0] : null;
+  let m = null;
+  const candidates = [res && res.marks, res && res.score, res && res.written_score, first && first.marks, first && first.score];
+  for (let i = 0; i < candidates.length; i++) {
+    const c = candidates[i];
+    if (c != null && c !== '' && isFinite(Number(c))) {
+      m = Number(c);
+      break;
+    }
+  }
+  if (m == null) {
+    const flag = res && (res.is_correct != null ? res.is_correct : (first && first.is_correct));
+    if (flag === true) m = WRITE_MARKS;
+    else if (flag === false) m = 0;
+  }
+  if (m == null) throw new Error('The AI returned an invalid grade');
+  m = Math.max(0, Math.min(WRITE_MARKS, m));
+  m = Math.round(m * 2) / 2;
+  const explanation = String((res && (res.explanation || res.feedback || res.comment)) || (first && (first.explanation || first.feedback)) || '').trim();
+  const reference = String((res && (res.correct_answer || res.model_answer)) || (first && first.correct_answer) || '').trim();
+  return { marks: m, explanation: explanation, reference: reference };
+}
+
+async function gradeWritten(q, answerText, number) {
+  const payload = {
+    user_id: user.id,
+    academy_id: getAcademyId(),
+    course_id: activeCourseId,
+    course_name: (courseInfoMap[activeCourseId] || {}).course_name || (userData && userData.course_name) || '',
+    assessment_id: quizState.assessmentId,
+    mode: 'grade_written',
+    question: q.question,
+    user_answer: answerText,
+    reference_answer: q.reference,
+    max_marks: WRITE_MARKS,
+    topic_name: q.topic_name,
+    topic_text: String(((quizState.batchTopics || [])[2] || {}).topic_text || '').slice(0, 2500),
+    preferred_lang: getPreferredLang(),
+    instructions: 'Grade the student answer fairly against the topic text and the reference answer. Give marks from 0 to ' + WRITE_MARKS + ' in steps of 0.5. Give 0 if the answer is empty or unrelated. Return JSON only: {"marks": number, "explanation": string, "correct_answer": string}',
+    questions: [{
+      number: number,
+      type: 'write',
+      question: q.question,
+      correct: q.reference,
+      topic_name: q.topic_name,
+      user_answer: answerText,
+      max_marks: WRITE_MARKS
+    }]
+  };
+  let lastErr = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await withTimeout(gradeAssessment(payload), AI_TIMEOUT_MS, 'Grading took too long. Please try again.');
+      return parseWrittenGrade(res);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('Could not grade the written answer');
+}
+
+async function buildResults() {
+  const results = [];
+  for (let i = 0; i < quizState.questions.length; i++) {
+    const q = quizState.questions[i];
+    const raw = quizState.answers[i];
+    if (q.type === 'write') {
+      const text = String(raw || '').trim();
+      let marks = 0;
+      let explanation = q.explanation;
+      let reference = q.reference;
+      if (text) {
+        const g = await gradeWritten(q, text, i + 1);
+        marks = g.marks;
+        if (g.explanation) explanation = g.explanation;
+        if (g.reference) reference = g.reference;
+      }
+      results.push({
+        number: i + 1,
+        type: 'write',
+        question: q.question,
+        topic_name: q.topic_name,
+        user_answer: text,
+        correct_answer: reference,
+        marks: marks,
+        max_marks: WRITE_MARKS,
+        is_correct: marks >= WRITE_MARKS,
+        partial: marks > 0 && marks < WRITE_MARKS,
+        skipped: !text,
+        explanation: explanation
+      });
+    } else {
+      const has = raw !== '' && raw != null;
+      const picked = has ? parseInt(raw, 10) : -1;
+      const ok = has && picked === q.correctIndex;
+      results.push({
+        number: i + 1,
+        type: q.type,
+        question: q.question,
+        topic_name: q.topic_name,
+        user_answer: has && q.options[picked] != null ? q.options[picked] : '',
+        correct_answer: q.reference,
+        marks: ok ? 1 : 0,
+        max_marks: 1,
+        is_correct: ok,
+        partial: false,
+        skipped: !has,
+        explanation: q.explanation
+      });
+    }
+  }
+  return results;
+}
+
+async function recordAssessment(entry) {
+  const key = activeCourseId + '_' + entry.batch;
+  if (entry.passed) {
+    const arr = passedBatches[key] || [];
+    if (arr.indexOf(entry.batch) === -1) arr.push(entry.batch);
+    passedBatches[key] = arr;
+    delete lastAssessFail[key];
+  } else {
+    lastAssessFail[key] = Date.now();
+  }
+  assessmentHistory.push(entry);
+  if (assessmentHistory.length > 60) assessmentHistory = assessmentHistory.slice(-60);
+  await saveUpdate({
+    passed_batches: passedBatches,
+    last_assess_fail: lastAssessFail,
+    assessment_history: assessmentHistory
+  }, true);
+  try {
+    const grades = Array.isArray(userData.assessment_grade) ? userData.assessment_grade : [];
+    grades.push({
+      assessment_id: entry.id,
+      academy_id: getAcademyId(),
+      course_id: entry.course_id,
+      course_name: entry.course_name,
+      score: entry.score,
+      max_marks: entry.max_marks,
+      pct: entry.pct,
+      passed: entry.passed,
+      date: entry.date,
+      time_spent: entry.time_spent
+    });
+    userData.assessment_grade = grades;
+    await saveUserData();
+  } catch (_) {}
+}
+
+async function submitQuiz(reason) {
+  if (!quizState || quizState.submitted || quizState.grading) return;
+  quizState.grading = true;
+  quizState.locked = true;
+  if (quizState.timer) {
+    clearInterval(quizState.timer);
+    quizState.timer = null;
+  }
   detachAntiCheat();
   stopCamera();
-  const qs = quizState.questions.map((q, i) => ({
-    number: i + 1,
-    question: q.question,
-    options: q.options || [],
-    type: q.type || 'mcq',
-    correct: q.correct,
-    topic: q.topic,
-    topic_name: q.topic_name,
-    user_answer: quizState.answers[i] || ''
-  }));
-  const timeSpent = Math.max(0, QUIZ_SECONDS - quizState.secondsLeft);
+  renderQuestion();
   miniLoad('Grading your answers...');
   try {
-    const res = await gradeAssessment({
-      user_id: user.id,
-      academy_id: getAcademyId(),
-      course_id: activeCourseId,
-      course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
-      assessment_id: quizState.assessmentId,
-      questions: qs,
-      time_spent: timeSpent,
-      preferred_lang: getPreferredLang(),
-      flagged: quizState.flags > 0,
-      timed_out: timedOut
-    });
-    const score = Number(res.score || 0);
-    const pct = Number(res.pct || Math.round((score / qs.length) * 100));
-    const passed = res.passed === true || score >= PASS_MARK;
-    const results = res.results || [];
-    window._lastResults = results;
-    window._lastScore = score;
-    window._lastPct = pct;
-    window._lastPassed = passed;
-    showResult(score, pct, passed, results, timedOut, res.message || '');
+    const results = await buildResults();
+    const score = results.reduce((n, r) => n + r.marks, 0);
+    const pct = Math.round((score / MAX_MARKS) * 100);
+    const passed = score >= PASS_MARK;
+    const timeSpent = Math.max(0, QUIZ_SECONDS - Math.max(0, quizState.secondsLeft));
+    const now = new Date();
+    const courseName = (courseInfoMap[activeCourseId] || {}).course_name || (userData && userData.course_name) || '';
+    const result = {
+      assessmentId: quizState.assessmentId,
+      batch: quizState.batch,
+      score: score,
+      maxMarks: MAX_MARKS,
+      pct: pct,
+      passed: passed,
+      results: results,
+      timeSpent: timeSpent,
+      reason: reason,
+      courseName: courseName,
+      dateIso: now.toISOString(),
+      message: ''
+    };
     if (passed) {
-      const batch = quizState.batch;
-      const key = activeCourseId + '_' + batch;
-      const arr = passedBatches[key] || [];
-      if (arr.indexOf(batch) === -1) arr.push(batch);
-      passedBatches[key] = arr;
-      delete lastAssessFail[key];
-      await saveUpdate({ passed_batches: passedBatches, last_assess_fail: lastAssessFail });
-      const grades = Array.isArray(userData.assessment_grade) ? userData.assessment_grade : [];
-      grades.push({
-        assessment_id: quizState.assessmentId,
-        academy_id: getAcademyId(),
-        course_id: activeCourseId,
-        course_name: (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '',
-        score: score,
-        pct: pct,
-        passed: true,
-        date: new Date().toISOString(),
-        time_spent: timeSpent
-      });
-      userData.assessment_grade = grades;
-      try {
-        await saveUserData();
-      } catch (err) {}
-      confetti();
+      result.message = 'You passed this assessment with ' + fmtMarks(score) + ' out of ' + MAX_MARKS + ' marks. Excellent work! You can continue learning.';
     } else {
-      const batch = quizState.batch;
-      const key = activeCourseId + '_' + batch;
-      lastAssessFail[key] = Date.now();
-      await saveUpdate({ last_assess_fail: lastAssessFail });
-      const grades = Array.isArray(userData.assessment_grade) ? userData.assessment_grade : [];
-      grades.push({
-        assessment_id: quizState.assessmentId,
-        academy_id: getAcademyId(),
-        course_id: activeCourseId,
-        score: score,
-        pct: pct,
-        passed: false,
-        date: new Date().toISOString()
-      });
-      userData.assessment_grade = grades;
-      try {
-        await saveUserData();
-      } catch (err) {}
-      showToast('error', 'Keep Going!', 'You scored ' + score + '/' + qs.length + '. Read the topics again and retry in ' + (diplomaMode ? '1 week' : '42 hours') + '.');
+      result.message = 'You scored ' + fmtMarks(score) + ' out of ' + MAX_MARKS + ' marks. The pass mark is ' + PASS_MARK + '. Go back and read the topics again. You can retake the assessment after 2 hours.';
     }
+    lastResult = result;
+    quizState.submitted = true;
+    const entry = {
+      id: result.assessmentId,
+      course_id: activeCourseId,
+      course_name: courseName,
+      batch: result.batch,
+      topics: (quizState.batchTopics || []).map((t) => t.topic_name),
+      date: result.dateIso,
+      date_text: formatDateLong(now),
+      time_text: formatTimeShort(now),
+      score: score,
+      max_marks: MAX_MARKS,
+      pct: pct,
+      passed: passed,
+      time_spent: timeSpent,
+      flags: quizState.flags,
+      reason: reason,
+      answers: results.map((r) => ({
+        number: r.number,
+        type: r.type,
+        question: r.question,
+        user_answer: r.user_answer,
+        correct_answer: r.correct_answer,
+        marks: r.marks,
+        max_marks: r.max_marks
+      }))
+    };
+    quizState = null;
+    showResult(result);
     miniHide();
+    if (reason === 'time') {
+      showToast('info', 'Time Up', 'The ' + Math.round(QUIZ_SECONDS / 60) + ' minutes finished. Your answers were submitted automatically.');
+    } else if (reason === 'flag') {
+      showToast('info', 'Assessment Ended', 'Your assessment was submitted because of repeated security warnings.');
+    }
+    if (passed) confetti();
+    await recordAssessment(entry);
   } catch (err) {
     miniHide();
-    showToast('error', 'Grading Failed', 'Could not grade your assessment. Please try again.', err.message || String(err));
-    quizState.submitted = false;
+    if (quizState) {
+      quizState.grading = false;
+      quizState.submitted = false;
+      quizState.currentQ = quizState.questions.length - 1;
+      renderQuestion();
+    }
+    showToast('error', 'Grading Failed', ((err && err.message) || 'Could not grade your assessment.') + ' Tap Submit to try again.');
   }
 }
 
-function showResult(score, pct, passed, results, timedOut, message) {
+function abandonQuiz() {
+  if (!quizState) return;
+  if (quizState.timer) clearInterval(quizState.timer);
+  const batch = quizState.batch;
+  const assessmentId = quizState.assessmentId;
+  const topics = (quizState.batchTopics || []).map((t) => t.topic_name);
+  quizState = null;
+  detachAntiCheat();
+  stopCamera();
+  const now = new Date();
+  const courseName = (courseInfoMap[activeCourseId] || {}).course_name || (userData && userData.course_name) || '';
+  recordAssessment({
+    id: assessmentId,
+    course_id: activeCourseId,
+    course_name: courseName,
+    batch: batch,
+    topics: topics,
+    date: now.toISOString(),
+    date_text: formatDateLong(now),
+    time_text: formatTimeShort(now),
+    score: 0,
+    max_marks: MAX_MARKS,
+    pct: 0,
+    passed: false,
+    time_spent: 0,
+    flags: 0,
+    reason: 'closed',
+    answers: []
+  });
+}
+
+function ensureReviewButton() {
+  let btn = $('btnReviewTopics');
+  if (btn) return btn;
+  const cont = $('btnContinueStudy');
+  if (!cont || !cont.parentElement) return null;
+  btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'btnReviewTopics';
+  btn.className = 'btn btn-primary hidden';
+  btn.innerHTML = '<i class="fa-solid fa-book-open-reader"></i> Go Back &amp; Read Topics';
+  cont.parentElement.insertBefore(btn, cont.nextSibling);
+  btn.addEventListener('click', () => {
+    const o = $('assessmentOverlay');
+    if (o) o.classList.remove('open');
+    const target = Math.max(0, (lastResult ? lastResult.batch : assessBatch) - ASSESS_BATCH_SIZE);
+    goBackToTopic(target);
+  });
+  return btn;
+}
+
+function showResult(r) {
   const quiz = $('assessQuiz');
   const result = $('assessResult');
+  const intro = $('assessIntro');
+  if (intro) intro.classList.add('hidden');
   if (quiz) quiz.classList.add('hidden');
   if (result) result.classList.remove('hidden');
   const ring = $('scoreRing');
-  const deg = Math.round((pct / 100) * 360);
-  if (ring) ring.style.background = 'conic-gradient(' + (passed ? 'var(--green)' : 'var(--rose)') + ' ' + deg + 'deg, rgba(124,58,237,.1) ' + deg + 'deg)';
+  const deg = Math.round((r.pct / 100) * 360);
+  if (ring) ring.style.background = 'conic-gradient(' + (r.passed ? 'var(--green)' : 'var(--rose)') + ' ' + deg + 'deg, rgba(124,58,237,.1) ' + deg + 'deg)';
   const pctEl = $('scorePct');
-  if (pctEl) pctEl.textContent = pct + '%';
+  if (pctEl) pctEl.textContent = r.pct + '%';
   const head = $('resultHead');
   if (head) {
-    if (passed) {
+    if (r.passed) {
       head.textContent = 'Congratulations! 🎉';
       head.className = 'result-head pass';
     } else {
@@ -1890,51 +2446,70 @@ function showResult(score, pct, passed, results, timedOut, message) {
     }
   }
   const sub = $('resultSub');
-  if (sub) {
-    sub.textContent = message || (passed ? 'You passed this assessment. Excellent work! You can continue learning.' : 'You scored below the pass mark (' + PASS_MARK + '/' + (quizState ? quizState.questions.length : 5) + '). Read the topics again and retry.');
-  }
-  const totalQ = (quizState && quizState.questions.length) || 5;
+  if (sub) sub.textContent = r.message;
+  const results = r.results;
+  const correct = results.filter((x) => x.is_correct).length;
+  const wrong = results.filter((x) => !x.is_correct && !x.skipped).length;
+  const skipped = results.filter((x) => x.skipped).length;
   const summary = $('resultSummary');
   if (summary) {
     summary.innerHTML =
-      '<div class="rs-row"><span>Total Questions</span><b>' + totalQ + '</b></div>' +
-      '<div class="rs-row"><span>Correct Answers</span><b class="ok">' + (results.filter((r) => r.is_correct === true).length || score) + '</b></div>' +
-      '<div class="rs-row"><span>Wrong Answers</span><b class="bad">' + (results.filter((r) => r.is_correct === false).length || Math.max(0, totalQ - score)) + '</b></div>' +
-      '<div class="rs-row"><span>Pass Mark</span><b>' + PASS_MARK + ' / ' + totalQ + '</b></div>' +
-      '<div class="rs-row"><span>Time Used</span><b>' + Math.max(0, QUIZ_SECONDS - (quizState ? quizState.secondsLeft : 0)) + 's</b></div>';
+      '<div class="rs-row"><span>Total Questions</span><b>' + results.length + '</b></div>' +
+      '<div class="rs-row"><span>Fully Correct</span><b class="ok">' + correct + '</b></div>' +
+      '<div class="rs-row"><span>Wrong Answers</span><b class="bad">' + wrong + '</b></div>' +
+      '<div class="rs-row"><span>Skipped</span><b>' + skipped + '</b></div>' +
+      '<div class="rs-row"><span>Marks Scored</span><b>' + fmtMarks(r.score) + ' / ' + r.maxMarks + '</b></div>' +
+      '<div class="rs-row"><span>Pass Mark</span><b>' + PASS_MARK + ' / ' + r.maxMarks + '</b></div>' +
+      '<div class="rs-row"><span>Time Used</span><b>' + r.timeSpent + 's</b></div>';
   }
   let listHtml = '';
-  results.forEach((r, i) => {
-    const ok = r.is_correct === true;
-    const skipped = !r.user_answer;
-    const mark = ok ? '<span class="ri-mark correct">✓ Correct</span>' : (skipped ? '<span class="ri-mark skipped">Skipped</span>' : '<span class="ri-mark wrong">✖ Wrong</span>');
-    const userAns = r.user_answer || '(no answer)';
-    const correctAns = r.correct_answer != null ? r.correct_answer : '';
+  results.forEach((x, i) => {
+    let mark;
+    let icon;
+    let color;
+    if (x.is_correct) {
+      mark = '<span class="ri-mark correct">✓ Correct • ' + fmtMarks(x.marks) + '/' + x.max_marks + '</span>';
+      icon = 'fa-circle-check';
+      color = '#10b981';
+    } else if (x.partial) {
+      mark = '<span class="ri-mark partial">◐ Partial • ' + fmtMarks(x.marks) + '/' + x.max_marks + '</span>';
+      icon = 'fa-circle-half-stroke';
+      color = '#f59e0b';
+    } else if (x.skipped) {
+      mark = '<span class="ri-mark skipped">Skipped • 0/' + x.max_marks + '</span>';
+      icon = 'fa-circle-minus';
+      color = '#94a3b8';
+    } else {
+      mark = '<span class="ri-mark wrong">✖ Wrong • 0/' + x.max_marks + '</span>';
+      icon = 'fa-circle-xmark';
+      color = '#f43f5e';
+    }
+    const userAns = x.user_answer || '(no answer)';
     listHtml += '<div class="result-item">' +
-      '<div class="ri-head"><i class="fa-solid ' + (ok ? 'fa-circle-check' : (skipped ? 'fa-circle-minus' : 'fa-circle-xmark')) + '" style="color:' + (ok ? '#10b981' : (skipped ? '#94a3b8' : '#f43f5e')) + '"></i> Question ' + (i + 1) + mark + '</div>' +
-      '<div class="ri-q">' + escapeHtml(r.question || '') + '</div>' +
-      '<div class="ri-ans"><span class="' + (ok ? 'ok' : 'bad') + '">Your answer: ' + escapeHtml(userAns) + '</span>' +
-      (ok ? '' : '<br><span class="ok">Correct answer: ' + escapeHtml(correctAns) + '</span>') + '</div>' +
-      (r.explanation ? '<div class="ri-explain"><b><i class="fa-solid fa-lightbulb"></i> Explanation:</b> ' + escapeHtml(r.explanation) + '</div>' : '') +
+      '<div class="ri-head"><i class="fa-solid ' + icon + '" style="color:' + color + '"></i> Question ' + (i + 1) + ' ' + mark + '</div>' +
+      '<div class="ri-q">' + escapeHtml(x.question || '') + '</div>' +
+      '<div class="ri-ans"><span class="' + (x.is_correct ? 'ok' : 'bad') + '">Your answer: ' + escapeHtml(userAns) + '</span>' +
+      (x.is_correct ? '' : '<br><span class="ok">Correct answer: ' + escapeHtml(x.correct_answer || '') + '</span>') + '</div>' +
+      (x.explanation ? '<div class="ri-explain"><b><i class="fa-solid fa-lightbulb"></i> Explanation:</b> ' + escapeHtml(x.explanation) + '</div>' : '') +
       '</div>';
   });
   const list = $('resultList');
   if (list) list.innerHTML = listHtml || '<div class="result-item">No detailed breakdown available.</div>';
   const btnGoExam = $('btnGoExam');
   const btnCont = $('btnContinueStudy');
+  const btnReview = ensureReviewButton();
   const currentTopicIsFinal = Boolean(currentTopic && currentTopic.is_final === true);
-  if (passed && currentTopicIsFinal && btnGoExam && btnCont) {
-    btnCont.classList.add('hidden');
-    btnGoExam.classList.remove('hidden');
-  } else if (btnGoExam && btnCont) {
-    btnCont.classList.remove('hidden');
-    btnGoExam.classList.add('hidden');
+  if (btnGoExam) btnGoExam.classList.add('hidden');
+  if (btnCont) btnCont.classList.add('hidden');
+  if (btnReview) btnReview.classList.add('hidden');
+  if (r.passed) {
+    if (currentTopicIsFinal && btnGoExam) btnGoExam.classList.remove('hidden');
+    else if (btnCont) btnCont.classList.remove('hidden');
+  } else if (btnReview) {
+    btnReview.classList.remove('hidden');
   }
   const btnPdf = $('btnDownloadPdf');
-  if (btnPdf && passed) btnPdf.classList.remove('hidden');
-  if (timedOut) {
-    showToast('error', 'Time Up', 'The ' + Math.round(QUIZ_SECONDS / 60) + ' minutes finished. Your answers were submitted automatically.');
-  }
+  if (btnPdf) btnPdf.classList.remove('hidden');
 }
 
 function confetti() {
@@ -1970,7 +2545,7 @@ function confetti() {
       x.translate(p.x, p.y);
       x.rotate(p.rot);
       x.fillStyle = p.color;
-      x.fillRect(-p.w / 2, p.h / 2 * -1, p.w, p.h);
+      x.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
       x.restore();
     });
     frames++;
@@ -1980,14 +2555,15 @@ function confetti() {
 }
 
 async function loadPdfLib() {
-  if (window.jspdf) return window.jspdf;
+  if (window.jspdf && window.jspdf.jsPDF) return window.jspdf;
   await new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
     s.onload = resolve;
-    s.onerror = reject;
+    s.onerror = () => reject(new Error('Could not load the PDF tool. Check your internet connection.'));
     document.head.appendChild(s);
   });
+  if (!window.jspdf || !window.jspdf.jsPDF) throw new Error('PDF tool is not available');
   return window.jspdf;
 }
 
@@ -1995,7 +2571,9 @@ function imageToDataUrl(url) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
+    const t = setTimeout(() => resolve(''), 8000);
     img.onload = () => {
+      clearTimeout(t);
       try {
         const c = document.createElement('canvas');
         c.width = img.naturalWidth;
@@ -2006,9 +2584,21 @@ function imageToDataUrl(url) {
         resolve('');
       }
     };
-    img.onerror = () => resolve('');
+    img.onerror = () => {
+      clearTimeout(t);
+      resolve('');
+    };
     img.src = url;
   });
+}
+
+function pdfWatermark(doc, w, h, logo) {
+  if (!logo) return;
+  try {
+    doc.setGState(new doc.GState({ opacity: 0.06 }));
+    doc.addImage(logo, 'PNG', (w - 150) / 2, (h - 150) / 2, 150, 150);
+    doc.setGState(new doc.GState({ opacity: 1 }));
+  } catch (_) {}
 }
 
 function pdfHeader(doc, w, title, logo) {
@@ -2023,7 +2613,7 @@ function pdfHeader(doc, w, title, logo) {
       doc.circle(24, 17, 12, 'F');
       doc.addImage(logo, 'PNG', 14, 7, 20, 20);
       tx = 42;
-    } catch (e) {}
+    } catch (_) {}
   }
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
@@ -2031,7 +2621,7 @@ function pdfHeader(doc, w, title, logo) {
   doc.text('IDT ACADEMY', tx, 14);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text('Intelligent Digital Technology Academy  •  www.idtacademy.com.ng', tx, 21);
+  doc.text('Intelligent Digital Technology Academy  |  www.idtacademy.com.ng', tx, 21);
   doc.text('Learn Beyond Limits', tx, 27);
   doc.setTextColor(30, 27, 75);
   doc.setFont('helvetica', 'bold');
@@ -2042,9 +2632,10 @@ function pdfHeader(doc, w, title, logo) {
   doc.line(14, 51, w - 14, 51);
 }
 
-function pdfSignatures(doc, w, y, signChair, signCeo) {
-  if (y > 240) {
+function pdfSignatures(doc, w, h, y, logo, signChair, signCeo, dateStr) {
+  if (y > 235) {
     doc.addPage();
+    pdfWatermark(doc, w, h, logo);
     y = 30;
   }
   const rowY = y + 6;
@@ -2053,8 +2644,12 @@ function pdfSignatures(doc, w, y, signChair, signCeo) {
   doc.setTextColor(109, 106, 138);
   doc.text('_______________________', 22, rowY);
   doc.text('_______________________', w - 72, rowY);
-  if (signChair) doc.addImage(signChair, 'PNG', 22, rowY + 2, 26, 13);
-  if (signCeo) doc.addImage(signCeo, 'PNG', w - 72, rowY + 2, 26, 13);
+  if (signChair) {
+    try { doc.addImage(signChair, 'PNG', 22, rowY + 2, 26, 13); } catch (_) {}
+  }
+  if (signCeo) {
+    try { doc.addImage(signCeo, 'PNG', w - 72, rowY + 2, 26, 13); } catch (_) {}
+  }
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(30, 27, 75);
@@ -2065,237 +2660,222 @@ function pdfSignatures(doc, w, y, signChair, signCeo) {
   doc.setTextColor(109, 106, 138);
   doc.text('Chairman, Board of Trustees', 22, rowY + 24);
   doc.text('CEO, IDT Academy', w - 72, rowY + 24);
-  doc.setTextColor(109, 106, 138);
   doc.setFontSize(8);
-  doc.text('IDT Academy • Official Assessment Document • ' + new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }), w / 2, rowY + 34, { align: 'center' });
+  doc.text('IDT Academy | Official Assessment Document | ' + dateStr, w / 2, rowY + 34, { align: 'center' });
+}
+
+async function buildResultPdf() {
+  if (!lastResult) throw new Error('No assessment result is available yet');
+  await loadPdfLib();
+  const JsPDF = window.jspdf.jsPDF;
+  const doc = new JsPDF('p', 'mm', 'a4');
+  const w = doc.internal.pageSize.getWidth();
+  const h = doc.internal.pageSize.getHeight();
+  const r = lastResult;
+  const results = r.results || [];
+  const when = new Date(r.dateIso);
+  const dateStr = formatDateLong(when);
+  const timeStr = formatTimeShort(when);
+  const studentName = (userData && userData.full_name) || 'Student';
+  const academyId = getAcademyId();
+  const courseName = r.courseName || '';
+  const logo = await imageToDataUrl(LOGO_URL);
+  const signChair = await imageToDataUrl(SIGN_CHAIR_URL);
+  const signCeo = await imageToDataUrl(SIGN_CEO_URL);
+  const grade = r.pct >= 80 ? 'A' : r.pct >= 70 ? 'B' : r.pct >= 60 ? 'C' : r.pct >= 50 ? 'D' : 'F';
+
+  pdfWatermark(doc, w, h, logo);
+  pdfHeader(doc, w, 'ASSESSMENT SLIP', logo);
+  let y = 62;
+  doc.setFillColor(245, 243, 255);
+  doc.roundedRect(14, y, w - 28, 26, 3, 3, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(30, 27, 75);
+  doc.text('Student: ' + studentName, 18, y + 7);
+  doc.text('Academy ID: ' + academyId, 18, y + 14);
+  doc.text('Course: ' + courseName, 18, y + 21);
+  doc.setTextColor(109, 40, 217);
+  doc.text('Date: ' + dateStr, w - 18, y + 7, { align: 'right' });
+  doc.text('Time: ' + timeStr, w - 18, y + 14, { align: 'right' });
+  doc.text('Time Used: ' + r.timeSpent + 's', w - 18, y + 21, { align: 'right' });
+  y += 34;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(30, 27, 75);
+  doc.text('Questions & Answers', 16, y);
+  y += 8;
+  results.forEach((it, i) => {
+    const qLines = doc.splitTextToSize(String(it.question || ''), w - 50);
+    const ansLines = doc.splitTextToSize('Your answer: ' + String(it.user_answer || '(no answer)'), w - 44);
+    const corLines = it.is_correct ? [] : doc.splitTextToSize('Correct answer: ' + String(it.correct_answer || ''), w - 44);
+    const need = 8 + qLines.length * 4.5 + ansLines.length * 4.2 + corLines.length * 4.2 + 6;
+    if (y + need > 262) {
+      doc.addPage();
+      pdfWatermark(doc, w, h, logo);
+      y = 30;
+    }
+    let label = 'Wrong';
+    let rgb = [220, 38, 38];
+    let bg = [254, 226, 231];
+    if (it.is_correct) {
+      label = 'Correct';
+      rgb = [16, 150, 110];
+      bg = [232, 245, 241];
+    } else if (it.partial) {
+      label = 'Partial';
+      rgb = [180, 100, 10];
+      bg = [254, 243, 215];
+    } else if (it.skipped) {
+      label = 'Skipped';
+      rgb = [100, 116, 139];
+      bg = [241, 245, 249];
+    }
+    doc.setFillColor(bg[0], bg[1], bg[2]);
+    doc.roundedRect(14, y - 4, w - 28, 5.5, 1.5, 1.5, 'F');
+    doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Q' + (i + 1) + ' - ' + label + ' (' + fmtMarks(it.marks) + '/' + it.max_marks + ')', 17, y);
+    y += 6;
+    doc.setTextColor(30, 27, 75);
+    doc.setFont('helvetica', 'bold');
+    doc.text(qLines, 18, y);
+    y += qLines.length * 4.5 + 1;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 58, 107);
+    doc.text(ansLines, 18, y);
+    y += ansLines.length * 4.2;
+    if (corLines.length) {
+      doc.setTextColor(16, 130, 100);
+      doc.text(corLines, 18, y);
+      y += corLines.length * 4.2;
+    }
+    y += 4;
+  });
+  pdfSignatures(doc, w, h, y, logo, signChair, signCeo, dateStr);
+
+  doc.addPage();
+  pdfWatermark(doc, w, h, logo);
+  pdfHeader(doc, w, 'PROFESSIONAL RESULT SLIP', logo);
+  y = 66;
+  doc.setFillColor(r.passed ? 16 : 244, r.passed ? 185 : 63, r.passed ? 129 : 94);
+  doc.roundedRect(14, y, w - 28, 34, 4, 4, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(34);
+  doc.text(r.pct + '%', 22, y + 22);
+  doc.setFontSize(11);
+  doc.text(r.passed ? 'PASSED' : 'NOT PASSED', w - 22, y + 14, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text('Marks: ' + fmtMarks(r.score) + ' / ' + r.maxMarks + '   |   Pass Mark: ' + PASS_MARK + ' / ' + r.maxMarks + '   |   Grade: ' + grade, w - 22, y + 22, { align: 'right' });
+  doc.text('Assessment: ' + String(r.assessmentId || '-'), w - 22, y + 29, { align: 'right' });
+  y += 44;
+  doc.setFillColor(245, 243, 255);
+  doc.roundedRect(14, y, w - 28, 30, 3, 3, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(30, 27, 75);
+  doc.text('Student Name: ' + studentName, 18, y + 8);
+  doc.text('Academy ID: ' + academyId, 18, y + 15);
+  doc.text('Course: ' + courseName, 18, y + 22);
+  doc.setTextColor(109, 40, 217);
+  doc.text('Date: ' + dateStr + ' ' + timeStr, w - 18, y + 8, { align: 'right' });
+  doc.text('Status: ' + (r.passed ? 'CONGRATULATIONS - PASSED' : 'NOT PASSED - KEEP LEARNING'), w - 18, y + 15, { align: 'right' });
+  doc.text('Signed & Verified by IDT Academy', w - 18, y + 22, { align: 'right' });
+  y += 40;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(30, 27, 75);
+  doc.text('Performance Summary', 16, y);
+  y += 7;
+  doc.setFontSize(9);
+  const correct = results.filter((x) => x.is_correct).length;
+  const wrong = results.filter((x) => !x.is_correct && !x.skipped).length;
+  const skipped = results.filter((x) => x.skipped).length;
+  const rows = [
+    ['Total Questions', String(results.length)],
+    ['Fully Correct', String(correct)],
+    ['Wrong Answers', String(wrong)],
+    ['Skipped', String(skipped)],
+    ['Final Marks', fmtMarks(r.score) + ' / ' + r.maxMarks + ' (' + r.pct + '%)'],
+    ['Time Allowed', Math.round(QUIZ_SECONDS / 60) + ' minutes']
+  ];
+  rows.forEach((row, i) => {
+    if (i % 2 === 0) {
+      doc.setFillColor(248, 247, 255);
+      doc.rect(14, y - 4.5, w - 28, 7, 'F');
+    }
+    doc.setTextColor(60, 58, 107);
+    doc.setFont('helvetica', 'normal');
+    doc.text(row[0], 18, y);
+    doc.setTextColor(30, 27, 75);
+    doc.setFont('helvetica', 'bold');
+    doc.text(row[1], w - 18, y, { align: 'right' });
+    y += 7;
+  });
+  pdfSignatures(doc, w, h, y + 4, logo, signChair, signCeo, dateStr);
+  return doc;
 }
 
 async function downloadResultPdf() {
+  if (!lastResult) {
+    showToast('info', 'No Result Yet', 'Finish an assessment first to download its slip.');
+    return;
+  }
   miniLoad('Preparing your slips...');
   try {
-    await loadPdfLib();
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('p', 'mm', 'a4');
-    const w = doc.internal.pageSize.getWidth();
-    const h = doc.internal.pageSize.getHeight();
-    const results = window._lastResults || [];
-    const score = window._lastScore || 0;
-    const pct = window._lastPct || 0;
-    const passed = window._lastPassed || false;
-    const totalQ = results.length || (quizState && quizState.questions.length) || 5;
-    const courseName = (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '';
-    const studentName = (userData && userData.full_name) || '';
-    const academyId = getAcademyId();
-    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-    const logo = await imageToDataUrl('https://i.imgur.com/oyqM5oF.png');
-    const signChair = await imageToDataUrl('https://i.imgur.com/z8HOr4D.png');
-    const signCeo = await imageToDataUrl('https://i.imgur.com/leqHq9I.png');
-
-    if (logo) {
-      doc.setGState(new doc.GState({ opacity: 0.06 }));
-      doc.addImage(logo, 'PNG', (w - 150) / 2, (h - 150) / 2, 150, 150);
-      doc.setGState(new doc.GState({ opacity: 1 }));
-    }
-    pdfHeader(doc, w, 'ASSESSMENT SLIP', logo);
-    let y = 62;
-    doc.setFillColor(245, 243, 255);
-    doc.roundedRect(14, y, w - 28, 26, 3, 3, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(30, 27, 75);
-    doc.text('Student: ' + studentName, 18, y + 7);
-    doc.text('Academy ID: ' + academyId, 18, y + 14);
-    doc.text('Course: ' + courseName, 18, y + 21);
-    doc.setTextColor(109, 40, 221);
-    doc.text('Date: ' + dateStr, w - 18, y + 7, { align: 'right' });
-    doc.text('Time Used: ' + Math.max(0, QUIZ_SECONDS - (quizState ? quizState.secondsLeft : QUIZ_SECONDS)) + 's', w - 18, y + 14, { align: 'right' });
-    y += 34;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(30, 27, 75);
-    doc.text('Questions & Answers', 16, y);
-    y += 7;
-    doc.setFontSize(9);
-    results.forEach((r, i) => {
-      if (y > 225) {
-        doc.addPage();
-        if (logo) {
-          doc.setGState(new doc.GState({ opacity: 0.06 }));
-          doc.addImage(logo, 'PNG', (w - 150) / 2, (h - 150) / 2, 150, 150);
-          doc.setGState(new doc.GState({ opacity: 1 }));
-        }
-        y = 30;
-      }
-      const ok = r.is_correct === true;
-      doc.setFillColor(ok ? 232 : 254, ok ? 245 : 226, ok ? 241 : 231);
-      doc.roundedRect(14, y - 4, w - 28, 5, 1.5, 1.5, 'F');
-      doc.setTextColor(ok ? 16 : 220, ok ? 185 : 38, ok ? 129 : 38);
-      doc.setFont('helvetica', 'bold');
-      doc.text((ok ? '✔' : '✖') + ' Q' + (i + 1), 17, y);
-      doc.setTextColor(30, 27, 75);
-      const qLines = doc.splitTextToSize(String(r.question || ''), w - 50);
-      doc.text(qLines, 30, y);
-      y += qLines.length * 4.5 + 2;
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(60, 58, 107);
-      const ansLines = doc.splitTextToSize('Your answer: ' + String(r.user_answer || '(no answer)'), w - 44);
-      doc.text(ansLines, 30, y);
-      y += ansLines.length * 4.2;
-      if (!ok && r.correct_answer != null) {
-        doc.setTextColor(16, 130, 100);
-        const cLines = doc.splitTextToSize('Correct answer: ' + String(r.correct_answer), w - 44);
-        doc.text(cLines, 30, y);
-        y += cLines.length * 4.2;
-      }
-      y += 4;
-    });
-    pdfSignatures(doc, w, y, signChair, signCeo);
-
-    doc.addPage();
-    if (logo) {
-      doc.setGState(new doc.GState({ opacity: 0.06 }));
-      doc.addImage(logo, 'PNG', (w - 150) / 2, (h - 150) / 2, 150, 150);
-      doc.setGState(new doc.GState({ opacity: 1 }));
-    }
-    pdfHeader(doc, w, 'PROFESSIONAL RESULT SLIP', logo);
-    y = 66;
-    doc.setFillColor(passed ? 16 : 244, passed ? 185 : 63, passed ? 129 : 94);
-    doc.roundedRect(14, y, w - 28, 34, 4, 4, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(34);
-    doc.text(pct + '%', 22, y + 22);
-    doc.setFontSize(11);
-    doc.text(passed ? 'PASSED' : 'NOT PASSED', w - 22, y + 14, { align: 'right' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text('Score: ' + score + ' / ' + totalQ + '   •   Pass Mark: ' + PASS_MARK + ' / ' + totalQ + '   •   Grade: ' + (pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : pct >= 50 ? 'D' : 'F'), w - 22, y + 22, { align: 'right' });
-    doc.text('Assessment: ' + (quizState && quizState.assessmentId ? String(quizState.assessmentId) : '—'), w - 22, y + 29, { align: 'right' });
-    y += 44;
-    doc.setFillColor(245, 243, 255);
-    doc.roundedRect(14, y, w - 28, 30, 3, 3, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(30, 27, 75);
-    doc.text('Student Name: ' + studentName, 18, y + 8);
-    doc.text('Academy ID: ' + academyId, 18, y + 15);
-    doc.text('Course: ' + courseName, 18, y + 22);
-    doc.setTextColor(109, 40, 221);
-    doc.text('Date: ' + dateStr, w - 18, y + 8, { align: 'right' });
-    doc.text('Status: ' + (passed ? 'CONGRATULATIONS - PASSED' : 'NOT PASSED - KEEP LEARNING'), w - 18, y + 15, { align: 'right' });
-    doc.text('Signed & Verified by IDT Academy', w - 18, y + 22, { align: 'right' });
-    y += 40;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(30, 27, 75);
-    doc.text('Performance Summary', 16, y);
-    y += 7;
-    doc.setFontSize(9);
-    const correct = results.filter((r) => r.is_correct === true).length;
-    const wrong = results.filter((r) => r.is_correct === false).length;
-    const skipped = results.filter((r) => !r.user_answer).length;
-    const rows = [
-      ['Total Questions', String(totalQ)],
-      ['Correct Answers', String(correct)],
-      ['Wrong Answers', String(wrong)],
-      ['Skipped', String(skipped)],
-      ['Final Score', score + ' / ' + totalQ + ' (' + pct + '%)'],
-      ['Time Allowed', Math.round(QUIZ_SECONDS / 60) + ' minutes']
-    ];
-    rows.forEach((row, i) => {
-      if (i % 2 === 0) {
-        doc.setFillColor(248, 247, 255);
-        doc.rect(14, y - 4.5, w - 28, 7, 'F');
-      }
-      doc.setTextColor(60, 58, 107);
-      doc.setFont('helvetica', 'normal');
-      doc.text(row[0], 18, y);
-      doc.setTextColor(30, 27, 75);
-      doc.setFont('helvetica', 'bold');
-      doc.text(row[1], w - 18, y, { align: 'right' });
-      y += 7;
-    });
-    pdfSignatures(doc, w, y + 4, signChair, signCeo);
-
-    doc.save('IDT_Assessment_Slips_' + studentName.replace(/\s+/g, '_') + '.pdf');
+    const doc = await buildResultPdf();
+    const studentName = ((userData && userData.full_name) || 'Student').replace(/\s+/g, '_').replace(/[^A-Za-z0-9_-]/g, '');
+    doc.save('IDT_Assessment_Slips_' + studentName + '.pdf');
     miniHide();
     showToast('success', 'PDF Downloaded', 'Your assessment slips have been downloaded. You can print them anytime.');
   } catch (err) {
     miniHide();
-    showToast('error', 'PDF Failed', 'Could not create the PDF.', err.message || String(err));
+    showToast('error', 'PDF Failed', (err && err.message) || 'Could not create the PDF.');
   }
 }
 
 async function emailResult() {
   if (!user || !userData) return;
+  if (!lastResult) {
+    showToast('info', 'No Result Yet', 'Finish an assessment first to email its result.');
+    return;
+  }
+  const email = userData.email;
+  if (!email) {
+    showToast('error', 'No Email Found', 'There is no email address on your account.');
+    return;
+  }
   miniLoad('Emailing your result...');
   try {
-    await loadPdfLib();
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('p', 'mm', 'a4');
-    const w = doc.internal.pageSize.getWidth();
-    const results = window._lastResults || [];
-    const score = window._lastScore || 0;
-    const pct = window._lastPct || 0;
-    const passed = window._lastPassed || false;
-    const courseName = (courseInfoMap[activeCourseId] || {}).course_name || userData.course_name || '';
-    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-    const logo = await imageToDataUrl('https://i.imgur.com/oyqM5oF.png');
-    if (logo) doc.addImage(logo, 'PNG', (w - 20) / 2, 12, 20, 20);
-    doc.setTextColor(30, 27, 75);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(15);
-    doc.text('Intelligent Digital Technology Academy', w / 2, 40, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(109, 106, 138);
-    doc.text('www.idtacademy.com.ng', w / 2, 46, { align: 'center' });
-    doc.setDrawColor(124, 58, 237);
-    doc.line(14, 51, w - 14, 51);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(30, 27, 75);
-    doc.text('ASSESSMENT RESULT', w / 2, 60, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    let y = 70;
-    doc.text('Student: ' + ((userData && userData.full_name) || ''), 16, y);
-    doc.text('ID: ' + getAcademyId(), 120, y);
-    y += 7;
-    doc.text('Course: ' + courseName, 16, y);
-    y += 7;
-    doc.text('Score: ' + score + '/5 (' + pct + '%)  Status: ' + (passed ? 'PASSED' : 'NOT PASSED'), 16, y);
-    y += 6;
-    doc.setFontSize(9);
-    results.forEach((r, i) => {
-      if (y > 265) { doc.addPage(); y = 20; }
-      const ok = r.is_correct === true;
-      doc.text((ok ? '✓' : '✖') + ' Q' + (i + 1) + ': ' + String(r.question || '').slice(0, 50), 18, y);
-      y += 5;
-    });
+    const doc = await buildResultPdf();
     const pdfBase64 = doc.output('datauristring');
-    const res = await sendResultEmail({
+    await withTimeout(sendResultEmail({
       user_id: user.id,
       academy_id: getAcademyId(),
-      email: userData.email || user.email,
-      full_name: (userData && userData.full_name) || '',
-      course_name: courseName,
-      score: score,
-      pct: pct,
-      passed: passed,
-      date: dateStr,
+      email: email,
+      full_name: userData.full_name || '',
+      course_name: lastResult.courseName,
+      score: lastResult.score,
+      max_marks: lastResult.maxMarks,
+      pct: lastResult.pct,
+      passed: lastResult.passed,
+      date: formatDateLong(new Date(lastResult.dateIso)),
       pdf_base64: pdfBase64
-    });
+    }), AI_TIMEOUT_MS, 'Sending the email took too long. Please try again.');
     miniHide();
-    showToast('success', 'Email Sent!', 'Your result has been sent to ' + (userData.email || user.email) + '. Check your inbox (and spam folder).');
+    showToast('success', 'Email Sent!', 'Your result has been sent to ' + email + '. Check your inbox (and spam folder).');
   } catch (err) {
     miniHide();
-    showToast('error', 'Email Failed', 'Could not send the email. Please try again.', err.message || String(err));
+    showToast('error', 'Email Failed', (err && err.message) || 'Could not send the email. Please try again.');
   }
 }
 
 function markdownToHtml(md) {
   let html = escapeHtml(String(md == null ? '' : md));
+  html = html.replace(/```([a-zA-Z0-9]*)\n?([\s\S]*?)```/g, (m, lang, code) => '<pre><code>' + code.replace(/\n$/, '') + '</code></pre>');
   html = html.replace(/^\s*#{1,6}\s*/gm, '');
   html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<b><i>$1</i></b>');
   html = html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
@@ -2306,12 +2886,13 @@ function markdownToHtml(md) {
   html = html.replace(/^\s*(\d+)[.)]\s+/gm, '<b>$1.</b> ');
   html = html.replace(/[ \t]+\n/g, '\n');
   html = html.replace(/\n{3,}/g, '\n\n');
-  return html.replace(/\n/g, '<br>');
+  const parts = html.split(/(<pre>[\s\S]*?<\/pre>)/);
+  return parts.map((p) => (p.indexOf('<pre>') === 0 ? p : p.replace(/\n/g, '<br>'))).join('');
 }
 
 function saveChatHistory() {
   chatHistories[activeCourseId] = (chatHistories[activeCourseId] || []).slice(-12);
-  saveUpdate({ chat_history: chatHistories });
+  saveUpdate({ chat_history: chatHistories }, true);
 }
 
 function startCountdown() {
@@ -2344,27 +2925,36 @@ function stopStatusPolling() {
   }
 }
 
+function stopAllPayLinks() {
+  const box = $('payTransferLinkBox');
+  if (box) box.remove();
+}
+
+async function handlePaymentConfirmed() {
+  stopStatusPolling();
+  if (paymentState) {
+    if (paymentState.timer) clearInterval(paymentState.timer);
+    paymentState.verified = true;
+  }
+  const po = $('paymentOverlay');
+  const pg = $('pendingGate');
+  if (po) po.classList.remove('open');
+  if (pg) pg.classList.remove('open');
+  stopAllPayLinks();
+  confetti();
+  showToast('success', 'Payment Confirmed! 🎉', 'Congratulations! Your payment was successful. Your dashboard is now unlocked.');
+  await loadDashboard();
+}
+
 function startStatusPolling() {
   stopStatusPolling();
   statusPollTimer = setInterval(async () => {
     try {
       const status = await fetchStatusOnce();
       if (String(status).toLowerCase() === 'active') {
-        stopStatusPolling();
-        if (paymentState) {
-          if (paymentState.timer) clearInterval(paymentState.timer);
-          paymentState.verified = true;
-        }
-        const po = $('paymentOverlay');
-        const pg = $('pendingGate');
-        if (po) po.classList.remove('open');
-        if (pg) pg.classList.remove('open');
-        stopAllPayLinks();
-        confetti();
-        showToast('success', 'Payment Confirmed! 🎉', 'Congratulations! Your payment was successful. Your dashboard is now unlocked.');
-        await loadDashboard();
+        await handlePaymentConfirmed();
       }
-    } catch (err) {}
+    } catch (_) {}
   }, STATUS_POLL_MS);
 }
 
@@ -2376,29 +2966,15 @@ function startVerifyPolling() {
       clearInterval(poll);
       return;
     }
+    if (!paymentState.reference) return;
     try {
       const res = await verifyPayment({ reference: paymentState.reference, user_id: user.id });
-      if (res.status === 'active' || res.paid === true) {
+      if (res && (res.status === 'active' || res.paid === true)) {
         clearInterval(poll);
-        paymentState.verified = true;
-        if (paymentState.timer) clearInterval(paymentState.timer);
-        const po = $('paymentOverlay');
-        const pg = $('pendingGate');
-        if (po) po.classList.remove('open');
-        if (pg) pg.classList.remove('open');
-        stopStatusPolling();
-        stopAllPayLinks();
-        confetti();
-        showToast('success', 'Payment Confirmed! 🎉', 'Congratulations! Your payment was successful. Your dashboard is now unlocked.');
-        await loadDashboard();
+        await handlePaymentConfirmed();
       }
-    } catch (err) {}
+    } catch (_) {}
   }, 20000);
-}
-
-function stopAllPayLinks() {
-  const box = $('payTransferLinkBox');
-  if (box) box.remove();
 }
 
 async function startPayment() {
@@ -2419,21 +2995,21 @@ async function startPayment() {
     return;
   }
   const payBtn = $('btnPayNow');
-  if (!payBtn) return;
+  if (!payBtn || payBtn.disabled) return;
   const oldBtnHtml = payBtn.innerHTML;
   payBtn.disabled = true;
   payBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
   miniLoad('Creating payment details...');
   try {
-    const res = await createPayment({
+    const res = await withTimeout(createPayment({
       user_id: user.id,
       academy_id: getAcademyId(),
-      email: (userData && userData.email) || user.email,
+      email: (userData && userData.email) || '',
       full_name: (userData && userData.full_name) || '',
       course_id: course.course_id,
       course_name: course.course_name,
       price: price
-    });
+    }), AI_TIMEOUT_MS, 'Creating the payment took too long. Please try again.');
 
     const accountNumber = res.account_number || res.accountNumber || '';
     const bankName = res.bank_name || res.bankName || '';
@@ -2442,6 +3018,7 @@ async function startPayment() {
     const amount = Number(res.amount || price || 0);
     const minutes = Number(res.expires_in_minutes || 30) || 30;
 
+    if (paymentState && paymentState.timer) clearInterval(paymentState.timer);
     paymentState = {
       reference: reference,
       authorizationUrl: authUrl,
@@ -2450,16 +3027,14 @@ async function startPayment() {
       verified: false
     };
 
-    const oldBox = $('payTransferLinkBox');
-    if (oldBox) oldBox.remove();
+    stopAllPayLinks();
 
     if (authUrl) {
       const po = $('paymentOverlay');
-      if (po) po.classList.remove('open');
       const pg = $('pendingGate');
+      if (po) po.classList.remove('open');
       if (pg) pg.classList.remove('open');
       miniLoad('Opening Paystack...');
-      startCountdown();
       startVerifyPolling();
       startStatusPolling();
       showToast('info', 'Payment Window Opened', 'Complete your payment in the Paystack window. Your dashboard unlocks automatically after payment.');
@@ -2474,7 +3049,6 @@ async function startPayment() {
     if (accountNumber) {
       const amt = $('payAmount');
       const accNum = $('payAccountNumber');
-      const accName = $('payAccountName');
       const bank = $('payBankName');
       const refEl = $('payReference');
       if (amt) amt.textContent = formatMoney(amount);
@@ -2491,12 +3065,9 @@ async function startPayment() {
       if (btnRef) btnRef.dataset.copy = reference;
       const accNameRow = $('payAccountNameRow');
       if (accNameRow) accNameRow.classList.add('hidden');
-      const accNumRow = accNum && accNum.parentElement ? accNum.parentElement : null;
-      if (accNumRow) accNumRow.classList.remove('hidden');
-      const bankRow = bank && bank.parentElement ? bank.parentElement : null;
-      if (bankRow) bankRow.classList.remove('hidden');
-      const refRow = refEl && refEl.parentElement ? refEl.parentElement : null;
-      if (refRow) refRow.classList.remove('hidden');
+      [accNum, bank, refEl].forEach((el) => {
+        if (el && el.parentElement) el.parentElement.classList.remove('hidden');
+      });
       const linkBox = document.createElement('div');
       linkBox.id = 'payTransferLinkBox';
       linkBox.style.cssText = 'margin:14px 0 4px;padding:14px 16px;border-radius:14px;background:rgba(124,58,237,.07);border:1.5px solid rgba(124,58,237,.25);text-align:center';
@@ -2505,10 +3076,10 @@ async function startPayment() {
       inner += '<div style="font-size:20px;font-weight:900;letter-spacing:1.5px;color:#6d28d9">' + escapeHtml(accountNumber) + '</div>';
       inner += '<p style="font-size:10.5px;color:#6d6a8a;margin-top:10px">Your dashboard unlocks automatically the moment your payment is confirmed.</p>';
       linkBox.innerHTML = inner;
-      const overlayBody = $('paymentOverlay');
-      if (overlayBody) {
-        const overlayCard = overlayBody.querySelector('.ov-body') || overlayBody.querySelector('div') || overlayBody;
-        overlayCard.insertBefore(linkBox, overlayCard.firstChild);
+      const overlay = $('paymentOverlay');
+      if (overlay) {
+        const body = overlay.querySelector('.ov-body') || overlay;
+        body.insertBefore(linkBox, body.firstChild);
       }
       const pg = $('pendingGate');
       const po = $('paymentOverlay');
@@ -2529,7 +3100,7 @@ async function startPayment() {
     miniHide();
     payBtn.disabled = false;
     payBtn.innerHTML = oldBtnHtml;
-    showToast('error', 'Payment Failed', 'Could not create payment details. Please try again.', err.message || String(err));
+    showToast('error', 'Payment Failed', (err && err.message) || 'Could not create payment details. Please try again.');
   }
 }
 
@@ -2548,8 +3119,10 @@ async function loadDashboard() {
     renderUserIdBadge();
     renderMenu();
     renderUserGreet();
-    const status = String((userData && userData.status) || 'pending');
+    const status = String((userData && userData.status) || 'pending').toLowerCase();
     if (status !== 'active') {
+      const app = $('app');
+      if (app) app.classList.add('hidden');
       renderPendingGate();
       const gate = $('pendingGate');
       if (gate) gate.classList.add('open');
@@ -2558,11 +3131,13 @@ async function loadDashboard() {
         const sub = $('pnSub');
         if (sub) sub.textContent = 'Your account has no course yet. Pick a course below and complete your payment to start learning.';
       }
-      hideLoading();
       return;
     }
+    stopStatusPolling();
     const gate = $('pendingGate');
     if (gate) gate.classList.remove('open');
+    const po = $('paymentOverlay');
+    if (po) po.classList.remove('open');
     const paidCourses = courseList.filter((c) => {
       const st = String(c.status || '').toLowerCase();
       const isMainPaid = c.course_id === String((userData && userData.course_id) || '').trim() && status === 'active';
@@ -2570,35 +3145,24 @@ async function loadDashboard() {
       return !looksLikeJamb(c.course_id, c.course_name, c.course_price);
     });
     if (paidCourses.length === 0) {
-      hideLoading();
       showToast('info', 'No Paid Course', 'No paid course was found on your account. Please select a course and complete your payment.');
       openCoursePush();
       return;
     }
-    if (paidCourses.length > 1) {
-      hideLoading();
-      const app = $('app');
-      if (app) app.classList.remove('hidden');
-      courseList = paidCourses;
-      openMyCourses();
-      showToast('info', 'Choose Your Course', 'You have ' + paidCourses.length + ' paid courses. Tap the one you want to study.');
-      return;
-    }
-    const cid = paidCourses[0].course_id;
-    await selectCourse(cid);
+    courseList = paidCourses;
+    const cid = pickDefaultCourse(paidCourses);
+    await selectCourse(cid, false);
     const app = $('app');
     if (app) app.classList.remove('hidden');
     startSessionClock();
     loadAd();
-    hideLoading();
     showToast('success', 'Welcome Back!', 'Happy learning ' + ((userData && userData.full_name) || '') + '! Keep going, you are doing great.');
   } catch (err) {
+    showToast('error', 'Dashboard Error', 'Could not load your dashboard. Please check your internet connection and refresh.');
+  } finally {
     hideLoading();
-    showToast('error', 'Dashboard Error', 'Could not load your dashboard.', err.message || String(err));
   }
 }
-
-
 
 function compressImage(file) {
   return new Promise((resolve) => {
@@ -2608,15 +3172,15 @@ function compressImage(file) {
       img.onload = () => {
         try {
           const maxSide = 1024;
-          let w = img.naturalWidth || img.width;
-          let h = img.naturalHeight || img.height;
+          const w = img.naturalWidth || img.width;
+          const h = img.naturalHeight || img.height;
           const scale = Math.min(1, maxSide / Math.max(w, h));
           const c = document.createElement('canvas');
           c.width = Math.round(w * scale);
           c.height = Math.round(h * scale);
           c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-          let dataUrl = c.toDataURL('image/jpeg', 0.6);
           let q = 0.6;
+          let dataUrl = c.toDataURL('image/jpeg', q);
           while (dataUrl.length > 280000 && q > 0.3) {
             q -= 0.1;
             dataUrl = c.toDataURL('image/jpeg', q);
@@ -2644,7 +3208,7 @@ function renderImgPreview() {
   }
   box.classList.remove('hidden');
   box.innerHTML = pendingChatImages.map((src, i) =>
-    '<div class="cf-img-item"><img src="' + src + '" alt="photo"><button type="button" class="cf-img-x" data-i="' + i + '"><i class="fa-solid fa-xmark"></i></button></div>'
+    '<div class="cf-img-item"><img src="' + escapeHtml(src) + '" alt="photo"><button type="button" class="cf-img-x" data-i="' + i + '"><i class="fa-solid fa-xmark"></i></button></div>'
   ).join('');
   box.querySelectorAll('.cf-img-x').forEach((b) => {
     b.addEventListener('click', () => {
@@ -2659,63 +3223,50 @@ function hideQuickButtons() {
   if (quick) quick.classList.add('hidden');
 }
 
-function showQuickButtons() {
-  const quick = document.querySelector('.cf-quick');
-  if (quick) quick.classList.remove('hidden');
-}
-
-
-let aiSelectedLang = 'english';
-
-function aiLabel(lang) {
-  const map = {
-    'english': 'English',
-    'english+hausa': 'English + Hausa',
-    'english+yoruba': 'English + Yoruba',
-    'english+igbo': 'English + Igbo',
-    'english+pidgin': 'English + Pidgin'
-  };
-  const key = String(lang || '').toLowerCase();
-  return map[key] || String(lang || '');
-}
-
-function currentLang() {
+function syncLangButtons() {
   const headerLangs = $('aiHeaderLangs');
-  if (headerLangs) {
-    const active = headerLangs.querySelector('button.active[data-lang]');
-    if (active && active.dataset.lang) return active.dataset.lang;
+  if (!headerLangs) return;
+  const cur = String(aiSelectedLang || 'english').toLowerCase();
+  let matched = false;
+  headerLangs.querySelectorAll('button[data-lang]').forEach((b) => {
+    const on = String(b.dataset.lang).toLowerCase() === cur;
+    b.classList.toggle('active', on);
+    if (on) matched = true;
+  });
+  const other = $('aiOtherLangBtn');
+  if (other) {
+    if (!matched && cur) {
+      other.classList.add('active');
+      other.innerHTML = '<i class="fa-solid fa-check"></i> ' + escapeHtml(aiLabel(aiSelectedLang));
+    } else {
+      other.classList.remove('active');
+      other.innerHTML = '<i class="fa-solid fa-plus"></i> Other Language...';
+    }
   }
-  return aiSelectedLang || 'english';
 }
-
 
 function scrollChatToBottom() {
   const box = $('chatMsgs');
   if (box) box.scrollTop = box.scrollHeight;
 }
 
-function addAiMessage(role, content) {
+function addAiMessage(role, content, images) {
   const area = $('chatMsgs');
   if (!area) return null;
   const row = document.createElement('div');
   row.className = 'cf-row ' + (role === 'bot' ? 'bot-row' : 'user-row');
-  if (imagesToSend.length) {
-    const area = $('chatMsgs');
-    if (area) {
-      const lastRow = area.querySelector('.cf-row.user-row:last-child .cf-bubble');
-      if (lastRow) {
-        lastRow.insertAdjacentHTML('beforeend', '<div class="cf-msg-imgs">' + imagesToSend.map((s) => '<img src="' + s + '" alt="photo">').join('') + '</div>');
-        scrollChatToBottom();
-      }
-    }
-  }
-  pendingChatImages = [];
-  renderImgPreview();
-  hideQuickButtons();
   const avatar = role === 'bot' ? '<img class="cf-avatar-sm" src="' + AI_ICON_URL + '" alt="AI">' : '';
   const who = role === 'bot' ? '<div class="cf-who">AI Tutor</div>' : '<div class="cf-who">You</div>';
-  const body = role === 'bot' ? '<div class="cf-bubble">' + markdownToHtml(content) + '</div>' : '<div class="cf-bubble">' + escapeHtml(content) + '</div>';
-  row.innerHTML = avatar + '<div class="cf-content">' + who + body + '</div>';
+  const imgs = (images && images.length)
+    ? '<div class="cf-msg-imgs">' + images.map((s) => '<img src="' + escapeHtml(s) + '" alt="photo">').join('') + '</div>'
+    : '';
+  let inner;
+  if (role === 'bot') {
+    inner = markdownToHtml(content);
+  } else {
+    inner = (content ? '<p>' + escapeHtml(content) + '</p>' : '') + imgs;
+  }
+  row.innerHTML = avatar + '<div class="cf-content">' + who + '<div class="cf-bubble">' + inner + '</div></div>';
   area.appendChild(row);
   scrollChatToBottom();
   return row;
@@ -2733,13 +3284,23 @@ function aiThinking() {
   return row;
 }
 
+function removeNode(el) {
+  if (el && el.parentNode) el.parentNode.removeChild(el);
+}
+
 function openChat() {
   const overlay = $('chatOverlay');
   if (!overlay) return;
   overlay.classList.add('open');
   document.body.style.overflow = 'hidden';
+  syncLangButtons();
+  const area = $('chatMsgs');
+  if (area && !area.children.length) {
+    const tn = currentTopic ? (currentTopic.topic_name || '') : '';
+    addAiMessage('bot', 'Hello ' + ((userData && userData.full_name) || 'Student') + '! I am your IDT Academy teacher.' + (tn ? ' We are on "' + tn + '".' : '') + ' Ask me anything, send a photo, or pick a language above and I will explain this topic for you.');
+  }
   const input = $('chatInput');
-  if (input) setTimeout(() => input.focus(), 200);
+  if (input) setTimeout(() => input.focus(), 250);
 }
 
 function closeChat() {
@@ -2748,11 +3309,271 @@ function closeChat() {
   document.body.style.overflow = '';
 }
 
+function setAiSending(sending) {
+  aiBusy = sending;
+  const sendBtn = $('chatSend');
+  if (sendBtn) {
+    sendBtn.disabled = sending;
+    sendBtn.innerHTML = sending ? '<i class="fa-solid fa-spinner fa-spin"></i>' : '<i class="fa-solid fa-paper-plane"></i>';
+  }
+}
+
+function topicPayloadBase() {
+  return {
+    user_id: user.id,
+    user_name: (userData && userData.full_name) || 'Student',
+    academy_id: getAcademyId(),
+    course_id: activeCourseId,
+    course_name: (courseInfoMap[activeCourseId] || {}).course_name || (userData && userData.course_name) || '',
+    topic_name: currentTopic ? (currentTopic.topic_name || '') : '',
+    topic_text: currentTopic ? String(currentTopic.topic_text || '').slice(0, 6000) : ''
+  };
+}
+
+function extractAiAnswer(res) {
+  if (!res) return '';
+  if (typeof res === 'string') return res;
+  return String(res.answer || res.explanation || res.text || res.message || res.result || '').trim();
+}
+
+async function handleAiChatSend() {
+  const input = $('chatInput');
+  if (!input) return;
+  if (aiBusy) return;
+  const q = input.value.trim();
+  const imagesToSend = pendingChatImages.slice();
+  if (!q && !imagesToSend.length) return;
+
+  addAiMessage('user', q, imagesToSend);
+  pendingChatImages = [];
+  renderImgPreview();
+  hideQuickButtons();
+  input.value = '';
+  input.style.height = 'auto';
+
+  const hist = chatHistories[activeCourseId] = chatHistories[activeCourseId] || [];
+  hist.push({ role: 'user', content: q || '[Images sent]' });
+
+  setAiSending(true);
+  const thinkingEl = aiThinking();
+  try {
+    const res = await withTimeout(askQuestion(Object.assign(topicPayloadBase(), {
+      question: q || 'Please look at the image I sent and help me understand it.',
+      images: imagesToSend,
+      lang: aiSelectedLang || getPreferredLang(),
+      language: aiLabel(aiSelectedLang || getPreferredLang()),
+      history: hist.slice(-9, -1)
+    })), AI_TIMEOUT_MS, 'The AI took too long to answer. Please try again.');
+    removeNode(thinkingEl);
+    const answer = extractAiAnswer(res);
+    if (!answer) throw new Error('The AI sent an empty reply');
+    addAiMessage('bot', answer);
+    hist.push({ role: 'assistant', content: answer });
+    saveChatHistory();
+  } catch (err) {
+    removeNode(thinkingEl);
+    hist.pop();
+    addAiMessage('bot', 'Sorry, I could not answer right now. ' + ((err && err.message) || 'Please try again.'));
+    showToast('error', 'Chat Error', (err && err.message) || 'Failed to get a reply. Please try again.');
+  } finally {
+    setAiSending(false);
+    scrollChatToBottom();
+    input.focus();
+  }
+}
+
+async function runExplain(lang) {
+  if (!currentTopic) {
+    showToast('info', 'No Topic', 'Open a topic first so the AI can explain it.');
+    return;
+  }
+  if (aiBusy) {
+    showToast('info', 'Please Wait', 'The AI is still answering. Try again in a moment.');
+    return;
+  }
+  const chosen = normalizeLangCode(lang || aiSelectedLang);
+  hideQuickButtons();
+  addAiMessage('user', 'Explain "' + (currentTopic.topic_name || 'this topic') + '" in ' + aiLabel(chosen) + '.');
+  const hist = chatHistories[activeCourseId] = chatHistories[activeCourseId] || [];
+  hist.push({ role: 'user', content: 'Explain this topic in ' + aiLabel(chosen) });
+  setAiSending(true);
+  const thinkingEl = aiThinking();
+  try {
+    const res = await withTimeout(explainText(Object.assign(topicPayloadBase(), {
+      lang: chosen,
+      language: aiLabel(chosen),
+      history: hist.slice(-9, -1)
+    })), AI_TIMEOUT_MS, 'The AI took too long to explain. Please try again.');
+    removeNode(thinkingEl);
+    const answer = extractAiAnswer(res);
+    if (!answer) throw new Error('The AI sent an empty reply');
+    addAiMessage('bot', answer);
+    hist.push({ role: 'assistant', content: answer });
+    saveChatHistory();
+  } catch (err) {
+    removeNode(thinkingEl);
+    hist.pop();
+    addAiMessage('bot', 'Sorry, I could not explain right now. ' + ((err && err.message) || 'Please try again.'));
+    showToast('error', 'Explain Failed', (err && err.message) || 'Could not get the explanation. Please try again.');
+  } finally {
+    setAiSending(false);
+    scrollChatToBottom();
+  }
+}
+
+function applyLanguageChoice(lang) {
+  aiSelectedLang = normalizeLangCode(lang);
+  setPreferredLang(aiSelectedLang);
+  syncLangButtons();
+}
+
+function crOutputEl() {
+  return $('crOutput');
+}
+
+function cleanupCodeRun() {
+  if (codeTimeout) {
+    clearTimeout(codeTimeout);
+    codeTimeout = null;
+  }
+  if (codeHandler) {
+    window.removeEventListener('message', codeHandler);
+    codeHandler = null;
+  }
+  if (codeFrame) {
+    codeFrame.remove();
+    codeFrame = null;
+  }
+}
+
+function openCodeRunner() {
+  const box = $('codeRunner');
+  if (!box || !currentTopic) return;
+  box.classList.remove('hidden');
+  const key = activeCourseId + '_' + currentTopicIdx;
+  const input = $('crInput');
+  if (input && runnerTopicKey !== key) {
+    runnerTopicKey = key;
+    const block = extractCodeBlock(currentTopic.topic_text);
+    input.value = block ? block.code : '';
+    const sel = $('crLang');
+    if (sel && block) {
+      const l = block.lang === 'js' ? 'javascript' : (block.lang === 'py' ? 'python' : (block.lang === 'sh' ? 'bash' : block.lang));
+      if (['javascript', 'html', 'python', 'bash'].indexOf(l) !== -1) sel.value = l;
+    }
+    const out = crOutputEl();
+    if (out) out.textContent = '> Output will appear here';
+  }
+  try { box.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+}
+
+function renderCodeLines(lines) {
+  const out = crOutputEl();
+  if (!out) return;
+  if (!lines.length) {
+    out.innerHTML = '<span class="ok">&gt; Done. The code ran without printing anything.</span>';
+    return;
+  }
+  out.innerHTML = lines.map((l) => '<div class="' + (l.err ? 'err' : 'ok') + '">' + (l.err ? '&#10006; ' : '&gt; ') + escapeHtml(l.text) + '</div>').join('');
+}
+
+function runJavaScript(code) {
+  cleanupCodeRun();
+  const out = crOutputEl();
+  if (out) out.innerHTML = '<span class="ok">&gt; Running...</span>';
+  const token = 'cr' + Date.now() + Math.floor(Math.random() * 1000);
+  const lines = [];
+  const frame = document.createElement('iframe');
+  frame.setAttribute('sandbox', 'allow-scripts');
+  frame.style.cssText = 'display:none;width:0;height:0;border:0';
+  codeFrame = frame;
+  codeHandler = (ev) => {
+    if (!codeFrame || ev.source !== codeFrame.contentWindow) return;
+    const d = ev.data;
+    if (!d || d.token !== token) return;
+    if (d.type === 'log') lines.push({ text: String(d.text), err: false });
+    if (d.type === 'error') lines.push({ text: String(d.text), err: true });
+    if (d.type === 'done') {
+      cleanupCodeRun();
+      renderCodeLines(lines);
+    }
+  };
+  window.addEventListener('message', codeHandler);
+  codeTimeout = setTimeout(() => {
+    lines.push({ text: 'Stopped: the code took too long to finish.', err: true });
+    cleanupCodeRun();
+    renderCodeLines(lines);
+  }, 6000);
+  const safeCode = JSON.stringify(code).replace(/</g, '\\u003c');
+  const safeToken = JSON.stringify(token);
+  const script =
+    '(function(){var T=' + safeToken + ';' +
+    'function send(t,x){parent.postMessage({token:T,type:t,text:x},"*")}' +
+    'function fmt(a){return Array.prototype.map.call(a,function(v){if(typeof v==="object"&&v!==null){try{return JSON.stringify(v)}catch(e){return String(v)}}return String(v)}).join(" ")}' +
+    'console.log=function(){send("log",fmt(arguments))};' +
+    'console.info=console.log;console.warn=console.log;' +
+    'console.error=function(){send("error",fmt(arguments))};' +
+    'window.onerror=function(m){send("error",String(m));send("done","");return true};' +
+    'var AF=Object.getPrototypeOf(async function(){}).constructor;' +
+    'try{AF(' + safeCode + ')().then(function(){send("done","")}).catch(function(e){send("error",String((e&&e.message)||e));send("done","")})}' +
+    'catch(e){send("error",String((e&&e.message)||e));send("done","")}})();';
+  frame.srcdoc = '<!DOCTYPE html><html><body><scr' + 'ipt>' + script + '</scr' + 'ipt></body></html>';
+  document.body.appendChild(frame);
+}
+
+function runHtmlPreview(code) {
+  cleanupCodeRun();
+  const out = crOutputEl();
+  if (!out) return;
+  out.innerHTML = '';
+  const frame = document.createElement('iframe');
+  frame.setAttribute('sandbox', 'allow-scripts');
+  frame.style.cssText = 'width:100%;height:240px;border:0;background:#fff;border-radius:8px';
+  frame.srcdoc = code;
+  out.appendChild(frame);
+}
+
+function runCode() {
+  const input = $('crInput');
+  const sel = $('crLang');
+  const out = crOutputEl();
+  if (!input || !out) return;
+  const code = input.value;
+  const lang = sel ? sel.value : 'javascript';
+  if (!code.trim()) {
+    out.innerHTML = '<span class="err">&#10006; Write some code first, then press Run.</span>';
+    return;
+  }
+  if (lang === 'javascript') {
+    runJavaScript(code);
+  } else if (lang === 'html') {
+    runHtmlPreview(code);
+  } else {
+    out.innerHTML = '<span class="err">&#10006; ' + escapeHtml(lang === 'python' ? 'Python' : 'Bash') + ' cannot run inside the browser. Choose JavaScript or HTML to test your code live.</span>';
+  }
+}
 
 function on(id, event, handler) {
   const el = $(id);
   if (!el) return;
   el.addEventListener(event, handler);
+}
+
+function bindCopyButton(id, okTitle, okMessage) {
+  on(id, 'click', async (e) => {
+    const btn = e.target.closest('.mini-copy') || e.currentTarget;
+    const val = btn.dataset.copy;
+    if (!val) return;
+    try {
+      await copyText(val);
+      btn.classList.add('done');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+      showToast('success', okTitle, okMessage);
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    } catch (err) {
+      showToast('error', 'Copy Failed', 'Could not copy. Please copy it by hand.');
+    }
+  });
 }
 
 function domReady(fn) {
@@ -2763,84 +3584,18 @@ function domReady(fn) {
   }
 }
 
-
-async function handleAiChatSend() {
-  const input = $('chatInput');
-  const sendBtn = $('chatSend');
-  if (!input || !sendBtn) return;
-  const q = input.value.trim();
-  const hasImages = pendingChatImages.length > 0;
-  if (!q && !hasImages) return;
-  if (sendBtn.disabled) return;
-
-  const imagesToSend = pendingChatImages.slice();
-
-  addAiMessage('user', q);
-  if (imagesToSend.length) {
-    const area = $('chatMsgs');
-    if (area) {
-      const rows = area.querySelectorAll('.cf-row.user-row');
-      const lastRow = rows.length ? rows[rows.length - 1].querySelector('.cf-bubble') : null;
-      if (lastRow) {
-        lastRow.insertAdjacentHTML('beforeend', '<div class="cf-msg-imgs">' + imagesToSend.map((s) => '<img src="' + s + '" alt="photo">').join('') + '</div>');
-        scrollChatToBottom();
-      }
-    }
-  }
-  pendingChatImages = [];
-  renderImgPreview();
-  hideQuickButtons();
-
-  input.value = '';
-  input.style.height = 'auto';
-
-  const hist = chatHistories[activeCourseId] = chatHistories[activeCourseId] || [];
-  hist.push({ role: 'user', content: q || '[Images sent]' });
-
-  sendBtn.disabled = true;
-  sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-  const thinkingEl = aiThinking();
-
-  try {
-    const topicName = currentTopic ? (currentTopic.title || '') : '';
-    const courseName = courseInfoMap[activeCourseId] ? (courseInfoMap[activeCourseId].title || '') : '';
-    const res = await askQuestion({
-      user_id: user.id,
-      user_name: (userData && userData.full_name) || 'Student',
-      course_id: activeCourseId,
-      course_name: courseName,
-      topic_name: topicName,
-      topic_text: currentTopic ? (currentTopic.body || currentTopic.content || '') : '',
-      question: q,
-      images: imagesToSend,
-      lang: aiSelectedLang || getPreferredLang(),
-      academy_id: getAcademyId(),
-      history: hist.slice(-8)
-    });
-    if (thinkingEl && thinkingEl.parentNode) thinkingEl.parentNode.removeChild(thinkingEl);
-    const answer = (res && (res.answer || res.message)) || '';
-    if (!answer) throw new Error('Empty reply from AI');
-    addAiMessage('bot', answer);
-    hist.push({ role: 'assistant', content: answer });
-    saveChatHistory();
-    scrollChatToBottom();
-  } catch (err) {
-    if (thinkingEl && thinkingEl.parentNode) thinkingEl.parentNode.removeChild(thinkingEl);
-    addAiMessage('bot', 'Sorry, something went wrong: ' + (err.message || 'please try again.'));
-    scrollChatToBottom();
-    showToast('error', 'Chat Error', err.message || 'Failed to get a reply. Please try again.');
-  } finally {
-    sendBtn.disabled = false;
-    sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
-    input.focus();
-  }
+function closeAssessmentOverlay() {
+  const o = $('assessmentOverlay');
+  if (o) o.classList.remove('open');
+  stopRetryTimer();
 }
-
 
 domReady(() => {
   ensureAppFreshness();
+  injectExtraStyles();
   ensureToastWrap();
   showLoading();
+  document.documentElement.classList.add('ready');
 
   (async () => {
     try {
@@ -2859,16 +3614,10 @@ domReady(() => {
       await loadDashboard();
     } catch (err) {
       hideLoading();
-      showToast('error', 'Error', 'Something went wrong. Please login again.', err.message || String(err));
+      showToast('error', 'Login Needed', 'Something went wrong. Please login again.');
       setTimeout(() => window.location.replace('register.html'), 2500);
     }
   })();
-
-  window.addEventListener('load', () => {
-    setTimeout(hideLoading, 600);
-  });
-
-  document.documentElement.classList.add('ready');
 
   on('menuBtn', 'click', () => {
     const m = $('sideMenu');
@@ -2886,22 +3635,18 @@ domReady(() => {
     setTimeout(() => window.location.replace('register.html'), 1200);
   });
 
-  const smMyCourse = $('smMyCourse');
-  if (smMyCourse) {
-    smMyCourse.addEventListener('click', (e) => {
-      e.preventDefault();
-      const sm = $('sideMenu');
-      if (sm) sm.classList.remove('open');
-      if (courseList.length > 0) {
-        openMyCourses();
-      } else {
-        openCoursePush();
-        const sub = $('pnSub');
-        if (sub) sub.textContent = 'You have no course yet. Pick a course below to continue.';
-      }
-    });
-  }
-      
+  on('smMyCourse', 'click', (e) => {
+    e.preventDefault();
+    const sm = $('sideMenu');
+    if (sm) sm.classList.remove('open');
+    if (courseList.length > 0) {
+      openMyCourses();
+    } else {
+      openCoursePush();
+      const sub = $('pnSub');
+      if (sub) sub.textContent = 'You have no course yet. Pick a course below to continue.';
+    }
+  });
 
   on('btnCopyUserId', 'click', async (e) => {
     const btn = e.currentTarget;
@@ -2913,7 +3658,7 @@ domReady(() => {
       showToast('success', 'Academy ID Copied!', 'Your ID: ' + academyId);
       setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
     } catch (err) {
-      showToast('error', 'Copy Failed', 'Could not copy your ID.', err.message);
+      showToast('error', 'Copy Failed', 'Could not copy your ID.');
     }
   });
 
@@ -2923,39 +3668,13 @@ domReady(() => {
 
   on('paymentClose', 'click', () => {
     const po = $('paymentOverlay');
+    const pg = $('pendingGate');
     if (po) po.classList.remove('open');
-    stopStatusPolling();
+    if (pg) pg.classList.add('open');
   });
 
-  on('btnCopyAccount', 'click', async (e) => {
-    const btn = e.target.closest('.mini-copy') || e.currentTarget;
-    const val = btn.dataset.copy;
-    if (!val) return;
-    try {
-      await copyText(val);
-      btn.classList.add('done');
-      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-      showToast('success', 'Copied!', 'Account number copied to clipboard.');
-      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
-    } catch (err) {
-      showToast('error', 'Copy Failed', 'Could not copy.', err.message);
-    }
-  });
-
-  on('btnCopyRef', 'click', async (e) => {
-    const btn = e.target.closest('.mini-copy') || e.currentTarget;
-    const val = btn.dataset.copy;
-    if (!val) return;
-    try {
-      await copyText(val);
-      btn.classList.add('done');
-      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-      showToast('success', 'Copied!', 'Payment reference copied to clipboard.');
-      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
-    } catch (err) {
-      showToast('error', 'Copy Failed', 'Could not copy.', err.message);
-    }
-  });
+  bindCopyButton('btnCopyAccount', 'Copied!', 'Account number copied to clipboard.');
+  bindCopyButton('btnCopyRef', 'Copied!', 'Payment reference copied to clipboard.');
 
   on('btnCopyRefLink', 'click', async (e) => {
     const btn = e.currentTarget;
@@ -2966,7 +3685,7 @@ domReady(() => {
       showToast('success', 'Referral Link Copied!', 'Share this link with your friends and earn ₦1,500 when they pay for any course.');
       setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
     } catch (err) {
-      showToast('error', 'Copy Failed', 'Could not copy the link.', err.message);
+      showToast('error', 'Copy Failed', 'Could not copy the link.');
     }
   });
 
@@ -2975,204 +3694,58 @@ domReady(() => {
     window.location.href = 'referral.html?user_id=' + encodeURIComponent(user.id) + '&code=' + encodeURIComponent((userData && userData.referral_code) || '');
   });
 
-  on('btnAskQuestion', 'click', openChat);
-
-  on('btnExplainLang', 'click', () => {
-    openChat();
-    const lang = currentLang();
-    runExplain(lang, String(lang).indexOf('+') !== -1);
-  });
-
-  on('chatClose', 'click', closeChat);
-
-const chatForm = $('chatForm');
-  if (chatForm) {
-    chatForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      handleAiChatSend();
-    });
-  }
-
-  const chatInput = $('chatInput');
-  if (chatInput) {
-    chatInput.addEventListener('input', () => {
-      chatInput.style.height = 'auto';
-      chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
-    });
-    chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleAiChatSend();
-      }
-    });
-  }
-
-  const quickWrap = document.querySelector('.cf-quick');
-  if (quickWrap) {
-    quickWrap.querySelectorAll('button[data-quick]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const input = $('chatInput');
-        if (input) {
-          input.value = btn.dataset.quick;
-          input.focus();
-          input.dispatchEvent(new Event('input'));
-        }
-        handleAiChatSend();
-      });
-    });
-  }
-
-  const btnChatImage = $('btnChatImage');
-  const chatImageInput = $('chatImageInput');
-  if (btnChatImage && chatImageInput) {
-    btnChatImage.addEventListener('click', () => chatImageInput.click());
-    chatImageInput.addEventListener('change', async () => {
-      const files = Array.from(chatImageInput.files || []);
-      chatImageInput.value = '';
-      const room = 3 - pendingChatImages.length;
-      if (room <= 0) {
-        showToast('info', 'Limit Reached', 'You can send a maximum of 3 images at once.');
-        return;
-      }
-      miniLoad('Preparing images...');
-      for (const f of files.slice(0, room)) {
-        const b64 = await compressImage(f);
-        if (b64) pendingChatImages.push('data:image/jpeg;base64,' + b64);
-      }
-      miniHide();
-      renderImgPreview();
-      if (!pendingChatImages.length) showToast('error', 'Image Failed', 'Could not read that image. Please try another one.');
-    });
-  }
-
-  const btnToggleQuick = $('btnToggleQuick');
-  if (btnToggleQuick) {
-    btnToggleQuick.addEventListener('click', () => {
-      const quick = document.querySelector('.cf-quick');
-      if (quick) quick.classList.toggle('hidden');
-    });
-  }
-  
-  
-  on('chatSend', 'click', (e) => {
-    e.preventDefault();
-    handleAiChatSend();
-  });
-
-
-const chatInputEl = $('chatInput');
-  if (chatInputEl) {
-    chatInputEl.addEventListener('input', () => {
-      chatInputEl.style.height = 'auto';
-      chatInputEl.style.height = Math.min(chatInputEl.scrollHeight, 120) + 'px';
-    });
-  }
-
-  document.querySelectorAll('.cf-quick button[data-quick]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const input = $('chatInput');
-      if (input) {
-        input.value = btn.dataset.quick;
-        handleAiChatSend();
-        const imagesToSend = pendingChatImages.slice();
-      }
-    });
-  });
-
-
-
-  const headerLangs = $('aiHeaderLangs');
-  if (headerLangs) {
-    headerLangs.querySelectorAll('button[data-lang]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        headerLangs.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        runExplain(btn.dataset.lang, true);
-      });
-    });
-    const otherBtn = $('aiOtherLangBtn');
-    if (otherBtn) {
-      otherBtn.addEventListener('click', () => {
-        const row = $('aiOtherLangRow');
-        if (row) row.classList.remove('hidden');
-      });
-    }
-  }
-
-  const aiOtherLangSend = $('aiOtherLangSend');
-  if (aiOtherLangSend) {
-    aiOtherLangSend.addEventListener('click', () => {
-      const input = $('aiOtherLangInput');
-      const lang = (input && input.value.trim()) || '';
-      if (!lang) {
-        showToast('error', 'Language Required', 'Please type the language you want.');
-        return;
-      }
-      if (input) input.value = '';
-      const row = $('aiOtherLangRow');
-      if (row) row.classList.add('hidden');
-      runExplain(lang, true);
-    });
-  }
-
-  const aiOtherLangInput = $('aiOtherLangInput');
-  if (aiOtherLangInput) {
-    aiOtherLangInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const send = $('aiOtherLangSend');
-        if (send) send.click();
-      }
-    });
-  }
-
   document.querySelectorAll('.social-chip').forEach((chip) => {
     chip.addEventListener('click', async () => {
       const link = buildReferralLink();
       const text = 'Join me at IDT Academy! Learn modern skills online. Use my referral link: ' + link;
       if (chip.classList.contains('wa')) {
-        window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+        window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener');
         return;
       }
       if (chip.classList.contains('x')) {
-        window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
+        window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank', 'noopener');
         return;
       }
       if (chip.classList.contains('fb')) {
-        window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(link), '_blank');
+        window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(link), '_blank', 'noopener');
         return;
       }
       try {
         await copyText(link);
         showToast('success', 'Link Copied!', 'Share it on ' + chip.textContent.trim() + ' and earn ₦1,500 per referral.');
       } catch (err) {
-        showToast('error', 'Copy Failed', 'Could not copy.', err.message);
+        showToast('error', 'Copy Failed', 'Could not copy the link.');
       }
     });
   });
 
-  on('userAvatar', 'click', openMyCourses);
+  on('userAvatar', 'click', () => {
+    if (courseList.length > 0) openMyCourses();
+    else openCoursePush();
+  });
 
   on('pendingCourseBox', 'click', () => {
     renderCoursePush();
+    const t = $('pnTitle');
+    if (t) t.textContent = 'Choose Your Course';
     const p = $('coursePush');
     if (p) p.classList.add('open');
   });
 
   on('btnPrevTopic', 'click', () => {
-    if (currentTopicIdx > 0) goToTopic(currentTopicIdx - 1);
+    if (currentTopicIdx > 0) goBackToTopic(currentTopicIdx - 1);
   });
 
   on('btnNextTopic', 'click', () => {
     if (isProcessingNext) return;
     isProcessingNext = true;
-    Promise.resolve(advanceTopic()).catch((err) => {
-      showToast('error', 'Error', 'Next button failed. Please try again.', err.message || String(err));
+    Promise.resolve(advanceTopic()).catch(() => {
+      showToast('error', 'Error', 'Next button failed. Please try again.');
     }).finally(() => {
       isProcessingNext = false;
     });
   });
-  
+
   on('btnNotReady', 'click', () => {
     closeUnderstandModal();
     pendingNextIdx = -1;
@@ -3192,33 +3765,162 @@ const chatInputEl = $('chatInput');
       showToast('success', 'Text Copied!', 'The full topic text was copied to your clipboard.');
       setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
     } catch (err) {
-      showToast('error', 'Copy Failed', 'Could not copy the text.', err.message);
+      showToast('error', 'Copy Failed', 'Could not copy the text.');
+    }
+  });
+
+  on('btnRunCode', 'click', openCodeRunner);
+  on('btnCodeRun', 'click', openCodeRunner);
+  on('crRunBtn', 'click', runCode);
+
+  on('btnAskQuestion', 'click', openChat);
+
+  on('btnExplainLang', 'click', () => {
+    openChat();
+    runExplain(currentLang());
+  });
+
+  on('videoExplainFloat', 'click', () => {
+    openChat();
+    runExplain(currentLang());
+  });
+
+  on('chatClose', 'click', closeChat);
+
+  const chatForm = $('chatForm');
+  if (chatForm) {
+    chatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      handleAiChatSend();
+    });
+  }
+
+  const chatInput = $('chatInput');
+  if (chatInput) {
+    chatInput.addEventListener('input', () => {
+      chatInput.style.height = 'auto';
+      chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+    });
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        handleAiChatSend();
+      }
+    });
+  }
+
+  document.querySelectorAll('.cf-quick button[data-quick]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const input = $('chatInput');
+      if (!input) return;
+      input.value = btn.dataset.quick;
+      handleAiChatSend();
+    });
+  });
+
+  const btnChatImage = $('btnChatImage');
+  const chatImageInput = $('chatImageInput');
+  if (btnChatImage && chatImageInput) {
+    btnChatImage.addEventListener('click', () => chatImageInput.click());
+    chatImageInput.addEventListener('change', async () => {
+      const files = Array.from(chatImageInput.files || []);
+      chatImageInput.value = '';
+      if (!files.length) return;
+      const room = 3 - pendingChatImages.length;
+      if (room <= 0) {
+        showToast('info', 'Limit Reached', 'You can send a maximum of 3 images at once.');
+        return;
+      }
+      miniLoad('Preparing images...');
+      let added = 0;
+      for (const f of files.slice(0, room)) {
+        const b64 = await compressImage(f);
+        if (b64) {
+          pendingChatImages.push('data:image/jpeg;base64,' + b64);
+          added++;
+        }
+      }
+      miniHide();
+      renderImgPreview();
+      if (!added) showToast('error', 'Image Failed', 'Could not read that image. Please try another one.');
+    });
+  }
+
+  on('btnToggleQuick', 'click', () => {
+    const quick = document.querySelector('.cf-quick');
+    if (quick) quick.classList.toggle('hidden');
+  });
+
+  const headerLangs = $('aiHeaderLangs');
+  if (headerLangs) {
+    headerLangs.querySelectorAll('button[data-lang]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const lang = btn.dataset.lang;
+        const row = $('aiOtherLangRow');
+        if (row) row.classList.add('hidden');
+        applyLanguageChoice(lang);
+        runExplain(lang);
+      });
+    });
+  }
+
+  on('aiOtherLangBtn', 'click', () => {
+    const row = $('aiOtherLangRow');
+    if (!row) return;
+    row.classList.toggle('hidden');
+    const input = $('aiOtherLangInput');
+    if (input && !row.classList.contains('hidden')) setTimeout(() => input.focus(), 100);
+  });
+
+  on('aiOtherLangSend', 'click', () => {
+    const input = $('aiOtherLangInput');
+    const lang = (input && input.value.trim()) || '';
+    if (!lang) {
+      showToast('error', 'Language Required', 'Please type the language you want.');
+      return;
+    }
+    if (input) input.value = '';
+    const row = $('aiOtherLangRow');
+    if (row) row.classList.add('hidden');
+    applyLanguageChoice(lang);
+    runExplain(lang);
+  });
+
+  on('aiOtherLangInput', 'keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const send = $('aiOtherLangSend');
+      if (send) send.click();
     }
   });
 
   on('assessClose', 'click', () => {
-    const o = $('assessmentOverlay');
-    if (o) o.classList.remove('open');
-    if (quizState && quizState.stream) {
-      stopCamera();
+    if (quizState && quizState.grading) return;
+    if (quizState) {
+      const ok = window.confirm('Closing now will end this assessment and count it as not passed. You can retake it after 2 hours. Do you want to close?');
+      if (!ok) return;
+      abandonQuiz();
+      closeAssessmentOverlay();
+      showToast('info', 'Assessment Ended', 'You can retake the assessment after 2 hours. Read the topics again.');
+      return;
     }
-    if (quizState && quizState.timer) clearInterval(quizState.timer);
-    detachAntiCheat();
+    stopCamera();
+    closeAssessmentOverlay();
   });
 
   on('btnStartAssessment', 'click', startAssessmentFlow);
 
   on('btnPrevQ', 'click', () => {
-    if (quizState && quizState.currentQ > 0) {
+    if (quizState && !quizState.grading && quizState.currentQ > 0) {
       quizState.currentQ--;
       renderQuestion();
     }
   });
 
   on('btnNextQ', 'click', () => {
-    if (!quizState) return;
+    if (!quizState || quizState.grading) return;
     const q = quizState.questions[quizState.currentQ];
-    if (q && q.type !== 'write' && Array.isArray(q.options) && q.options.length && quizState.answers[quizState.currentQ] === '') {
+    if (q && q.type !== 'write' && quizState.answers[quizState.currentQ] === '') {
       showToast('info', 'Choose An Answer', 'Please select an answer before continuing.');
       return;
     }
@@ -3229,7 +3931,7 @@ const chatInputEl = $('chatInput');
   });
 
   on('btnSubmitQuiz', 'click', () => {
-    submitQuiz(false);
+    submitQuiz('manual');
   });
 
   on('btnDownloadPdf', 'click', downloadResultPdf);
@@ -3237,18 +3939,15 @@ const chatInputEl = $('chatInput');
   on('btnEmailResult', 'click', emailResult);
 
   on('btnContinueStudy', 'click', () => {
-    const o = $('assessmentOverlay');
-    if (o) o.classList.remove('open');
-    if (window._assessBatch > 0) {
-      const batch = window._assessBatch;
-      window._assessBatch = 0;
+    closeAssessmentOverlay();
+    const batch = lastResult ? lastResult.batch : assessBatch;
+    if (batch > 0 && isBatchPassed(batch)) {
       goToTopic(batch);
     }
   });
 
   on('btnGoExam', 'click', () => {
-    const o = $('assessmentOverlay');
-    if (o) o.classList.remove('open');
+    closeAssessmentOverlay();
     window.location.href = 'exam.html?course_id=' + encodeURIComponent(activeCourseId) + '&user_id=' + encodeURIComponent(user.id);
   });
 
@@ -3258,9 +3957,13 @@ const chatInputEl = $('chatInput');
     window.location.href = 'exam.html?course_id=' + encodeURIComponent(activeCourseId) + '&user_id=' + encodeURIComponent(user.id);
   });
 
-  on('sideMenu', 'click', (e) => {
+  document.addEventListener('click', (e) => {
     const sm = $('sideMenu');
-    if (e.target === sm) sm.classList.remove('open');
+    if (!sm || !sm.classList.contains('open')) return;
+    if (sm.contains(e.target)) return;
+    const mb = $('menuBtn');
+    if (mb && mb.contains(e.target)) return;
+    sm.classList.remove('open');
   });
 
   window.__idtDashboardLoaded = true;
