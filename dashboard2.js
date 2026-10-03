@@ -76,6 +76,10 @@ let runnerTopicKey = '';
 let codeFrame = null;
 let codeHandler = null;
 let codeTimeout = null;
+let ytPlayer = null;
+let ytProgressTimer = null;
+let ytApiPromise = null;
+let videoFsActive = false;
 
 function injectExtraStyles() {
   if (document.getElementById('idt-extra-style')) return;
@@ -95,7 +99,22 @@ function injectExtraStyles() {
     '#assessLockNote{font-size:12px;color:#b45309;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:10px 12px;margin-bottom:12px;line-height:1.55;text-align:left}' +
     '#btnReviewTopics{margin-top:0}' +
     '.ri-mark.partial{background:rgba(245,158,11,.16);color:#b45309}' +
-    '.cf-bubble code{background:rgba(124,58,237,.1);padding:1px 6px;border-radius:6px}';
+    '.cf-bubble code{background:rgba(124,58,237,.1);padding:1px 6px;border-radius:6px}' +
+    '#assessErrorNote{font-size:12px;color:#be123c;background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.3);border-radius:12px;padding:10px 12px;margin-bottom:12px;line-height:1.55;text-align:left}' +
+    '.video-wrap{overflow:hidden;-webkit-user-select:none;user-select:none}' +
+    '.video-wrap .vp-frame{position:absolute;left:0;top:-25%;width:100%;height:150%;border:0;pointer-events:none}' +
+    '.video-wrap .vp-shield{position:absolute;inset:0;z-index:2;background:transparent;cursor:pointer}' +
+    '.video-wrap .vp-cover{position:absolute;inset:0;z-index:3;display:flex;align-items:center;justify-content:center;background:rgba(5,6,15,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);cursor:pointer}' +
+    '.vp-play{width:72px;height:72px;border-radius:50%;border:none;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;box-shadow:0 14px 34px rgba(109,40,217,.5);cursor:pointer;padding-left:4px}' +
+    '.vp-bar{position:absolute;left:0;right:0;bottom:0;z-index:4;display:flex;align-items:center;gap:10px;padding:8px 12px;background:linear-gradient(to top,rgba(5,6,15,.85),transparent)}' +
+    '.vp-btn{border:none;background:rgba(255,255,255,.15);color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}' +
+    '.vp-btn:hover{background:rgba(124,58,237,.85)}' +
+    '.vp-time{font-size:11px;color:#fff;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}' +
+    '.vp-seek{flex:1;min-width:0;accent-color:#a78bfa;height:4px;cursor:pointer}' +
+    '.video-wrap:fullscreen{aspect-ratio:auto;width:100%;height:100%;background:#000}' +
+    '.video-wrap:-webkit-full-screen{aspect-ratio:auto;width:100%;height:100%;background:#000}' +
+    '.video-wrap.vp-pseudo-fs{position:fixed;inset:0;z-index:97000;width:100%;height:100%;aspect-ratio:auto;background:#000}' +
+    '.video-explain-float{bottom:58px}';
   document.head.appendChild(st);
 }
 
@@ -328,7 +347,7 @@ function showToast(type, title, message) {
   const xBtn = el.querySelector('.toast-x');
   if (xBtn) xBtn.addEventListener('click', () => removeToast(el));
   toastWrap.appendChild(el);
-  while (toastWrap.children.length > 4) {
+  while (toastWrap.children.length > 3) {
     removeToast(toastWrap.children[0]);
     break;
   }
@@ -621,7 +640,6 @@ async function saveUpdate(patch, silent) {
     if (error) throw error;
     return true;
   } catch (err) {
-    if (!silent) showToast('error', 'Save Failed', 'Could not save your progress. Check your internet connection.');
     return false;
   }
 }
@@ -677,7 +695,7 @@ function markWatched(topicIdx) {
   if (st) {
     st.classList.add('watched');
     const txt = $('videoStatusText');
-    if (txt) txt.textContent = 'Video watched ✓';
+    if (txt) txt.textContent = 'Video started ✓';
   }
 }
 
@@ -804,7 +822,6 @@ async function loadCourseInfos() {
       courseInfoMap[row.id] = row.course_data || {};
     });
   } catch (err) {
-    showToast('error', 'Courses Not Loaded', 'Could not load course details. Please check your internet connection.');
   }
 }
 
@@ -1030,7 +1047,6 @@ async function chooseCourse(courseId) {
     closeCoursePush();
     const gate = $('pendingGate');
     if (gate) gate.classList.add('open');
-    showToast('success', 'Course Selected ✓', 'You selected ' + courseName + ' for ' + formatMoney(price) + '. Tap Pay Now to complete your payment.');
   } catch (err) {
     miniHide();
     showToast('error', 'Selection Failed', (err && err.message) || 'Could not select this course. Please try again.');
@@ -1117,7 +1133,6 @@ async function selectCourse(courseId, announce) {
   if (topicCard) topicCard.classList.remove('hidden');
   renderTopic();
   if (announce) {
-    showToast('success', 'Course Loaded', 'Welcome to ' + ((courseInfoMap[courseId] || {}).course_name || 'your course') + '. Happy learning!');
   }
 }
 
@@ -1315,10 +1330,10 @@ function renderTopic() {
   if (st && stTxt) {
     if (watched) {
       st.classList.add('watched');
-      stTxt.textContent = 'Video watched ✓';
+      stTxt.textContent = 'Video started ✓';
     } else {
       st.classList.remove('watched');
-      stTxt.textContent = currentTopic.video_url ? 'Video not watched yet' : 'No video for this topic';
+      stTxt.textContent = currentTopic.video_url ? 'Press play to start the video' : 'No video for this topic';
     }
   }
   const btnNext = $('btnNextTopic');
@@ -1365,12 +1380,267 @@ function clearVideoContent(wrap) {
   });
 }
 
+function loadYouTubeApi() {
+  if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+  if (ytApiPromise) return ytApiPromise;
+  ytApiPromise = new Promise((resolve, reject) => {
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = function () {
+      if (typeof prev === 'function') {
+        try { prev(); } catch (_) {}
+      }
+      resolve(window.YT);
+    };
+    const sc = document.createElement('script');
+    sc.src = 'https://www.youtube.com/iframe_api';
+    sc.async = true;
+    sc.onerror = () => {
+      ytApiPromise = null;
+      reject(new Error('Video player could not load'));
+    };
+    document.head.appendChild(sc);
+    setTimeout(() => {
+      if (!(window.YT && window.YT.Player)) {
+        ytApiPromise = null;
+        reject(new Error('Video player took too long to load'));
+      }
+    }, 10000);
+  });
+  return ytApiPromise;
+}
+
+function exitVideoFullscreen() {
+  const wrap = $('videoWrap');
+  if (wrap) wrap.classList.remove('vp-pseudo-fs');
+  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fsEl) {
+    try {
+      const fn = document.exitFullscreen || document.webkitExitFullscreen;
+      const r = fn.call(document);
+      if (r && r.catch) r.catch(() => {});
+    } catch (_) {}
+  }
+  if (videoFsActive) document.body.style.overflow = '';
+  videoFsActive = false;
+}
+
+function toggleVideoFullscreen() {
+  const wrap = $('videoWrap');
+  if (!wrap) return;
+  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fsEl === wrap || wrap.classList.contains('vp-pseudo-fs')) {
+    exitVideoFullscreen();
+    return;
+  }
+  const usePseudo = () => {
+    wrap.classList.add('vp-pseudo-fs');
+    document.body.style.overflow = 'hidden';
+    videoFsActive = true;
+  };
+  const req = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+  if (req) {
+    try {
+      const r = req.call(wrap);
+      videoFsActive = true;
+      if (r && r.catch) r.catch(usePseudo);
+      return;
+    } catch (_) {}
+  }
+  usePseudo();
+}
+
+function destroyVideoPlayer() {
+  if (ytProgressTimer) {
+    clearInterval(ytProgressTimer);
+    ytProgressTimer = null;
+  }
+  if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+    try { ytPlayer.destroy(); } catch (_) {}
+  }
+  ytPlayer = null;
+  exitVideoFullscreen();
+}
+
+function fmtVideoTime(sec) {
+  const t = Math.max(0, Math.floor(Number(sec) || 0));
+  const m = Math.floor(t / 60);
+  const r = t % 60;
+  return m + ':' + String(r).padStart(2, '0');
+}
+
+function createPlayerUi() {
+  const shield = document.createElement('div');
+  shield.className = 'vp-shield';
+  const cover = document.createElement('div');
+  cover.className = 'vp-cover';
+  cover.innerHTML = '<button type="button" class="vp-play" aria-label="Play video"><i class="fa-solid fa-play"></i></button>';
+  const bar = document.createElement('div');
+  bar.className = 'vp-bar';
+  bar.innerHTML =
+    '<button type="button" class="vp-btn vp-toggle" aria-label="Play or pause"><i class="fa-solid fa-play"></i></button>' +
+    '<span class="vp-time vp-cur">0:00</span>' +
+    '<input type="range" class="vp-seek" min="0" max="1000" value="0" step="1" aria-label="Seek">' +
+    '<span class="vp-time vp-dur">0:00</span>' +
+    '<button type="button" class="vp-btn vp-fs" aria-label="Fullscreen"><i class="fa-solid fa-expand"></i></button>';
+  return {
+    shield: shield,
+    cover: cover,
+    bar: bar,
+    toggle: bar.querySelector('.vp-toggle'),
+    cur: bar.querySelector('.vp-cur'),
+    dur: bar.querySelector('.vp-dur'),
+    seek: bar.querySelector('.vp-seek'),
+    fs: bar.querySelector('.vp-fs'),
+    seeking: false
+  };
+}
+
+function setToggleIcon(ui, playing) {
+  if (ui && ui.toggle) ui.toggle.innerHTML = '<i class="fa-solid ' + (playing ? 'fa-pause' : 'fa-play') + '"></i>';
+}
+
+function onYouTubeState(code, ui, idx) {
+  if (idx !== currentTopicIdx) return;
+  if (code === 1) {
+    ui.cover.classList.add('hidden');
+    setToggleIcon(ui, true);
+    if (!isWatched(idx)) markWatched(idx);
+  } else if (code === 3) {
+    ui.cover.classList.add('hidden');
+  } else {
+    ui.cover.classList.remove('hidden');
+    setToggleIcon(ui, false);
+  }
+}
+
+function updateYouTubeProgress(ui) {
+  if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
+  let cur = 0;
+  let dur = 0;
+  try {
+    cur = ytPlayer.getCurrentTime() || 0;
+    dur = ytPlayer.getDuration() || 0;
+  } catch (_) {
+    return;
+  }
+  if (dur > 0 && !ui.seeking) ui.seek.value = String(Math.round((cur / dur) * 1000));
+  ui.cur.textContent = fmtVideoTime(cur);
+  ui.dur.textContent = fmtVideoTime(dur);
+}
+
+function useBasicEmbed(iframe, ui, idx) {
+  const start = () => {
+    if (idx === currentTopicIdx && !isWatched(idx)) markWatched(idx);
+    iframe.style.pointerEvents = 'auto';
+    iframe.allowFullscreen = true;
+    iframe.src = iframe.src.replace('controls=0', 'controls=1').replace('fs=0', 'fs=1') + '&autoplay=1';
+    ui.shield.remove();
+    ui.cover.remove();
+    ui.bar.remove();
+  };
+  ui.cover.addEventListener('click', start);
+  ui.shield.addEventListener('click', start);
+  ui.toggle.addEventListener('click', start);
+}
+
+function mountYouTube(wrap, floatBtn, videoId) {
+  const idx = currentTopicIdx;
+  const iframe = document.createElement('iframe');
+  iframe.className = 'vp-frame';
+  iframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
+  iframe.setAttribute('title', 'Lesson video');
+  iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+  iframe.src = 'https://www.youtube-nocookie.com/embed/' + videoId + '?enablejsapi=1&controls=0&rel=0&modestbranding=1&playsinline=1&fs=0&disablekb=1&iv_load_policy=3&cc_load_policy=0&origin=' + encodeURIComponent(window.location.origin);
+  const ui = createPlayerUi();
+  wrap.insertBefore(iframe, wrap.firstChild);
+  [ui.shield, ui.cover, ui.bar].forEach((el) => wrap.insertBefore(el, floatBtn || null));
+  let ready = false;
+  let pending = false;
+  const press = () => {
+    if (!ytPlayer || !ready) {
+      pending = true;
+      return;
+    }
+    try {
+      const st = ytPlayer.getPlayerState();
+      if (st === 1 || st === 3) ytPlayer.pauseVideo();
+      else ytPlayer.playVideo();
+    } catch (_) {}
+  };
+  ui.shield.addEventListener('click', press);
+  ui.cover.addEventListener('click', press);
+  ui.toggle.addEventListener('click', press);
+  ui.fs.addEventListener('click', toggleVideoFullscreen);
+  ui.seek.addEventListener('input', () => { ui.seeking = true; });
+  ui.seek.addEventListener('change', () => {
+    if (ytPlayer && ready) {
+      try {
+        const d = ytPlayer.getDuration() || 0;
+        if (d > 0) ytPlayer.seekTo((Number(ui.seek.value) / 1000) * d, true);
+      } catch (_) {}
+    }
+    ui.seeking = false;
+  });
+  loadYouTubeApi().then((YT) => {
+    if (!iframe.isConnected || idx !== currentTopicIdx) return;
+    ytPlayer = new YT.Player(iframe, {
+      events: {
+        onReady: () => {
+          ready = true;
+          if (pending) {
+            pending = false;
+            try { ytPlayer.playVideo(); } catch (_) {}
+          }
+        },
+        onStateChange: (e) => onYouTubeState(e.data, ui, idx)
+      }
+    });
+    ytProgressTimer = setInterval(() => updateYouTubeProgress(ui), 400);
+  }).catch(() => {
+    if (iframe.isConnected) useBasicEmbed(iframe, ui, idx);
+  });
+}
+
+function mountDirectVideo(wrap, floatBtn, url) {
+  const idx = currentTopicIdx;
+  const vid = document.createElement('video');
+  vid.src = url;
+  vid.controls = true;
+  vid.playsInline = true;
+  vid.preload = 'metadata';
+  vid.setAttribute('controlsList', 'nodownload noremoteplayback');
+  vid.disablePictureInPicture = true;
+  vid.addEventListener('contextmenu', (e) => e.preventDefault());
+  vid.addEventListener('play', () => {
+    if (idx === currentTopicIdx && !isWatched(idx)) markWatched(idx);
+  });
+  wrap.insertBefore(vid, wrap.firstChild);
+}
+
+function mountGenericEmbed(wrap, floatBtn, url) {
+  const idx = currentTopicIdx;
+  const cover = document.createElement('div');
+  cover.className = 'vp-cover';
+  cover.style.background = '#0b0d1a';
+  cover.innerHTML = '<button type="button" class="vp-play" aria-label="Play video"><i class="fa-solid fa-play"></i></button>';
+  wrap.insertBefore(cover, floatBtn || null);
+  cover.addEventListener('click', () => {
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.setAttribute('allow', 'autoplay; picture-in-picture; fullscreen');
+    iframe.setAttribute('title', 'Lesson video');
+    iframe.allowFullscreen = true;
+    wrap.insertBefore(iframe, wrap.firstChild);
+    cover.remove();
+    if (idx === currentTopicIdx && !isWatched(idx)) markWatched(idx);
+  });
+}
+
 function renderVideo() {
   const wrap = $('videoWrap');
   if (!wrap) return;
+  destroyVideoPlayer();
   clearVideoContent(wrap);
-  if (videoWatchTimer) clearInterval(videoWatchTimer);
-  videoWatchTimer = null;
   const lock = $('videoLock');
   const floatBtn = $('videoExplainFloat');
   if (floatBtn) floatBtn.classList.remove('visible');
@@ -1389,72 +1659,10 @@ function renderVideo() {
     return;
   }
   const yt = getYouTubeId(url);
-  if (yt) {
-    const iframe = document.createElement('iframe');
-    iframe.src = 'https://www.youtube-nocookie.com/embed/' + yt + '?rel=0&modestbranding=1&playsinline=1&controls=1&fs=1&color=white&iv_load_policy=3';
-    iframe.setAttribute('allow', 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture');
-    iframe.setAttribute('title', 'Lesson video');
-    iframe.allowFullscreen = true;
-    iframe.referrerPolicy = 'strict-origin-when-cross-origin';
-    wrap.insertBefore(iframe, wrap.firstChild);
-    if (floatBtn) floatBtn.classList.add('visible');
-    startVideoDwellTimer();
-  } else if (isDirectVideo(url)) {
-    const vid = document.createElement('video');
-    vid.src = url;
-    vid.controls = true;
-    vid.playsInline = true;
-    vid.preload = 'metadata';
-    wrap.insertBefore(vid, wrap.firstChild);
-    if (floatBtn) floatBtn.classList.add('visible');
-    attachVideoWatcher(vid);
-  } else {
-    const iframe = document.createElement('iframe');
-    iframe.src = url;
-    iframe.setAttribute('title', 'Lesson video');
-    iframe.allowFullscreen = true;
-    wrap.insertBefore(iframe, wrap.firstChild);
-    if (floatBtn) floatBtn.classList.add('visible');
-    startVideoDwellTimer();
-  }
-}
-
-function startVideoDwellTimer() {
-  if (videoWatched) return;
-  let secs = 0;
-  const topicAtStart = currentTopicIdx;
-  videoWatchTimer = setInterval(() => {
-    if (document.hidden) return;
-    if (topicAtStart !== currentTopicIdx) {
-      clearInterval(videoWatchTimer);
-      videoWatchTimer = null;
-      return;
-    }
-    secs++;
-    if (secs >= REGULAR_WATCH_SECONDS && !isWatched(currentTopicIdx)) {
-      markWatched(currentTopicIdx);
-      clearInterval(videoWatchTimer);
-      videoWatchTimer = null;
-      showToast('success', 'Video Watched ✓', 'You watched this video. You can now continue.');
-    }
-  }, 1000);
-}
-
-function attachVideoWatcher(vid) {
-  if (videoWatched) return;
-  const idxAtStart = currentTopicIdx;
-  vid.addEventListener('timeupdate', () => {
-    if (idxAtStart !== currentTopicIdx) return;
-    if (!vid.duration || !isFinite(vid.duration)) return;
-    const pct = vid.currentTime / vid.duration;
-    if (pct >= 0.8 && !isWatched(currentTopicIdx)) {
-      markWatched(currentTopicIdx);
-    }
-  });
-  vid.addEventListener('ended', () => {
-    if (idxAtStart !== currentTopicIdx) return;
-    if (!isWatched(currentTopicIdx)) markWatched(currentTopicIdx);
-  });
+  if (yt) mountYouTube(wrap, floatBtn, yt);
+  else if (isDirectVideo(url)) mountDirectVideo(wrap, floatBtn, url);
+  else mountGenericEmbed(wrap, floatBtn, url);
+  if (floatBtn) floatBtn.classList.add('visible');
 }
 
 function topicNeedsWatch(idx) {
@@ -1469,7 +1677,6 @@ async function goToTopic(idx) {
       return;
     }
     if (idx < 0 || idx >= currentTopics.length) {
-      showToast('info', 'End Of Topics', 'You have reached the end of the available topics.');
       return;
     }
     currentTopicIdx = idx;
@@ -1524,16 +1731,14 @@ async function advanceTopic() {
       return;
     }
     if (nextIdx >= currentTopics.length) {
-      showToast('info', 'Wait Next Week Topic', 'You have finished all the available topics for now. The final topic will open next week. Please check back later.');
       return;
     }
     if (currentTopics[nextIdx].is_final === true) {
       renderTopic();
-      showToast('info', 'Wait Next Week Topic', 'You have finished all the available topics for now. The final topic will open next week. Please check back later.');
       return;
     }
     if (topicNeedsWatch(currentTopicIdx) && !isWatched(currentTopicIdx)) {
-      showToast('info', 'Watch The Video First', 'Please watch the full video for this topic before moving on. This helps you understand better.');
+      showToast('info', 'Press Play First', 'Please press play on the video to start it. You do not have to finish it before you continue.');
       return;
     }
     if (diplomaMode) {
@@ -1586,7 +1791,6 @@ async function finishCourse() {
     try {
       await saveUserData();
     } catch (err) {
-      showToast('error', 'Save Failed', 'Could not save your completion.');
     }
   }
   const finalIdx = currentTopics.findIndex((t) => t.is_final === true);
@@ -1632,13 +1836,13 @@ function refreshStartButton() {
     if (note) note.remove();
     if (retryTimer) {
       stopRetryTimer();
-      showToast('success', 'Assessment Ready', 'You can retake the assessment now.');
     }
   }
 }
 
 function openAssessment(batch) {
   assessBatch = batch;
+  clearAssessError();
   const startIdx = Math.max(0, batch - ASSESS_BATCH_SIZE);
   const batchTopics = currentTopics.slice(startIdx, batch);
   const list = $('assessTopicsList');
@@ -1814,6 +2018,23 @@ function newAssessmentId() {
   return 'as_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
 }
 
+function clearAssessError() {
+  const n = $('assessErrorNote');
+  if (n) n.remove();
+}
+
+function showAssessError(message) {
+  const btn = $('btnStartAssessment');
+  if (!btn || !btn.parentElement) return;
+  let note = $('assessErrorNote');
+  if (!note) {
+    note = document.createElement('div');
+    note.id = 'assessErrorNote';
+    btn.parentElement.insertBefore(note, btn);
+  }
+  note.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> ' + escapeHtml(message);
+}
+
 async function startAssessmentFlow() {
   if (assessStarting || quizState) return;
   const batch = assessBatch;
@@ -1825,12 +2046,13 @@ async function startAssessmentFlow() {
   const batchTopics = currentTopics.slice(startIdx, batch).map((t) => ({
     topic_number: t.topic_number,
     topic_name: t.topic_name,
-    topic_text: String(t.topic_text || '').slice(0, 2500)
+    topic_text: String(t.topic_text || '').slice(0, 6000)
   }));
   if (batchTopics.length < ASSESS_BATCH_SIZE) {
     showToast('error', 'No Topics', 'Not enough topics were found for this assessment.');
     return;
   }
+  clearAssessError();
   assessStarting = true;
   const startBtn = $('btnStartAssessment');
   if (startBtn) {
@@ -1856,7 +2078,6 @@ async function startAssessmentFlow() {
         { number: 4, topic_index: 1, type: 'tf', options: 2, marks: 1 },
         { number: 5, topic_index: 2, type: 'write', marks: WRITE_MARKS }
       ],
-      instructions: 'Create exactly 5 questions from the supplied topic texts only. Questions 1 and 2 come from topic index 0 and are multiple choice with exactly 4 options and one correct option given as a letter A, B, C or D in the field correct. Questions 3 and 4 come from topic index 1 and are true or false with correct set to true or false. Question 5 comes from topic index 2 and is a written question worth 2 marks, with correct holding a short model answer. Every question needs an explanation. Return JSON only: {"assessment_id": string, "questions": [{"number": number, "type": "mcq" | "tf" | "write", "topic_index": number, "question": string, "options": string[], "correct": string, "explanation": string}]}',
       mode: 'assessment_generate'
     }), AI_TIMEOUT_MS, 'The assessment took too long to prepare. Please try again.');
     const questions = normalizeAssessment(res, batchTopics);
@@ -1898,7 +2119,7 @@ async function startAssessmentFlow() {
     stopCamera();
     quizState = null;
     miniHide();
-    showToast('error', 'Assessment Not Started', (err && err.message) || 'Could not create the assessment. Please try again.');
+    showAssessError('The assessment could not be created. ' + ((err && err.message) || 'Please try again.') + ' Tap Start Assessment to try again.');
   } finally {
     assessStarting = false;
     if (!quizState) refreshStartButton();
@@ -2171,7 +2392,6 @@ async function gradeWritten(q, answerText, number) {
     topic_name: q.topic_name,
     topic_text: String(((quizState.batchTopics || [])[2] || {}).topic_text || '').slice(0, 2500),
     preferred_lang: getPreferredLang(),
-    instructions: 'Grade the student answer fairly against the topic text and the reference answer. Give marks from 0 to ' + WRITE_MARKS + ' in steps of 0.5. Give 0 if the answer is empty or unrelated. Return JSON only: {"marks": number, "explanation": string, "correct_answer": string}',
     questions: [{
       number: number,
       type: 'write',
@@ -2354,9 +2574,7 @@ async function submitQuiz(reason) {
     showResult(result);
     miniHide();
     if (reason === 'time') {
-      showToast('info', 'Time Up', 'The ' + Math.round(QUIZ_SECONDS / 60) + ' minutes finished. Your answers were submitted automatically.');
     } else if (reason === 'flag') {
-      showToast('info', 'Assessment Ended', 'Your assessment was submitted because of repeated security warnings.');
     }
     if (passed) confetti();
     await recordAssessment(entry);
@@ -2830,7 +3048,6 @@ async function downloadResultPdf() {
     const studentName = ((userData && userData.full_name) || 'Student').replace(/\s+/g, '_').replace(/[^A-Za-z0-9_-]/g, '');
     doc.save('IDT_Assessment_Slips_' + studentName + '.pdf');
     miniHide();
-    showToast('success', 'PDF Downloaded', 'Your assessment slips have been downloaded. You can print them anytime.');
   } catch (err) {
     miniHide();
     showToast('error', 'PDF Failed', (err && err.message) || 'Could not create the PDF.');
@@ -3037,7 +3254,6 @@ async function startPayment() {
       miniLoad('Opening Paystack...');
       startVerifyPolling();
       startStatusPolling();
-      showToast('info', 'Payment Window Opened', 'Complete your payment in the Paystack window. Your dashboard unlocks automatically after payment.');
       setTimeout(() => {
         window.location.href = authUrl;
       }, 800);
@@ -3091,7 +3307,6 @@ async function startPayment() {
       miniHide();
       payBtn.disabled = false;
       payBtn.innerHTML = oldBtnHtml;
-      showToast('info', 'Payment Details Ready', 'Transfer the exact amount to the account shown. Your dashboard unlocks automatically after payment.');
       return;
     }
 
@@ -3145,7 +3360,6 @@ async function loadDashboard() {
       return !looksLikeJamb(c.course_id, c.course_name, c.course_price);
     });
     if (paidCourses.length === 0) {
-      showToast('info', 'No Paid Course', 'No paid course was found on your account. Please select a course and complete your payment.');
       openCoursePush();
       return;
     }
@@ -3156,7 +3370,6 @@ async function loadDashboard() {
     if (app) app.classList.remove('hidden');
     startSessionClock();
     loadAd();
-    showToast('success', 'Welcome Back!', 'Happy learning ' + ((userData && userData.full_name) || '') + '! Keep going, you are doing great.');
   } catch (err) {
     showToast('error', 'Dashboard Error', 'Could not load your dashboard. Please check your internet connection and refresh.');
   } finally {
@@ -3338,11 +3551,12 @@ function extractAiAnswer(res) {
 
 async function handleAiChatSend() {
   const input = $('chatInput');
-  if (!input) return;
-  if (aiBusy) return;
+  if (!input || aiBusy) return;
   const q = input.value.trim();
   const imagesToSend = pendingChatImages.slice();
-  if (!q && !imagesToSend.length) return;
+  const hasText = q.length > 0;
+  const hasImages = imagesToSend.length > 0;
+  if (!hasText && !hasImages) return;
 
   addAiMessage('user', q, imagesToSend);
   pendingChatImages = [];
@@ -3352,18 +3566,22 @@ async function handleAiChatSend() {
   input.style.height = 'auto';
 
   const hist = chatHistories[activeCourseId] = chatHistories[activeCourseId] || [];
-  hist.push({ role: 'user', content: q || '[Images sent]' });
+  hist.push({ role: 'user', content: hasText ? q : '[Photo sent]' });
+
+  const payload = Object.assign(topicPayloadBase(), {
+    lang: aiSelectedLang || getPreferredLang(),
+    language: aiLabel(aiSelectedLang || getPreferredLang()),
+    history: hist.slice(-9, -1),
+    has_text: hasText,
+    has_images: hasImages
+  });
+  if (hasText) payload.question = q;
+  if (hasImages) payload.images = imagesToSend;
 
   setAiSending(true);
   const thinkingEl = aiThinking();
   try {
-    const res = await withTimeout(askQuestion(Object.assign(topicPayloadBase(), {
-      question: q || 'Please look at the image I sent and help me understand it.',
-      images: imagesToSend,
-      lang: aiSelectedLang || getPreferredLang(),
-      language: aiLabel(aiSelectedLang || getPreferredLang()),
-      history: hist.slice(-9, -1)
-    })), AI_TIMEOUT_MS, 'The AI took too long to answer. Please try again.');
+    const res = await withTimeout(askQuestion(payload), AI_TIMEOUT_MS, 'The AI took too long to answer. Please try again.');
     removeNode(thinkingEl);
     const answer = extractAiAnswer(res);
     if (!answer) throw new Error('The AI sent an empty reply');
@@ -3374,7 +3592,6 @@ async function handleAiChatSend() {
     removeNode(thinkingEl);
     hist.pop();
     addAiMessage('bot', 'Sorry, I could not answer right now. ' + ((err && err.message) || 'Please try again.'));
-    showToast('error', 'Chat Error', (err && err.message) || 'Failed to get a reply. Please try again.');
   } finally {
     setAiSending(false);
     scrollChatToBottom();
@@ -3388,7 +3605,6 @@ async function runExplain(lang) {
     return;
   }
   if (aiBusy) {
-    showToast('info', 'Please Wait', 'The AI is still answering. Try again in a moment.');
     return;
   }
   const chosen = normalizeLangCode(lang || aiSelectedLang);
@@ -3414,7 +3630,6 @@ async function runExplain(lang) {
     removeNode(thinkingEl);
     hist.pop();
     addAiMessage('bot', 'Sorry, I could not explain right now. ' + ((err && err.message) || 'Please try again.'));
-    showToast('error', 'Explain Failed', (err && err.message) || 'Could not get the explanation. Please try again.');
   } finally {
     setAiSending(false);
     scrollChatToBottom();
@@ -3568,7 +3783,6 @@ function bindCopyButton(id, okTitle, okMessage) {
       await copyText(val);
       btn.classList.add('done');
       btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-      showToast('success', okTitle, okMessage);
       setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
     } catch (err) {
       showToast('error', 'Copy Failed', 'Could not copy. Please copy it by hand.');
@@ -3631,7 +3845,6 @@ domReady(() => {
 
   on('menuLogout', 'click', () => {
     localStorage.removeItem('idt_user');
-    showToast('info', 'Logged Out', 'You have been logged out. Redirecting to login...');
     setTimeout(() => window.location.replace('register.html'), 1200);
   });
 
@@ -3655,7 +3868,6 @@ domReady(() => {
       await copyText(academyId);
       btn.classList.add('done');
       btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-      showToast('success', 'Academy ID Copied!', 'Your ID: ' + academyId);
       setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
     } catch (err) {
       showToast('error', 'Copy Failed', 'Could not copy your ID.');
@@ -3682,7 +3894,6 @@ domReady(() => {
       await copyText(buildReferralLink());
       btn.classList.add('done');
       btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-      showToast('success', 'Referral Link Copied!', 'Share this link with your friends and earn ₦1,500 when they pay for any course.');
       setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
     } catch (err) {
       showToast('error', 'Copy Failed', 'Could not copy the link.');
@@ -3749,7 +3960,6 @@ domReady(() => {
   on('btnNotReady', 'click', () => {
     closeUnderstandModal();
     pendingNextIdx = -1;
-    showToast('info', 'Good Choice', 'Take your time. Read the topic again and make sure you understand before moving on.');
   });
 
   on('btnReady', 'click', () => {
@@ -3762,7 +3972,6 @@ domReady(() => {
       await copyText((currentTopic && currentTopic.topic_text) || '');
       btn.classList.add('done');
       btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-      showToast('success', 'Text Copied!', 'The full topic text was copied to your clipboard.');
       setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
     } catch (err) {
       showToast('error', 'Copy Failed', 'Could not copy the text.');
@@ -3781,8 +3990,16 @@ domReady(() => {
   });
 
   on('videoExplainFloat', 'click', () => {
+    exitVideoFullscreen();
     openChat();
     runExplain(currentLang());
+  });
+
+  const videoWrapEl = $('videoWrap');
+  if (videoWrapEl) videoWrapEl.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) videoFsActive = false;
   });
 
   on('chatClose', 'click', closeChat);
@@ -3901,7 +4118,6 @@ domReady(() => {
       if (!ok) return;
       abandonQuiz();
       closeAssessmentOverlay();
-      showToast('info', 'Assessment Ended', 'You can retake the assessment after 2 hours. Read the topics again.');
       return;
     }
     stopCamera();
