@@ -1,200 +1,59 @@
-import { supabase } from './supabase.js';
+const API_EXAM = '/api/examai';
+const API_WIN = '/api/winuser';
+const API_Y2 = '/api/year2';
+const API_PAY = '/api/paystack';
+const API_MAIL = '/api/sendEmail';
+
+const PAGE_SIZE = { mcq: 4, tf: 5, write: 1 };
+const PART_INFO = {
+  mcq: { label: 'Multiple Choice', short: 'Part 1', marks: 1, icon: 'fa-list-check' },
+  tf: { label: 'True or False', short: 'Part 2', marks: 1, icon: 'fa-circle-check' },
+  write: { label: 'Written Answers', short: 'Part 3', marks: 3, icon: 'fa-pen' }
+};
+const MAX_LEAVES = 5;
+const CONCURRENCY = 2;
+const BATCH_ATTEMPTS = 3;
+const PASS_MARK = 60;
+const LOGO_URL = 'https://i.imgur.com/oyqM5oF.png';
+const SIGN_CHAIR_URL = 'https://i.imgur.com/z8HOr4D.png';
+const SIGN_CEO_URL = 'https://i.imgur.com/leqHq9I.png';
 
 const $ = (id) => document.getElementById(id);
-const toastWrap = $('toastWrap');
-
-const EXAM_SECONDS = 3600;
-const PAGE_SIZE = 3;
-const RETRY_MS = 7 * 24 * 60 * 60 * 1000;
-const MAX_FLAGS = 5;
 
 let user = null;
-let profileData = null;
-let userData = null;
-let activeCourseId = '';
-let topics = [];
-let examQuestions = [];
-let answers = [];
-let currentPage = 0;
-let secondsLeft = EXAM_SECONDS;
-let timer = null;
-let flags = 0;
-let stream = null;
-let examId = '';
-let timedOutFlag = false;
+let courseId = '';
+let S = null;
+let sess = null;
+let pages = [];
+let curPage = 0;
+let running = false;
 let submitting = false;
+let stream = null;
+let timerId = null;
+let tickerId = null;
+let saveTimer = null;
+let lastLeave = 0;
+let lastShot = 0;
 let resultData = null;
-let history = [];
-let viewData = null;
-let rawExplain = '';
-let courseRow = null;
+let viewRec = null;
+let explainState = null;
+let payState = null;
+let payPoll = null;
+let projectLang = 'English';
+let selectedProject = '';
+let toastCount = 0;
+let memSession = null;
+let pendingGrade = null;
 
-function showLoading() {
-  let loader = document.getElementById('idt-loader-2');
-  if (loader) {
-    loader.classList.remove('idt-hide');
-  } else {
-    const loaderHTML = `
-      <div class="idt-loader-2" id="idt-loader-2">
-        <div class="i2-bg">
-          <span class="i2-blob i2-b1"></span>
-          <span class="i2-blob i2-b2"></span>
-          <span class="i2-blob i2-b3"></span>
-          <span class="i2-glow"></span>
-          <span class="i2-grid"></span>
-          <span class="i2-star i2-s1"></span><span class="i2-star i2-s2"></span>
-          <span class="i2-star i2-s3"></span><span class="i2-star i2-s4"></span>
-          <span class="i2-star i2-s5"></span><span class="i2-star i2-s6"></span>
-          <span class="i2-star i2-s7"></span><span class="i2-star i2-s8"></span>
-          <span class="i2-star i2-s9"></span><span class="i2-star i2-s10"></span>
-          <span class="i2-star i2-s11"></span><span class="i2-star i2-s12"></span>
-        </div>
-        <div class="i2-wrap">
-          <div class="i2-bookwrap">
-            <span class="i2-orbit"></span>
-            <div class="i2-book">
-              <div class="i2-cover i2-cl"><img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="i2-coverlogo"></div>
-              <div class="i2-cover i2-cr"><img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="i2-coverlogo i2-crlogo"></div>
-              <div class="i2-page i2-p1"><i></i><i></i><i></i><i></i></div>
-              <div class="i2-page i2-p2"><i></i><i></i></div>
-              <div class="i2-page i2-p3"><i></i><i></i></div>
-              <div class="i2-spine"></div>
-              <div class="i2-ribbon"></div>
-            </div>
-          </div>
-          <span class="i2-title">IDT <b>Academy</b></span>
-          <span class="i2-tagline">Learn Beyond Limits</span>
-          <div class="i2-loadbar"><span></span></div>
-          <p class="i2-status">Turning pages... <b id="i2num">0</b>%</p>
-        </div>
-      </div>
-      <style>
-        .idt-loader-2{position:fixed;inset:0;z-index:99999;background:#05060f;display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;transition:opacity .6s ease,visibility .6s ease;overflow:hidden;user-select:none}
-        .idt-loader-2.idt-hide{opacity:0;visibility:hidden;pointer-events:none}
-        .i2-bg{position:absolute;inset:0;overflow:hidden}
-        .i2-blob{position:absolute;border-radius:50%;filter:blur(75px);opacity:.5}
-        .i2-b1{width:420px;height:420px;left:-130px;top:-130px;background:#7c3aed;animation:i2drift1 14s ease-in-out infinite}
-        .i2-b2{width:380px;height:380px;right:-110px;top:18%;background:#0ea5e9;animation:i2drift2 17s ease-in-out infinite}
-        .i2-b3{width:320px;height:320px;left:32%;bottom:-150px;background:#f59e0b;opacity:.3;animation:i2drift3 19s ease-in-out infinite}
-        @keyframes i2drift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(90px,70px) scale(1.18)}}
-        @keyframes i2drift2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-80px,60px) scale(1.12)}}
-        @keyframes i2drift3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(60px,-70px) scale(1.2)}}
-        .i2-glow{position:absolute;left:50%;top:50%;width:620px;height:620px;transform:translate(-50%,-50%);border-radius:50%;background:conic-gradient(from 0deg,transparent,rgba(124,92,255,.22),transparent 30%,rgba(34,211,238,.18),transparent 60%,rgba(251,191,36,.16),transparent);filter:blur(55px);animation:i2spin 11s linear infinite}
-        .i2-grid{position:absolute;left:-60%;right:-60%;bottom:-8%;height:42%;background-image:linear-gradient(rgba(124,92,255,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(124,92,255,.16) 1px,transparent 1px);background-size:46px 46px;transform:perspective(420px) rotateX(60deg);transform-origin:bottom;animation:i2gridmove 3.4s linear infinite;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.9),transparent);mask-image:linear-gradient(to top,rgba(0,0,0,.9),transparent)}
-        @keyframes i2gridmove{to{background-position-y:46px}}
-        .i2-star{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;animation:i2twinkle 3.2s ease-in-out infinite}
-        .i2-s1{left:10%;top:16%}.i2-s2{left:82%;top:10%;animation-delay:.7s}.i2-s3{left:24%;top:78%;animation-delay:1.2s}
-        .i2-s4{left:70%;top:80%;animation-delay:1.8s}.i2-s5{left:45%;top:6%;animation-delay:.4s}.i2-s6{left:6%;top:48%;animation-delay:2.2s}
-        .i2-s7{left:92%;top:42%;animation-delay:1.5s}.i2-s8{left:58%;top:90%;animation-delay:.9s}.i2-s9{left:34%;top:24%;animation-delay:2.6s}
-        .i2-s10{left:66%;top:30%;animation-delay:.2s}.i2-s11{left:16%;top:60%;animation-delay:1.9s}.i2-s12{left:88%;top:66%;animation-delay:2.9s}
-        @keyframes i2twinkle{0%,100%{opacity:.15;transform:scale(.7)}50%{opacity:1;transform:scale(1.25)}}
-        .i2-wrap{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center}
-        .i2-bookwrap{position:relative;width:240px;height:240px;display:flex;align-items:center;justify-content:center}
-        .i2-orbit{position:absolute;left:50%;top:50%;width:226px;height:226px;margin:-113px 0 0 -113px;border:1px dashed rgba(167,139,250,.35);border-radius:50%;animation:i2spin 8s linear infinite;pointer-events:none}
-        .i2-orbit::before{content:"";position:absolute;top:-4px;left:50%;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#fbbf24;box-shadow:0 0 14px #fbbf24}
-        @keyframes i2spin{to{transform:rotate(360deg)}}
-        .i2-book{position:relative;width:180px;height:126px;perspective:800px;animation:i2float 3.6s ease-in-out infinite;filter:drop-shadow(0 24px 40px rgba(124,92,255,.3))}
-        @keyframes i2float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-        .i2-cover{position:absolute;top:0;width:50%;height:100%;background:linear-gradient(180deg,#8b5cf6,#6d28d9);box-shadow:0 14px 30px rgba(0,0,0,.35)}
-        .i2-cl{left:0;border-radius:6px 2px 2px 6px;transform-origin:right center;animation:i2sway 3.6s ease-in-out infinite;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#a78bfa 0%,#8b5cf6 45%,#6d28d9 100%)}
-        .i2-cr{right:0;border-radius:2px 6px 6px 2px;transform-origin:left center;background:linear-gradient(145deg,#7c3aed 0%,#6d28d9 50%,#4c1d95 100%);animation:i2sway 3.6s ease-in-out infinite reverse;display:flex;align-items:center;justify-content:center}
-        @keyframes i2sway{0%,100%{transform:rotateY(0)}50%{transform:rotateY(16deg)}}
-        .i2-coverlogo{width:48px;height:48px;object-fit:contain;background:#fff;border-radius:50%;padding:7px;box-shadow:0 6px 18px rgba(0,0,0,.4),0 0 0 2px rgba(255,255,255,.25)}
-        .i2-crlogo{width:42px;height:42px;opacity:.85}
-        .i2-page{position:absolute;top:5px;left:50%;width:46%;height:92%;background:linear-gradient(180deg,#f8fafc,#e2e8f0);border-radius:2px 6px 6px 2px;transform-origin:left center;box-shadow:0 0 16px rgba(0,0,0,.3);display:flex;flex-direction:column;padding-top:8px}
-        .i2-page i{display:block;height:2px;border-radius:2px;background:#cbd5e1;margin:5px 10px}
-        .i2-page i:nth-child(2){width:78%;background:#c4b5fd}
-        .i2-page i:nth-child(3){width:60%}
-        .i2-page i:nth-child(4){width:86%;background:#a5f3fc}
-        .i2-p1{z-index:3;animation:i2flip 3.6s ease-in-out infinite}
-        .i2-p2{z-index:2;animation:i2flip 3.6s ease-in-out 1.2s infinite}
-        .i2-p3{z-index:1;animation:i2flip 3.6s ease-in-out 2.4s infinite}
-        @keyframes i2flip{0%{transform:rotateY(0)}40%{transform:rotateY(-160deg)}70%,100%{transform:rotateY(0)}}
-        .i2-spine{position:absolute;left:50%;top:0;bottom:0;width:9px;margin-left:-4.5px;background:linear-gradient(90deg,rgba(0,0,0,.45),rgba(0,0,0,.05) 50%,rgba(0,0,0,.45));border-radius:4px;z-index:4}
-        .i2-ribbon{position:absolute;left:50%;bottom:-24px;width:13px;height:24px;margin-left:-6.5px;background:linear-gradient(180deg,#fbbf24,#d97706);border-radius:0 0 7px 7px;transform-origin:top center;z-index:5;animation:i2dangle 3.6s ease-in-out infinite;box-shadow:0 6px 14px rgba(217,119,6,.45)}
-        @keyframes i2dangle{0%,100%{transform:rotate(0)}50%{transform:rotate(12deg)}}
-        .i2-title{margin-top:18px;font-size:27px;font-weight:800;letter-spacing:5px;text-transform:uppercase;background:linear-gradient(90deg,#f8fafc 0%,#a78bfa 30%,#22d3ee 55%,#fbbf24 80%,#f8fafc 100%);background-size:220% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;animation:i2shine 4s linear infinite}
-        .i2-title b{font-weight:900}
-        @keyframes i2shine{to{background-position:220% center}}
-        .i2-tagline{margin-top:9px;font-size:11px;letter-spacing:7px;color:#8b93c7;text-transform:uppercase}
-        .i2-loadbar{width:230px;height:4px;border-radius:4px;background:rgba(255,255,255,.09);margin-top:24px;overflow:hidden}
-        .i2-loadbar span{display:block;height:100%;width:100%;border-radius:4px;background:linear-gradient(90deg,#7c3aed,#22d3ee,#fbbf24);transform-origin:left;animation:i2fill 2.8s ease-in-out forwards}
-        @keyframes i2fill{0%{transform:scaleX(0)}100%{transform:scaleX(1)}}
-        .i2-status{margin-top:13px;font-size:12px;letter-spacing:3px;color:#94a3b8;text-transform:uppercase;animation:i2fade 2.4s ease-in-out infinite}
-        .i2-status b{color:#fbbf24}
-        @keyframes i2fade{0%,100%{opacity:.45}50%{opacity:1}}
-      </style>
-    `;
-    document.body.insertAdjacentHTML('beforeend', loaderHTML);
-  }
-  var n = document.getElementById('i2num');
-  var c = 0;
-  if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
-  window.idtLoaderInterval = setInterval(function(){
-    c += 5;
-    if(n) n.textContent = (c >= 100 ? 100 : c);
-    if(c >= 100) clearInterval(window.idtLoaderInterval);
-  }, 30);
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function hideLoading() {
-  var l = document.getElementById('idt-loader-2');
-  if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
-  if (l) l.classList.add('idt-hide');
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
-function escapeHtml(str) {
-  return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[ch]));
-}
-
-function removeToast(el) {
-  el.classList.add('out');
-  setTimeout(() => el.remove(), 320);
-}
-
-function showToast(type, title, message, raw) {
-  const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
-  const el = document.createElement('div');
-  el.className = 'toast ' + type;
-  const rawHtml = raw ? '<small class="toast-raw"><i class="fa-solid fa-bug"></i> ' + escapeHtml(raw) + '</small>' : '';
-  el.innerHTML = '<i class="fa-solid ' + icons[type] + '"></i>' +
-    '<div class="toast-body"><b>' + escapeHtml(title) + '</b><p>' + escapeHtml(message) + '</p>' + rawHtml + '</div>' +
-    '<button class="toast-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>';
-  el.querySelector('.toast-x').addEventListener('click', () => removeToast(el));
-  toastWrap.appendChild(el);
-  if (type === 'success') {
-    setTimeout(() => removeToast(el), 3600);
-  }
-  return el;
-}
-
-function miniLoad(text) {
-  $('miniLoaderText').textContent = text || 'Please wait...';
-  $('miniLoader').classList.add('open');
-}
-
-function miniHide() {
-  $('miniLoader').classList.remove('open');
-}
-
-async function copyText(txt) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    await navigator.clipboard.writeText(txt);
-  } else {
-    const ta = document.createElement('textarea');
-    ta.value = txt;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
-  }
-}
-
-function formatDuration(ms) {
+function fmtDur(ms) {
   const s = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
@@ -204,570 +63,857 @@ function formatDuration(ms) {
   return sec + 's';
 }
 
-function formatDate(iso) {
-  if (!iso) return '-';
+function fmtDate(iso) {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '-';
   return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-async function apiPost(path, payload) {
-  const res = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error((data && data.error) || 'Request failed');
+function fmtNum(n) {
+  const v = Number(n) || 0;
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
+function toast(type, title, message) {
+  const wrap = $('toastWrap');
+  if (!wrap || toastCount >= 3) return;
+  const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = '<i class="fa-solid ' + (icons[type] || icons.info) + '"></i><div class="toast-body"><b>' + esc(title) + '</b><p>' + esc(message) + '</p></div>';
+  wrap.appendChild(el);
+  toastCount++;
+  setTimeout(() => {
+    el.classList.add('out');
+    setTimeout(() => {
+      el.remove();
+      toastCount = Math.max(0, toastCount - 1);
+    }, 300);
+  }, type === 'error' ? 5200 : 3400);
+}
+
+function miniLoad(text, sub) {
+  $('miniLoaderText').textContent = text || 'Please wait...';
+  const s = $('miniLoaderSub');
+  s.textContent = sub || '';
+  s.classList.toggle('hidden', !sub);
+  $('miniLoaderBtn').classList.add('hidden');
+  $('miniLoader').classList.add('open');
+}
+
+function miniHide() {
+  $('miniLoader').classList.remove('open');
+}
+
+function friendly(status) {
+  if (status === 404) return 'The service is not reachable right now. Please try again.';
+  if (status === 413) return 'The data is too large.';
+  if (status === 429) return 'Too many requests. Please wait a moment.';
+  if (status >= 500) return 'The server is busy. Please try again in a moment.';
+  return 'The request failed. Please try again.';
+}
+
+async function api(url, body, opt) {
+  const o = opt || {};
+  const retries = o.retries || 0;
+  const timeout = o.timeout || 60000;
+  let lastErr = null;
+  for (let a = 0; a <= retries; a++) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeout);
+    try {
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal });
+      clearTimeout(t);
+      let data = null;
+      try { data = await res.json(); } catch (_) { data = null; }
+      if (res.ok && data && data.success !== false) return data;
+      const err = new Error((data && data.error) || friendly(res.status));
+      err.status = res.status;
+      err.data = data;
+      if (res.status >= 400 && res.status < 500 && res.status !== 429 && res.status !== 408) throw err;
+      lastErr = err;
+    } catch (e) {
+      clearTimeout(t);
+      if (e.status && e.status < 500 && e.status !== 429 && e.status !== 408) throw e;
+      if (e.status) lastErr = e;
+      else lastErr = new Error(e.name === 'AbortError' ? 'The request took too long.' : 'Network problem. Check your internet connection.');
+    }
+    if (a < retries) await sleep(1500 * (a + 1));
   }
-  return data;
+  throw lastErr || new Error('The request failed.');
 }
 
-async function fetchProfile() {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', user.id)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) throw new Error('Profile not found');
-  profileData = data;
-  userData = data.user_data || {};
+function sessionKey() {
+  return 'idt_exam_' + user.id + '_' + courseId;
 }
 
-async function saveUserData() {
-  const { error } = await supabase
-    .from('user_profiles')
-    .update({ user_data: userData })
-    .eq('id', user.id);
-  if (error) throw error;
-}
-
-async function loadCourse(courseId) {
+function readSession() {
   try {
-    const { data, error } = await supabase
-      .from('courses')
-      .select('*')
-      .eq('id', courseId)
-      .maybeSingle();
-    if (!error && data) {
-      courseRow = data;
-    }
-  } catch (err) {
-    courseRow = null;
+    const raw = localStorage.getItem(sessionKey());
+    if (raw) return JSON.parse(raw);
+  } catch (_) {}
+  return memSession;
+}
+
+function saveSession() {
+  if (!sess) return;
+  memSession = sess;
+  try {
+    localStorage.setItem(sessionKey(), JSON.stringify(sess));
+  } catch (_) {}
+}
+
+function saveSessionSoon() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveSession, 400);
+}
+
+function clearSession() {
+  sess = null;
+  memSession = null;
+  try { localStorage.removeItem(sessionKey()); } catch (_) {}
+}
+
+function showOnly(id) {
+  ['examIntro', 'examGen', 'examActive', 'examResult'].forEach((x) => $(x).classList.toggle('hidden', x !== id));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function confirmModal(opts) {
+  return new Promise((resolve) => {
+    const m = document.createElement('div');
+    m.className = 'ov-backdrop open';
+    m.style.zIndex = '9000';
+    m.innerHTML = '<div class="ov-card" style="max-width:440px"><div class="ov-head"><h3><i class="fa-solid ' + (opts.icon || 'fa-circle-question') + '"></i> ' + esc(opts.title) + '</h3></div>' +
+      '<div class="ov-body" style="text-align:center"><div style="font-size:13px;color:var(--ink);line-height:1.7;margin-bottom:16px">' + opts.html + '</div>' +
+      '<div class="btn-row"><button class="btn btn-outline" data-r="0" style="padding:12px 16px;font-size:13px">' + esc(opts.cancel || 'Cancel') + '</button>' +
+      '<button class="btn btn-primary" data-r="1" style="padding:12px 16px;font-size:13px">' + esc(opts.ok || 'OK') + '</button></div></div></div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-r]');
+      if (!b) return;
+      m.remove();
+      resolve(b.dataset.r === '1');
+    });
+  });
+}
+
+function loadUser() {
+  try {
+    const raw = localStorage.getItem('idt_user');
+    if (!raw) return null;
+    const u = JSON.parse(raw);
+    return u && u.id ? { id: String(u.id), course_id: u.course_id || '' } : null;
+  } catch (_) {
+    return null;
   }
 }
 
-async function loadTopics(courseId) {
-  const { data, error } = await supabase
-    .from('all_couse_post')
-    .select('*')
-    .eq('id', courseId)
-    .maybeSingle();
-  if (error) throw error;
-  if (data && data.all_course) {
-    if (Array.isArray(data.all_course)) {
-      topics = data.all_course;
-    } else if (Array.isArray(data.all_course.topics)) {
-      topics = data.all_course.topics;
+function setBadge(cls, icon, text) {
+  const b = $('introBadge');
+  b.className = 'badge ' + cls;
+  b.innerHTML = '<i class="fa-solid ' + icon + '"></i> ' + text;
+}
+
+function stopTicker() {
+  if (tickerId) clearInterval(tickerId);
+  tickerId = null;
+}
+
+function tilesHtml(withMonths) {
+  const t = (id, label) => '<div class="cd-tile"><b id="' + id + '">0</b><span>' + label + '</span></div>';
+  return '<div class="cd-tiles">' + (withMonths ? t('cdMo', 'Months') : '') + t('cdD', 'Days') + t('cdH', 'Hours') + t('cdM', 'Minutes') + t('cdS', 'Seconds') + '</div>';
+}
+
+function startTicker(target, withMonths, onDone) {
+  stopTicker();
+  const tick = () => {
+    const left = target - (Date.now() + (S.server_now - S.client_at));
+    if (left <= 0) {
+      stopTicker();
+      onDone();
+      return;
+    }
+    const days = Math.floor(left / 86400000);
+    const set = (id, v) => {
+      const el = $(id);
+      if (el) el.textContent = String(v);
+    };
+    if (withMonths) {
+      set('cdMo', Math.floor(days / 30));
+      set('cdD', days % 30);
     } else {
-      topics = [];
+      set('cdD', days);
     }
-  } else {
-    topics = [];
-  }
-}
-
-function examState() {
-  const arr = Array.isArray(userData.exam_data) ? userData.exam_data : [];
-  if (arr.some((a) => a.passed === true)) return 'passed';
-  const last = arr.length ? arr[arr.length - 1] : null;
-  if (last && last.passed !== true) {
-    const d = new Date(last.date || 0).getTime();
-    if (!isNaN(d)) {
-      const remain = d + RETRY_MS - Date.now();
-      if (remain > 0) return 'locked:' + remain;
-    }
-  }
-  return 'ready';
-}
-
-function courseImage() {
-  const info = (courseRow && courseRow.course_data) || {};
-  return info.image_url || (courseRow && courseRow.image_url) || 'https://i.imgur.com/oyqM5oF.png';
-}
-
-function renderIntro() {
-  const courseName = (userData && userData.course_name) || 'Course';
-  const studentName = (userData && userData.full_name) || 'Student';
-  const courseNumber = (userData && userData.course_number) || '000';
-  $('introCourseName').textContent = courseName;
-  $('introStudentName').textContent = studentName;
-  $('introCourseNumber').textContent = courseNumber;
-  $('introCourseImg').src = courseImage();
-  $('introTitle').textContent = 'Final Exam';
-  $('introSubtitle').textContent = courseName + ' • Pass with 70% to earn your certificate';
-  const state = examState();
-  const badge = $('introBadge');
-  const startWrap = $('startExamWrap');
-  const lock = $('retryLock');
-  if (state === 'passed') {
-    badge.className = 'badge green';
-    badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Passed';
-    lock.classList.add('hidden');
-    startWrap.classList.remove('hidden');
-    startWrap.innerHTML = '<button class="btn btn-green" id="btnGoCertificateTop"><i class="fa-solid fa-award"></i> View Certificate</button>';
-    const topCert = $('btnGoCertificateTop');
-    if (topCert) {
-      topCert.addEventListener('click', () => {
-        window.location.href = 'certificate.html?user_id=' + encodeURIComponent(user.id) + '&course_id=' + encodeURIComponent(activeCourseId);
-      });
-    }
-    return;
-  }
-  if (state.indexOf('locked:') === 0) {
-    const remain = Number(state.split(':')[1] || 0);
-    badge.className = 'badge rose';
-    badge.innerHTML = '<i class="fa-solid fa-lock"></i> Locked';
-    lock.classList.remove('hidden');
-    $('retryLockTitle').textContent = 'Exam Locked';
-    $('retryLockMsg').textContent = 'Your last attempt did not pass. You can retry in ' + formatDuration(remain) + '. Keep reading your notes and come back.';
-    startWrap.classList.add('hidden');
-    return;
-  }
-  badge.className = 'badge violet';
-  badge.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Ready';
-  lock.classList.add('hidden');
-  startWrap.classList.remove('hidden');
-  startWrap.innerHTML = '<button class="btn btn-primary" id="btnStartExam"><i class="fa-solid fa-play"></i> Start Exam</button>';
-  const startBtn = $('btnStartExam');
-  if (startBtn) {
-    startBtn.addEventListener('click', startExam);
-  }
+    set('cdH', Math.floor((left % 86400000) / 3600000));
+    set('cdM', Math.floor((left % 3600000) / 60000));
+    set('cdS', Math.floor((left % 60000) / 1000));
+  };
+  tick();
+  tickerId = setInterval(tick, 1000);
 }
 
 function renderHistory() {
-  history = Array.isArray(userData.exam_data) ? userData.exam_data.slice().reverse() : [];
   const body = $('histTableBody');
   const empty = $('histEmpty');
-  if (!history.length) {
+  const list = S && Array.isArray(S.history) ? S.history : [];
+  if (!list.length) {
     body.innerHTML = '';
     empty.classList.remove('hidden');
     return;
   }
   empty.classList.add('hidden');
-  body.innerHTML = history.map((h, i) => {
-    const passed = h.passed === true;
-    const badge = passed
+  body.innerHTML = list.map((h, i) => {
+    const badge = h.passed
       ? '<span class="badge green"><i class="fa-solid fa-circle-check"></i> Passed</span>'
       : '<span class="badge rose"><i class="fa-solid fa-circle-xmark"></i> Failed</span>';
-    return '<tr>' +
-      '<td>' + escapeHtml(formatDate(h.date)) + '</td>' +
-      '<td><b>' + Number(h.score || 0).toFixed(1) + ' / 100</b></td>' +
-      '<td>' + badge + '</td>' +
-      '<td><button class="btn-view" data-view="' + i + '"><i class="fa-solid fa-eye"></i> View Exam</button></td>' +
-      '</tr>';
+    return '<tr><td>' + esc(fmtDate(h.date)) + (h.year ? ' • Year ' + h.year : '') + '</td><td><b>' + fmtNum(h.score) + ' / 100</b></td><td>' + badge + '</td>' +
+      '<td>' + (h.has_details ? '<button class="btn-view" data-view="' + i + '"><i class="fa-solid fa-eye"></i> View Exam</button>' : '<span style="color:var(--muted);font-size:11.5px">Summary only</span>') + '</td></tr>';
   }).join('');
 }
 
-async function init() {
-  const raw = localStorage.getItem('idt_user');
-  if (!raw) {
-    window.location.replace('register.html');
-    return;
+function panel(cls, icon, title, text, extra) {
+  return '<div class="st-panel ' + cls + '"><i class="fa-solid ' + icon + ' big"></i><h3>' + esc(title) + '</h3><p>' + text + '</p>' + (extra || '') + '</div>';
+}
+
+function renderIntro() {
+  stopTicker();
+  const c = S.course;
+  $('introCourseName').textContent = c.name;
+  $('introStudentName').textContent = S.student.name;
+  $('introCourseNumber').textContent = c.number || '000';
+  if (c.image) $('introCourseImg').src = c.image;
+  $('introTitle').textContent = c.is_diploma ? 'Diploma Exam • Year ' + c.year : 'Final Exam';
+  $('introSubtitle').textContent = c.name + ' • Pass with 60 marks';
+  $('ruleQ').textContent = '80';
+  const box = $('statusPanel');
+  const local = readSession();
+  const startBtn = '<button class="btn btn-primary" id="btnStartExam"><i class="fa-solid fa-play"></i> Start Exam</button>';
+  const dashBtn = '<a href="dashboard.html" class="btn btn-outline" style="text-decoration:none"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>';
+  $('rulesCard').classList.remove('hidden');
+  $('nextWrap').classList.add('hidden');
+
+  if (local && local.phase === 'run' && !(S.state === 'active' && S.active && S.active.exam_id === local.exam_id)) {
+    clearSession();
+    sess = null;
   }
+  if (local && local.phase === 'gen' && S.state !== 'ready') {
+    clearSession();
+    sess = null;
+  }
+
+  switch (S.state) {
+    case 'passed': {
+      setBadge('green', 'fa-circle-check', 'Passed');
+      const p = S.passed || {};
+      box.innerHTML = panel('ok', 'fa-circle-check', 'You passed this exam!', 'Your score is <b>' + fmtNum(p.score) + ' / 100</b>. Well done. Continue with the next step below.');
+      $('rulesCard').classList.add('hidden');
+      break;
+    }
+    case 'locked':
+      setBadge('rose', 'fa-lock', 'Locked');
+      box.innerHTML = panel('lock', 'fa-lock', 'Exam locked for 7 days', 'Your last attempt did not reach the pass mark. Read your lessons again. You can try again when the timer ends.', tilesHtml(false) + dashBtn);
+      startTicker(S.retry_at, false, () => refresh());
+      break;
+    case 'time_locked':
+      setBadge('amber', 'fa-hourglass-half', 'Not yet open');
+      box.innerHTML = panel('time', 'fa-calendar-days', 'Your exam opens after one full year', 'Your diploma exam opens when you have studied for one full year. Opens on <b>' + esc(fmtDate(S.eligible_at)) + '</b>. Keep learning every week.', tilesHtml(true) + dashBtn);
+      startTicker(S.eligible_at, true, () => refresh());
+      break;
+    case 'not_ready': {
+      setBadge('amber', 'fa-book-open', 'Finish lessons');
+      const pr = S.progress || {};
+      const rows = [];
+      if (pr.missing_topics > 0) rows.push('<div><i class="fa-solid fa-book-open"></i> ' + pr.missing_topics + ' topic(s) not read yet</div>');
+      if (pr.missing_videos > 0) rows.push('<div><i class="fa-solid fa-circle-play"></i> ' + pr.missing_videos + ' video(s) not started</div>');
+      if (pr.missing_assessments > 0) rows.push('<div><i class="fa-solid fa-clipboard-question"></i> ' + pr.missing_assessments + ' assessment(s) not passed</div>');
+      box.innerHTML = panel('time', 'fa-book-open', 'Finish your lessons first', 'You can only take the exam after you finish all your lessons. Go back to your dashboard and complete these:', '<div class="miss-list">' + rows.join('') + '</div>' + dashBtn);
+      break;
+    }
+    case 'no_topics':
+      setBadge('amber', 'fa-hourglass-half', 'Not ready');
+      box.innerHTML = panel('time', 'fa-hourglass-half', 'This course is not ready yet', 'The lessons for this course are still being prepared. Please check back soon.', dashBtn);
+      break;
+    case 'active': {
+      setBadge('violet', 'fa-stopwatch', 'In progress');
+      const mine = local && local.phase === 'run' && S.active && local.exam_id === S.active.exam_id;
+      if (mine) {
+        box.innerHTML = panel('info', 'fa-stopwatch', 'Your exam is still running', 'You have an exam in progress. Your answers are saved on this device. Tap Resume to continue. Time left: <b id="resumeLeft"></b>.', '<button class="btn btn-primary" id="btnResume"><i class="fa-solid fa-play"></i> Resume Exam</button>');
+        const upd = () => {
+          const el = $('resumeLeft');
+          if (el) el.textContent = fmtDur(S.active.ends_at - (Date.now() + (S.server_now - S.client_at)));
+        };
+        upd();
+        tickerId = setInterval(upd, 1000);
+      } else {
+        box.innerHTML = panel('info', 'fa-mobile-screen', 'An exam is already running', 'An exam for this course was started on another device or browser. Please continue it there. It ends at <b>' + esc(fmtDate(S.active.ends_at)) + '</b>.', dashBtn);
+      }
+      break;
+    }
+    default: {
+      setBadge('violet', 'fa-hourglass-half', 'Ready');
+      if (local && local.phase === 'gen') {
+        box.innerHTML = panel('info', 'fa-wand-magic-sparkles', 'Continue preparing your exam', 'Your exam was not finished preparing. Tap the button to continue. Your time starts only when the exam is ready.', startBtn);
+      } else {
+        box.innerHTML = '<div style="margin-bottom:6px">' + startBtn + '</div>';
+      }
+    }
+  }
+  renderHistory();
+  if (S.state === 'passed') renderNext();
+  if (S.sync_needed) syncPass();
+}
+
+async function refresh() {
+  miniLoad('Checking your exam...');
   try {
-    user = JSON.parse(raw);
-  } catch (e) {
-    localStorage.removeItem('idt_user');
-    window.location.replace('register.html');
-    return;
-  }
-  if (!user || !user.id) {
-    localStorage.removeItem('idt_user');
-    window.location.replace('register.html');
-    return;
-  }
-  const params = new URLSearchParams(window.location.search);
-  const cid = params.get('course_id') || user.course_id || '';
-  const uid = params.get('user_id') || user.id || '';
-  if (uid) user.id = uid;
-  activeCourseId = cid;
-  showLoading();
-  try {
-    await fetchProfile();
-    if (!activeCourseId) throw new Error('No course linked to your account');
-    await Promise.all([loadCourse(activeCourseId), loadTopics(activeCourseId)]);
+    S = await api(API_EXAM, { action: 'status', user_id: user.id, course_id: courseId }, { retries: 2 });
+    S.client_at = Date.now();
+    miniHide();
     renderIntro();
-    renderHistory();
-    hideLoading();
-    if (!topics.length) {
-      showToast('info', 'No Topics Yet', 'The topics for this course are not ready. Please check back soon.', '');
-    }
-  } catch (err) {
-    hideLoading();
-    showToast('error', 'Exam Error', 'Could not load your exam.', err.message || String(err));
+  } catch (e) {
+    miniHide();
+    $('introBadge').className = 'badge rose';
+    $('introBadge').innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Error';
+    $('introSubtitle').textContent = 'We could not load your exam';
+    $('statusPanel').innerHTML = panel('lock', 'fa-triangle-exclamation', 'We could not open your exam', esc(e.message), '<div class="btn-row"><button class="btn btn-primary" id="btnReload"><i class="fa-solid fa-rotate-right"></i> Try Again</button><a href="dashboard.html" class="btn btn-outline" style="text-decoration:none"><i class="fa-solid fa-arrow-left"></i> Dashboard</a></div>');
+    $('rulesCard').classList.add('hidden');
   }
 }
 
-async function startExam() {
-  const state = examState();
-  if (state.indexOf('locked:') === 0) {
-    showToast('error', 'Exam Locked', 'You can retry your exam after 7 days.', '');
-    return;
-  }
-  if (state === 'passed') {
-    showToast('info', 'Already Passed', 'You already passed this exam. Go to your certificate.', '');
-    return;
-  }
-  if (!topics.length) {
-    showToast('error', 'No Topics', 'No course topics found. Please contact support.', '');
-    return;
-  }
-  miniLoad('Preparing your exam questions...');
+async function ensureCamera() {
+  if (stream && stream.getVideoTracks().some((t) => t.readyState === 'live')) return true;
   try {
-    const payload = {
-      user_id: user.id,
-      course_id: activeCourseId,
-      course_name: (userData && userData.course_name) || '',
-      language: (userData && userData.preferred_lang) || 'English',
-      topics: topics.map((t) => ({
-        topic_name: t.topic_name || '',
-        topic_text: String(t.topic_text || '').slice(0, 1500)
-      }))
-    };
-    const res = await apiPost('/examai', payload);
-    const qs = res.questions || [];
-    if (qs.length !== 60) throw new Error('Expected 60 questions but got ' + qs.length);
-    examQuestions = qs;
-    answers = qs.map(() => '');
-    examId = res.exam_id || ('ex_' + Date.now().toString(36));
-    flags = 0;
-    secondsLeft = EXAM_SECONDS;
-    currentPage = 0;
-    timedOutFlag = false;
-    submitting = false;
-    $('examIntro').classList.add('hidden');
-    $('examResult').classList.add('hidden');
-    $('examActive').classList.remove('hidden');
-    const camOk = await startCamera();
-    if (!camOk) {
-      $('examCamLock').classList.remove('hidden');
-      $('examCamLockTitle').textContent = 'Camera Unavailable';
-      $('examCamLockMsg').textContent = 'We could not start your camera. You can continue, but this exam will be flagged for review.';
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('no camera');
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 360 } }, audio: false });
+    const v = $('examCam');
+    v.srcObject = stream;
+    v.muted = true;
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});
+    const track = stream.getVideoTracks()[0];
+    if (track) {
+      track.onended = () => {
+        if (running) flagLeave('Your camera stopped. Please turn it on.');
+      };
     }
-    renderPage();
-    startTimer();
-    attachAntiCheat();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    miniHide();
-    showToast('info', 'Exam Started', 'Good luck! You have 1 hour. Stay on this page.');
-  } catch (err) {
-    miniHide();
-    showToast('error', 'Exam Failed', 'Could not prepare your exam. Please try again.', err.message || String(err));
-  }
-}
-
-async function startCamera() {
-  const video = $('examCam');
-  try {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error('Camera not supported');
-    }
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } },
-      audio: false
-    });
-    video.srcObject = stream;
-    await video.play().catch(() => {});
     return true;
-  } catch (err) {
+  } catch (_) {
     return false;
   }
 }
 
 function stopCamera() {
-  if (stream) {
-    stream.getTracks().forEach((t) => t.stop());
-    stream = null;
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  stream = null;
+  const v = $('examCam');
+  if (v) v.srcObject = null;
+  $('camMini').classList.add('hidden');
+}
+
+async function onStart() {
+  const ok = await confirmModal({
+    icon: 'fa-play',
+    title: 'Start your exam?',
+    html: 'You will answer <b>80 questions</b> in <b>2 hours</b>. Your camera must be on. Do not leave this page, copy, or take screenshots.<br><br>Your time starts only after all questions are ready.',
+    ok: 'Yes, Start',
+    cancel: 'Not Yet'
+  });
+  if (!ok) return;
+  miniLoad('Opening your camera...');
+  const cam = await ensureCamera();
+  miniHide();
+  if (!cam) {
+    toast('error', 'Camera Needed', 'Please allow your camera. The exam cannot start without it.');
+    return;
   }
-  const video = $('examCam');
-  if (video && video.srcObject) {
-    video.srcObject = null;
+  await runGeneration();
+}
+
+function setGen(pct, title, msg) {
+  const p = Math.max(0, Math.min(100, Math.round(pct)));
+  $('genPct').textContent = String(p);
+  $('genRing').style.setProperty('--p', String(p));
+  $('genBar').style.width = p + '%';
+  if (title) $('genTitle').textContent = title;
+  if (msg) $('genMsg').textContent = msg;
+}
+
+function genFail(message) {
+  const e = $('genError');
+  e.textContent = message;
+  e.classList.remove('hidden');
+  $('btnGenRetry').classList.remove('hidden');
+  $('genTitle').textContent = 'Could not finish preparing';
+}
+
+async function runGeneration() {
+  showOnly('examGen');
+  $('genError').classList.add('hidden');
+  $('btnGenRetry').classList.add('hidden');
+  setGen(0, 'Preparing your exam', 'Please wait. We are preparing your questions one part at a time. This can take one to two minutes. Do not close this page.');
+  try {
+    sess = readSession();
+    if (!sess || sess.phase !== 'gen' || sess.user_id !== user.id || sess.course_id !== courseId) {
+      const prep = await api(API_EXAM, { action: 'prepare', user_id: user.id, course_id: courseId }, { retries: 2 });
+      sess = { v: 1, user_id: user.id, course_id: courseId, phase: 'gen', exam_id: prep.exam_id, plan_token: prep.plan_token, batches: prep.batches, total: prep.total, got: {}, created: Date.now() };
+      saveSession();
+    }
+    await generateAll();
+    setGen(100, 'Almost ready', 'Starting your exam...');
+    assemble();
+    const begin = await api(API_EXAM, { action: 'begin', user_id: user.id, course_id: courseId, plan_token: sess.plan_token }, { retries: 3 });
+    sess.phase = 'run';
+    sess.started_at = begin.started_at;
+    sess.ends_at = begin.ends_at;
+    sess.offset = begin.server_now - Date.now();
+    sess.answers = {};
+    sess.page = 0;
+    sess.shots = 0;
+    sess.leaves = 0;
+    delete sess.got;
+    delete sess.plan_token;
+    sess.begin_token_saved = true;
+    saveSession();
+    await sleep(500);
+    startRun();
+  } catch (e) {
+    if (e.status === 409) {
+      clearSession();
+      sess = null;
+      toast('error', 'Exam Not Available', e.message);
+      showOnly('examIntro');
+      refresh();
+      return;
+    }
+    genFail(e.message || 'Something went wrong. Please try again.');
   }
 }
 
-function updateProgress() {
-  const total = examQuestions.length;
-  const answered = answers.filter((a) => String(a || '').trim() !== '').length;
-  $('examQCount').textContent = answered + ' / ' + total + ' answered';
-  $('examProgressFill').style.width = total ? Math.round((answered / total) * 100) + '%' : '0%';
+function stems() {
+  const out = [];
+  Object.keys(sess.got).forEach((k) => {
+    sess.got[k].questions.forEach((q) => out.push(String(q.question || '').slice(0, 110)));
+  });
+  return out.slice(-70);
+}
+
+async function doBatch(i) {
+  let lastErr = null;
+  for (let a = 0; a < BATCH_ATTEMPTS; a++) {
+    try {
+      const res = await api(API_EXAM, { action: 'batch', user_id: user.id, course_id: courseId, plan_token: sess.plan_token, batch_index: i, avoid: stems() }, { timeout: 75000 });
+      sess.got[i] = { questions: res.questions, blob: res.blob };
+      saveSession();
+      return;
+    } catch (e) {
+      lastErr = e;
+      if (e.status && e.status < 500 && e.status !== 429) throw e;
+      await sleep(1500 * (a + 1));
+    }
+  }
+  throw lastErr || new Error('Could not prepare a part of the exam.');
+}
+
+async function generateAll() {
+  const total = sess.batches.length;
+  const pending = [];
+  for (let i = 0; i < total; i++) if (!sess.got[i]) pending.push(i);
+  let failed = null;
+  const update = () => {
+    const done = Object.keys(sess.got).length;
+    setGen((done / total) * 96, null, 'Part ' + done + ' of ' + total + ' is ready. Please keep this page open.');
+  };
+  update();
+  const worker = async () => {
+    while (pending.length && !failed) {
+      const i = pending.shift();
+      try {
+        await doBatch(i);
+        update();
+      } catch (e) {
+        failed = e;
+      }
+    }
+  };
+  const workers = [];
+  for (let w = 0; w < CONCURRENCY; w++) workers.push(worker());
+  await Promise.all(workers);
+  if (failed) throw failed;
+}
+
+function assemble() {
+  const keys = Object.keys(sess.got).map(Number).sort((a, b) => a - b);
+  let all = [];
+  const blobs = [];
+  keys.forEach((k) => {
+    all = all.concat(sess.got[k].questions);
+    blobs.push(sess.got[k].blob);
+  });
+  const order = { mcq: 0, tf: 1, write: 2 };
+  all = all.map((q, i) => [q, i]).sort((a, b) => (order[a[0].type] - order[b[0].type]) || (a[1] - b[1])).map((x) => x[0]);
+  const ids = {};
+  all.forEach((q) => { ids[q.qid] = true; });
+  if (all.length !== sess.total || Object.keys(ids).length !== all.length) {
+    throw new Error('The exam questions are incomplete. Please try again.');
+  }
+  sess.questions = all;
+  sess.blobs = blobs;
+}
+
+function buildPages() {
+  pages = [];
+  ['mcq', 'tf', 'write'].forEach((t) => {
+    const idx = [];
+    sess.questions.forEach((q, i) => { if (q.type === t) idx.push(i); });
+    for (let i = 0; i < idx.length; i += PAGE_SIZE[t]) pages.push({ type: t, idx: idx.slice(i, i + PAGE_SIZE[t]) });
+  });
+}
+
+function answeredCount() {
+  return sess.questions.filter((q) => String(sess.answers[q.qid] || '').trim() !== '').length;
+}
+
+function renderStages() {
+  const cur = pages[curPage].type;
+  $('stageRow').innerHTML = ['mcq', 'tf', 'write'].map((t) => {
+    const order = { mcq: 0, tf: 1, write: 2 };
+    const cls = t === cur ? 'on' : (order[t] < order[cur] ? 'done' : '');
+    return '<span class="stage-chip ' + cls + '"><i class="fa-solid ' + PART_INFO[t].icon + '"></i> ' + PART_INFO[t].short + ': ' + PART_INFO[t].label + '</span>';
+  }).join('');
 }
 
 function renderPage() {
-  if (!examQuestions.length) return;
-  const start = currentPage * PAGE_SIZE;
-  const pageQs = examQuestions.slice(start, start + PAGE_SIZE);
-  const total = examQuestions.length;
-  const isLast = start + PAGE_SIZE >= total;
-  const card = $('questionCard');
+  const pg = pages[curPage];
+  const letters = ['A', 'B', 'C', 'D'];
   let html = '';
-  pageQs.forEach((q, pi) => {
-    const qi = start + pi;
-    const num = qi + 1;
-    const isMcq = String(q.type) !== 'write';
-    const opts = Array.isArray(q.options) ? q.options : [];
-    const marks = isMcq ? '1.5' : '2.5';
-    html += '<div class="question-card">' +
-      '<div class="q-head">' +
-      '<span class="q-num"><i class="fa-solid fa-circle-question"></i> Question ' + num + ' of 60</span>' +
-      '<span class="q-marks ' + (isMcq ? 'mcq' : 'write') + '"><i class="fa-solid fa-' + (isMcq ? 'list-check' : 'pen') + '"></i> ' + marks + ' Marks</span>' +
-      '</div>' +
-      '<div class="q-text">' + escapeHtml(q.question || '') + '</div>';
-    if (isMcq && opts.length) {
-      const letters = ['A', 'B', 'C', 'D'];
-      html += '<div class="q-options">' + opts.map((opt, oi) => {
-        const sel = answers[qi] === String(oi);
-        return '<button type="button" class="q-opt' + (sel ? ' selected' : '') + '" data-qi="' + qi + '" data-opt="' + oi + '">' +
-          '<span class="q-letter">' + letters[oi] + '</span><span>' + escapeHtml(opt) + '</span></button>';
-      }).join('') + '</div>';
+  pg.idx.forEach((qi) => {
+    const q = sess.questions[qi];
+    const ans = String(sess.answers[q.qid] || '');
+    html += '<div class="question-card"><div class="q-head"><span class="q-num"><i class="fa-solid fa-circle-question"></i> Question ' + (qi + 1) + ' of ' + sess.questions.length + '</span>' +
+      '<span class="q-marks ' + q.type + '"><i class="fa-solid ' + PART_INFO[q.type].icon + '"></i> ' + PART_INFO[q.type].marks + ' Mark' + (PART_INFO[q.type].marks > 1 ? 's' : '') + '</span></div>' +
+      '<div class="q-text">' + esc(q.question) + '</div>';
+    if (q.type === 'mcq') {
+      html += '<div class="q-options">' + q.options.map((o, oi) => '<button type="button" class="q-opt' + (ans === letters[oi] ? ' selected' : '') + '" data-qid="' + q.qid + '" data-val="' + letters[oi] + '"><span class="q-letter">' + letters[oi] + '</span><span>' + esc(o) + '</span></button>').join('') + '</div>';
+    } else if (q.type === 'tf') {
+      html += '<div class="tf-row"><button type="button" class="tf-btn t' + (ans === 'true' ? ' selected' : '') + '" data-qid="' + q.qid + '" data-val="true"><i class="fa-solid fa-circle-check"></i> True</button>' +
+        '<button type="button" class="tf-btn f' + (ans === 'false' ? ' selected' : '') + '" data-qid="' + q.qid + '" data-val="false"><i class="fa-solid fa-circle-xmark"></i> False</button></div>';
     } else {
-      const val = escapeHtml(String(answers[qi] || ''));
-      html += '<div class="q-write"><textarea data-qi="' + qi + '" placeholder="Type your answer here..." maxlength="2000">' + val + '</textarea></div>';
+      html += '<div class="q-write"><textarea data-qid="' + q.qid + '" maxlength="1500" placeholder="Type your answer here...">' + esc(ans) + '</textarea><div class="q-count"><span data-cnt="' + q.qid + '">' + ans.length + '</span> / 1500</div></div>';
     }
     html += '</div>';
   });
-  card.innerHTML = html;
-  card.querySelectorAll('.q-opt').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const qi = parseInt(btn.dataset.qi, 10);
-      answers[qi] = btn.dataset.opt;
-      const group = btn.parentElement;
-      group.querySelectorAll('.q-opt').forEach((b) => {
-        b.classList.toggle('selected', b === btn);
-      });
-      updateProgress();
-    });
-  });
-  card.querySelectorAll('textarea').forEach((ta) => {
-    ta.addEventListener('input', (e) => {
-      const qi = parseInt(e.target.dataset.qi, 10);
-      answers[qi] = e.target.value;
-    });
-  });
-  $('btnBackPage').disabled = currentPage === 0;
-  $('btnNextPage').classList.toggle('hidden', isLast);
-  $('btnSubmitExam').classList.toggle('hidden', !isLast);
-  const end = Math.min(start + PAGE_SIZE, total);
-  $('examQProgress').textContent = 'Questions ' + (start + 1) + '-' + end + ' of ' + total;
+  $('questionCard').innerHTML = html;
+  const first = pg.idx[0] + 1;
+  const last = pg.idx[pg.idx.length - 1] + 1;
+  $('examQProgress').textContent = (first === last ? 'Question ' + first : 'Questions ' + first + '-' + last) + ' of ' + sess.questions.length;
+  $('btnBackPage').disabled = curPage === 0;
+  $('btnNextPage').classList.toggle('hidden', curPage === pages.length - 1);
+  $('btnSubmitExam').classList.toggle('hidden', curPage !== pages.length - 1);
+  renderStages();
   updateProgress();
+  sess.page = curPage;
+  saveSessionSoon();
 }
 
-function startTimer() {
-  if (timer) clearInterval(timer);
-  timer = setInterval(() => {
-    secondsLeft--;
-    if (secondsLeft <= 0) {
-      clearInterval(timer);
-      timer = null;
-      submitExam(true, 'timeout');
-      return;
-    }
-    const h = Math.floor(secondsLeft / 3600);
-    const m = Math.floor((secondsLeft % 3600) / 60);
-    const s = secondsLeft % 60;
-    $('examTimerText').textContent = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-    $('examTimer').classList.toggle('danger', secondsLeft <= 300);
-  }, 1000);
+function updateProgress() {
+  const n = answeredCount();
+  $('examQCount').textContent = n + ' / ' + sess.questions.length + ' answered';
+  $('examProgressFill').style.width = Math.round((n / sess.questions.length) * 100) + '%';
 }
 
-function warnFlag(msg) {
-  if (!timer) return;
-  flags++;
-  if (flags >= MAX_FLAGS) {
-    submitExam(true, 'cheating');
+function tick() {
+  const left = Math.max(0, Math.floor((sess.ends_at - (Date.now() + sess.offset)) / 1000));
+  const h = Math.floor(left / 3600);
+  const m = Math.floor((left % 3600) / 60);
+  const s = left % 60;
+  $('examTimerText').textContent = h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  $('examTimer').classList.toggle('danger', left <= 300);
+  if (left <= 0) submitExam('time');
+}
+
+function inField(e) {
+  const t = e.target;
+  return t && t.closest && t.closest('textarea,input');
+}
+
+function shot() {
+  if (!running) return;
+  const now = Date.now();
+  if (now - lastShot < 1200) return;
+  lastShot = now;
+  sess.shots = (sess.shots || 0) + 1;
+  saveSession();
+  toast('error', 'Screenshot Detected', '1 mark will be taken from your score. Total screenshots: ' + sess.shots);
+}
+
+function flagLeave(msg) {
+  if (!running) return;
+  document.body.classList.add('exam-hide');
+  $('shieldTitle').textContent = 'Return to your exam';
+  $('shieldMsg').textContent = 'Your questions are hidden while this page is not in focus.';
+  $('examShield').classList.add('show');
+  const now = Date.now();
+  if (now - lastLeave < 2000) return;
+  lastLeave = now;
+  sess.leaves = (sess.leaves || 0) + 1;
+  saveSession();
+  if (sess.leaves >= MAX_LEAVES) {
+    submitExam('leaves');
     return;
   }
-  showToast('error', 'Warning!', msg, 'Flag ' + flags + '/' + MAX_FLAGS);
+  toast('error', 'Warning ' + sess.leaves + ' of ' + MAX_LEAVES, msg + ' After ' + MAX_LEAVES + ' warnings your exam is sent automatically.');
 }
 
-function antiCheatHandler() {
-  if (document.hidden && timer) {
-    warnFlag('Do not leave the exam page. This is recorded.');
+function unhide() {
+  document.body.classList.remove('exam-hide');
+  $('examShield').classList.remove('show');
+}
+
+function onVis() {
+  if (document.hidden) flagLeave('You left the exam page.');
+  else unhide();
+}
+
+function onBlur() {
+  flagLeave('Stay on the exam page.');
+}
+
+function onFocus() {
+  if (!document.hidden) unhide();
+}
+
+function onKeyDown(e) {
+  if (!running) return;
+  const k = e.key || '';
+  const lk = k.toLowerCase();
+  if (k === 'PrintScreen') {
+    e.preventDefault();
+    shot();
+    return;
   }
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && (lk === 's' || k === '3' || k === '4' || k === '5')) {
+    e.preventDefault();
+    shot();
+    return;
+  }
+  if (k === 'F12' || ((e.ctrlKey || e.metaKey) && e.shiftKey && ['i', 'j', 'c'].indexOf(lk) !== -1)) {
+    e.preventDefault();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && ['c', 'x', 'v', 'p', 's', 'u'].indexOf(lk) !== -1) {
+    e.preventDefault();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && lk === 'a' && !inField(e)) e.preventDefault();
 }
 
-function antiCheatCopy(e) {
-  if (!timer) return;
+function onKeyUp(e) {
+  if (running && e.key === 'PrintScreen') shot();
+}
+
+function block(e) {
+  if (!running) return;
+  if (e.type === 'selectstart' && inField(e)) return;
   e.preventDefault();
-  warnFlag('Copying is not allowed during the exam. This is recorded.');
 }
 
-function antiCheatBlur() {
-  if (timer) {
-    warnFlag('Stay on the exam page.');
+function onBeforeUnload(e) {
+  if (running && !submitting) {
+    e.preventDefault();
+    e.returnValue = '';
   }
 }
 
-function attachAntiCheat() {
-  document.addEventListener('visibilitychange', antiCheatHandler);
-  document.addEventListener('copy', antiCheatCopy);
-  window.addEventListener('blur', antiCheatBlur);
+function attachGuards() {
+  document.addEventListener('visibilitychange', onVis);
+  window.addEventListener('blur', onBlur);
+  window.addEventListener('focus', onFocus);
+  document.addEventListener('keydown', onKeyDown, true);
+  document.addEventListener('keyup', onKeyUp, true);
+  ['copy', 'cut', 'paste', 'contextmenu', 'dragstart', 'selectstart'].forEach((ev) => document.addEventListener(ev, block, true));
+  window.addEventListener('beforeprint', shot);
+  window.addEventListener('beforeunload', onBeforeUnload);
+  document.body.classList.add('exam-lock');
 }
 
-function detachAntiCheat() {
-  document.removeEventListener('visibilitychange', antiCheatHandler);
-  document.removeEventListener('copy', antiCheatCopy);
-  window.removeEventListener('blur', antiCheatBlur);
+function detachGuards() {
+  document.removeEventListener('visibilitychange', onVis);
+  window.removeEventListener('blur', onBlur);
+  window.removeEventListener('focus', onFocus);
+  document.removeEventListener('keydown', onKeyDown, true);
+  document.removeEventListener('keyup', onKeyUp, true);
+  ['copy', 'cut', 'paste', 'contextmenu', 'dragstart', 'selectstart'].forEach((ev) => document.removeEventListener(ev, block, true));
+  window.removeEventListener('beforeprint', shot);
+  window.removeEventListener('beforeunload', onBeforeUnload);
+  document.body.classList.remove('exam-lock');
+  unhide();
 }
 
-async function submitExam(timedOut, reason) {
-  if (submitting) return;
-  if (!timer && !timedOut) return;
-  if (!examQuestions.length) return;
+function startRun() {
+  buildPages();
+  curPage = Math.min(Math.max(0, sess.page || 0), pages.length - 1);
+  running = true;
+  submitting = false;
+  showOnly('examActive');
+  $('camMini').classList.remove('hidden');
+  attachGuards();
+  renderPage();
+  tick();
+  if (timerId) clearInterval(timerId);
+  timerId = setInterval(tick, 1000);
+}
+
+async function onResume() {
+  sess = readSession();
+  if (!sess || sess.phase !== 'run') {
+    toast('error', 'Cannot Resume', 'The saved exam was not found on this device.');
+    return;
+  }
+  miniLoad('Opening your camera...');
+  const cam = await ensureCamera();
+  miniHide();
+  if (!cam) {
+    toast('error', 'Camera Needed', 'Please allow your camera to continue the exam.');
+    return;
+  }
+  startRun();
+}
+
+async function submitExam(reason) {
+  if (!running || submitting) return;
+  if (reason === 'manual') {
+    const n = answeredCount();
+    const total = sess.questions.length;
+    const miss = { mcq: 0, tf: 0, write: 0 };
+    sess.questions.forEach((q) => { if (!String(sess.answers[q.qid] || '').trim()) miss[q.type]++; });
+    const ok = await confirmModal({
+      icon: 'fa-hourglass-end',
+      title: 'Submit your exam?',
+      html: 'You answered <b>' + n + ' of ' + total + '</b> questions.' + (n < total ? '<br>Not answered: ' + miss.mcq + ' multiple choice, ' + miss.tf + ' true/false, ' + miss.write + ' written.' : '') + '<br><br>After you submit, you cannot change your answers.',
+      ok: 'Submit',
+      cancel: 'Go Back'
+    });
+    if (!ok) return;
+  }
   submitting = true;
-  timedOutFlag = timedOut;
-  if (timer) clearInterval(timer);
-  timer = null;
-  detachAntiCheat();
+  running = false;
+  if (timerId) clearInterval(timerId);
+  timerId = null;
+  detachGuards();
+  saveSession();
+  pendingGrade = reason;
+  await doGrade(reason);
+}
+
+async function doGrade(reason) {
+  miniLoad('Saving your answers...', 'Please do not close this page.');
+  const payload = {
+    action: 'grade',
+    user_id: user.id,
+    course_id: courseId,
+    exam_id: sess.exam_id,
+    blobs: sess.blobs,
+    answers: sess.answers,
+    questions: sess.questions.map((q) => ({ qid: q.qid, type: q.type, question: q.question, options: q.options })),
+    shots: sess.shots || 0,
+    leaves: sess.leaves || 0,
+    reason: reason,
+    language: localStorage.getItem('idt_exam_lang') || 'English'
+  };
+  try {
+    const data = await api(API_EXAM, payload, { retries: 2, timeout: 100000 });
+    pendingGrade = null;
+    miniHide();
+    await finishExam(data);
+  } catch (e) {
+    if (e.status === 409) {
+      miniHide();
+      clearSession();
+      toast('error', 'Exam Not Active', e.message);
+      stopCamera();
+      showOnly('examIntro');
+      refresh();
+      return;
+    }
+    $('miniLoaderText').textContent = 'Could not save yet';
+    const sub = $('miniLoaderSub');
+    sub.textContent = e.message + ' Your answers are safe on this device. Check your internet and tap Try Again.';
+    sub.classList.remove('hidden');
+    $('miniLoaderBtn').classList.remove('hidden');
+  }
+}
+
+async function finishExam(data) {
   stopCamera();
-  miniLoad('Submitting your exam...');
-  try {
-    const qs = examQuestions.map((q, i) => {
-      const isMcq = String(q.type) !== 'write';
-      const opts = Array.isArray(q.options) ? q.options : [];
-      let ua = String(answers[i] || '');
-      if (isMcq && opts.length) {
-        const idx = parseInt(ua, 10);
-        ua = (!isNaN(idx) && idx >= 0 && idx < opts.length) ? String.fromCharCode(65 + idx) : '';
-      }
-      return {
-        number: i + 1,
-        type: isMcq ? 'mcq' : 'write',
-        question: q.question || '',
-        options: opts,
-        user_answer: ua
-      };
-    });
-    const timeSpent = Math.max(0, EXAM_SECONDS - secondsLeft);
-    const res = await apiPost('/examai', {
-      user_id: user.id,
-      course_id: activeCourseId,
-      course_name: (userData && userData.course_name) || '',
-      exam_id: examId,
-      action: 'grade',
-      questions: qs,
-      time_spent: timeSpent,
-      flagged: flags > 0,
-      timed_out: timedOut,
-      reason: reason || '',
-      preferred_lang: (userData && userData.preferred_lang) || 'English'
-    });
-    resultData = res;
-    showResult(timedOut, reason);
-    miniHide();
-    await saveExamData();
-  } catch (err) {
-    miniHide();
-    showToast('error', 'Submit Failed', 'Could not submit your exam. Please try again.', err.message || String(err));
-    submitting = false;
-    if (!timedOut && secondsLeft > 0) {
-      startTimer();
-      attachAntiCheat();
-    }
+  clearSession();
+  resultData = data;
+  showResult();
+  if (data.passed) {
+    syncPass();
   }
-}
-
-function showResult(timedOut, reason) {
-  const r = resultData;
-  const score = Number(r.score || 0);
-  const pct = Number(r.pct || 0);
-  const passed = r.passed === true;
-  $('examActive').classList.add('hidden');
-  $('examResult').classList.remove('hidden');
-  const deg = Math.round((pct / 100) * 360);
-  $('scoreRing').style.background = 'conic-gradient(' + (passed ? 'var(--green)' : 'var(--rose)') + ' ' + deg + 'deg, rgba(124,58,237,.1) ' + deg + 'deg)';
-  $('scorePct').textContent = pct + '%';
-  const head = $('resultHead');
-  head.textContent = passed ? 'Congratulations! 🎉' : 'Almost There!';
-  head.className = 'result-head ' + (passed ? 'pass' : 'fail');
-  $('resultSub').textContent = r.message || (passed
-    ? 'You passed your final exam with ' + pct + '%. Excellent work! You have earned your certificate.'
-    : 'You scored ' + pct + '%. You need 70% to pass. Read your notes and try again after 7 days.');
-  const results = r.results || [];
-  const correct = results.filter((x) => x.is_correct === true).length;
-  const wrong = results.filter((x) => x.is_correct === false).length;
-  const skipped = results.length - correct - wrong;
-  const timeUsed = Math.max(0, EXAM_SECONDS - secondsLeft);
-  $('resultSummary').innerHTML =
-    '<div class="rs-row"><span>Total Questions</span><b>' + results.length + '</b></div>' +
-    '<div class="rs-row"><span>Correct Answers</span><b class="ok">' + correct + '</b></div>' +
-    '<div class="rs-row"><span>Wrong Answers</span><b class="bad">' + wrong + '</b></div>' +
-    (skipped > 0 ? '<div class="rs-row"><span>Skipped</span><b>' + skipped + '</b></div>' : '') +
-    '<div class="rs-row"><span>Total Score</span><b>' + Number(score).toFixed(1) + ' / 100</b></div>' +
-    '<div class="rs-row"><span>Pass Mark</span><b>70 / 100</b></div>' +
-    '<div class="rs-row"><span>Time Used</span><b>' + formatDuration(timeUsed * 1000) + '</b></div>';
-  let listHtml = '';
-  results.forEach((x, i) => {
-    const ok = x.is_correct === true;
-    const sk = !String(x.user_answer || '').trim();
-    const mark = ok ? '<span class="ri-mark correct">✔ Correct</span>' : (sk ? '<span class="ri-mark skipped">Skipped</span>' : '<span class="ri-mark wrong">✖ Wrong</span>');
-    const earned = Number(x.earned || 0);
-    const marks = Number(x.marks || (String(x.type) === 'write' ? 2.5 : 1.5));
-    listHtml += '<div class="result-item">' +
-      '<div class="ri-head"><i class="fa-solid ' + (ok ? 'fa-circle-check' : (sk ? 'fa-circle-minus' : 'fa-circle-xmark')) + '" style="color:' + (ok ? '#10b981' : (sk ? '#94a3b8' : '#f43f5e')) + '"></i> Question ' + (i + 1) + ' ' + mark +
-      '<span class="ri-score">' + earned.toFixed(1) + ' / ' + marks.toFixed(1) + '</span></div>' +
-      '<div class="ri-q">' + escapeHtml(x.question || '') + '</div>' +
-      '<div class="ri-ans"><span class="' + (ok ? 'ok' : 'bad') + '">Your answer: ' + escapeHtml(x.user_answer || '(no answer)') + '</span>' +
-      (ok ? '' : '<br><span class="ok">Correct answer: ' + escapeHtml(x.correct_answer != null ? x.correct_answer : '') + '</span>') + '</div>' +
-      (x.explanation ? '<div class="ri-explain"><b><i class="fa-solid fa-lightbulb"></i> Explanation:</b> ' + escapeHtml(x.explanation) + '</div>' : '') +
-      '</div>';
-  });
-  $('resultList').innerHTML = listHtml || '<div class="result-item">No detailed breakdown available.</div>';
-  $('btnGoCertificate').classList.toggle('hidden', !passed);
-  if (passed) confetti();
-  if (timedOut) {
-    if (reason === 'cheating') {
-      showToast('error', 'Exam Cancelled', 'You left the exam page too many times. Your exam was cancelled.', '');
-    } else {
-      showToast('error', 'Time Up', 'Your 1 hour finished. Your answers were submitted automatically.', '');
-    }
-  }
-}
-
-async function saveExamData() {
   try {
-    const r = resultData;
-    const entry = {
-      id: 'ex_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      exam_id: examId,
-      date: new Date().toISOString(),
-      course_id: activeCourseId,
-      course_name: (userData && userData.course_name) || '',
-      score: Number(r.score || 0),
-      pct: Number(r.pct || 0),
-      passed: r.passed === true,
-      time_spent: Math.max(0, EXAM_SECONDS - secondsLeft),
-      flagged: flags > 0,
-      timed_out: timedOutFlag,
-      questions: r.results || []
-    };
-    const arr = Array.isArray(userData.exam_data) ? userData.exam_data : [];
-    arr.push(entry);
-    userData.exam_data = arr;
-    if (entry.passed) {
-      userData.exam_grade = entry.pct;
-    }
-    await saveUserData();
+    S = await api(API_EXAM, { action: 'status', user_id: user.id, course_id: courseId }, { retries: 1 });
+    S.client_at = Date.now();
     renderHistory();
-    renderIntro();
-    if (entry.passed) {
-      showToast('success', 'Result Saved', 'Your result has been saved to your exam history.', '');
-    }
-  } catch (err) {
-    showToast('error', 'Save Failed', 'Your result could not be saved to history.', err.message || String(err));
-  }
+    if (S.state === 'passed') renderNext();
+  } catch (_) {}
+}
+
+function detailHtml(d) {
+  const skipped = !String(d.user_answer || '').trim();
+  let cls = 'wrong';
+  let label = '✖ Wrong';
+  let icon = 'fa-circle-xmark';
+  let color = '#f43f5e';
+  if (d.is_correct) { cls = 'correct'; label = '✔ Correct'; icon = 'fa-circle-check'; color = '#10b981'; }
+  else if (skipped) { cls = 'skipped'; label = 'Skipped'; icon = 'fa-circle-minus'; color = '#94a3b8'; }
+  else if (d.earned > 0) { cls = 'partial'; label = '◐ Partial'; icon = 'fa-circle-half-stroke'; color = '#f59e0b'; }
+  return '<div class="result-item" data-k="' + (d.is_correct ? 'correct' : (skipped ? 'skipped' : 'wrong')) + '">' +
+    '<div class="ri-head"><i class="fa-solid ' + icon + '" style="color:' + color + '"></i> Question ' + d.number + ' <span class="ri-mark ' + cls + '">' + label + '</span><span class="ri-score">' + fmtNum(d.earned) + ' / ' + fmtNum(d.marks) + '</span></div>' +
+    '<div class="ri-q">' + esc(d.question) + '</div>' +
+    '<div class="ri-ans"><span class="' + (d.is_correct ? 'ok' : 'bad') + '">Your answer: ' + esc(d.user_answer || '(no answer)') + '</span>' +
+    (d.is_correct ? '' : '<br><span class="ok">Correct answer: ' + esc(d.correct_answer) + '</span>') + '</div>' +
+    (d.feedback ? '<div class="ri-explain"><b><i class="fa-solid fa-user-check"></i> Marker:</b> ' + esc(d.feedback) + '</div>' : '') +
+    (d.explanation ? '<div class="ri-explain"><b><i class="fa-solid fa-lightbulb"></i> Explanation:</b> ' + esc(d.explanation) + '</div>' : '') + '</div>';
+}
+
+function applyFilter(container, filterRow, f) {
+  filterRow.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c.dataset.f === f));
+  container.querySelectorAll('.result-item').forEach((it) => {
+    it.classList.toggle('hidden', f !== 'all' && it.dataset.k !== f);
+  });
+}
+
+function showResult() {
+  const r = resultData;
+  showOnly('examResult');
+  $('rulesCard').classList.add('hidden');
+  const score = Number(r.score) || 0;
+  const deg = Math.round((Math.min(100, score) / 100) * 360);
+  $('scoreRing').style.background = 'conic-gradient(' + (r.passed ? 'var(--green)' : 'var(--rose)') + ' ' + deg + 'deg, rgba(124,58,237,.1) ' + deg + 'deg)';
+  $('scorePct').textContent = fmtNum(score);
+  const head = $('resultHead');
+  head.textContent = r.passed ? 'Congratulations! 🎉' : 'Almost There!';
+  head.className = 'result-head ' + (r.passed ? 'pass' : 'fail');
+  $('resultSub').textContent = r.message || '';
+  const p = r.parts || {};
+  $('partsGrid').innerHTML =
+    '<div class="part"><b>' + fmtNum(p.mcq) + ' / 40</b><span>Multiple Choice</span></div>' +
+    '<div class="part"><b>' + fmtNum(p.tf) + ' / 30</b><span>True or False</span></div>' +
+    '<div class="part"><b>' + fmtNum(p.write) + ' / 30</b><span>Written</span></div>';
+  const results = r.results || [];
+  const correct = results.filter((x) => x.is_correct).length;
+  $('resultSummary').innerHTML =
+    '<div class="rs-row"><span>Questions fully correct</span><b class="ok">' + correct + ' of ' + results.length + '</b></div>' +
+    '<div class="rs-row"><span>Marks before deductions</span><b>' + fmtNum(r.raw_score) + '</b></div>' +
+    (r.deduction > 0 ? '<div class="rs-row"><span>Screenshot deduction</span><b class="bad">- ' + fmtNum(r.deduction) + '</b></div>' : '') +
+    '<div class="rs-row"><span>Final score</span><b>' + fmtNum(score) + ' / 100</b></div>' +
+    '<div class="rs-row"><span>Pass mark</span><b>' + PASS_MARK + ' / 100</b></div>' +
+    (!r.passed && r.retry_at ? '<div class="rs-row"><span>You can try again on</span><b>' + esc(fmtDate(r.retry_at)) + '</b></div>' : '');
+  $('resultList').innerHTML = results.map(detailHtml).join('') || '<div class="result-item">No detailed breakdown available.</div>';
+  applyFilter($('resultList'), $('resultFilters'), 'all');
+  if (r.passed) confetti();
 }
 
 function confetti() {
@@ -779,18 +925,8 @@ function confetti() {
   const x = c.getContext('2d');
   const colors = ['#7c3aed', '#06b6d4', '#f59e0b', '#10b981', '#f43f5e', '#a78bfa', '#fbbf24'];
   const parts = [];
-  for (let i = 0; i < 160; i++) {
-    parts.push({
-      x: Math.random() * c.width,
-      y: -20 - Math.random() * c.height * 0.5,
-      w: 6 + Math.random() * 7,
-      h: 8 + Math.random() * 9,
-      vy: 2 + Math.random() * 3,
-      vx: -1.5 + Math.random() * 3,
-      color: colors[i % colors.length],
-      rot: Math.random() * Math.PI,
-      vr: -0.1 + Math.random() * 0.2
-    });
+  for (let i = 0; i < 140; i++) {
+    parts.push({ x: Math.random() * c.width, y: -20 - Math.random() * c.height * 0.5, w: 6 + Math.random() * 7, h: 8 + Math.random() * 9, vy: 2 + Math.random() * 3, vx: -1.5 + Math.random() * 3, color: colors[i % colors.length], rot: Math.random() * Math.PI, vr: -0.1 + Math.random() * 0.2 });
   }
   let frames = 0;
   (function anim() {
@@ -807,560 +943,678 @@ function confetti() {
       x.restore();
     });
     frames++;
-    if (frames < 240) requestAnimationFrame(anim);
+    if (frames < 220) requestAnimationFrame(anim);
     else c.remove();
   })();
 }
 
-function inlineMarkdown(text) {
-  let out = escapeHtml(text);
-  out = out.replace(/```[\s\S]*?```/g, (m) => {
-    const code = m.slice(3, -3).replace(/^\n/, '');
-    return '<pre style="display:block;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:12px;overflow-x:auto;font-family:Consolas,monospace;font-size:12px;margin:8px 0;white-space:pre">' + escapeHtml(code) + '</pre>';
-  });
-  out = out.replace(/`([^`]+)`/g, '<code style="background:rgba(124,58,237,.2);color:#c4b5fd;padding:2px 6px;border-radius:6px;font-size:12px;font-family:Consolas,monospace">$1</code>');
-  const lines = out.split('\n');
-  let html = '';
-  let listOpen = false;
-  let listType = '';
-  let tableRows = [];
-  lines.forEach((line) => {
-    const h = line.match(/^(#{1,6})\s+(.*)$/);
-    if (h) {
-      if (listOpen) { html += '</' + listType + '>'; listOpen = false; }
-      const lvl = h[1].length;
-      html += '<h' + Math.min(lvl + 2, 6) + ' style="font-size:' + (18 - lvl) + 'px;font-weight:800;margin:10px 0 6px;color:#a78bfa">' + h[2] + '</h' + Math.min(lvl + 2, 6) + '>';
-      return;
-    }
-    const tableMatch = line.trim().match(/^\|.*\|$/);
-    if (tableMatch) {
-      tableRows.push(line.trim());
-      return;
-    }
-    if (tableRows.length) {
-      html += renderTable(tableRows);
-      tableRows = [];
-    }
-    const ul = line.match(/^\s*[-*]\s+(.*)$/);
-    const ol = line.match(/^\s*\d+[.)]\s+(.*)$/);
-    if (ul || ol) {
-      const t = ul ? 'ul' : 'ol';
-      if (!listOpen || listType !== t) {
-        if (listOpen) html += '</' + listType + '>';
-        html += '<' + t + ' style="margin:6px 0 6px 18px;padding-left:14px">';
-        listOpen = true;
-        listType = t;
-      }
-      html += '<li style="margin:3px 0">' + (ul ? ul[1] : ol[1]) + '</li>';
-      return;
-    }
-    if (listOpen) { html += '</' + listType + '>'; listOpen = false; }
-    if (line.trim() === '') {
-      html += '<div style="height:8px"></div>';
-      return;
-    }
-    let rich = line;
-    rich = rich.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
-    rich = rich.replace(/(^|\s)\*([^*\n]+)\*(?=\s|$)/g, '$1<i>$2</i>');
-    rich = rich.replace(/~~([^~]+)~~/g, '<s>$1</s>');
-    html += '<div style="margin:4px 0">' + rich + '</div>';
-  });
-  if (tableRows.length) html += renderTable(tableRows);
-  if (listOpen) html += '</' + listType + '>';
-  return html;
-}
-
-function renderTable(rows) {
-  let html = '<div style="overflow-x:auto;margin:8px 0"><table style="border-collapse:collapse;width:100%;font-size:12px">';
-  rows.forEach((row, ri) => {
-    if (/^[-:\s|]+$/.test(row)) return;
-    const cells = row.replace(/^\||\|$/g, '').split('|').map((s) => s.trim());
-    const isHeader = ri === 0;
-    html += '<tr>';
-    cells.forEach((cell) => {
-      const tag = isHeader ? 'th' : 'td';
-      html += '<' + tag + ' style="border:1px solid rgba(124,58,237,.2);padding:8px 10px;text-align:left;' + (isHeader ? 'background:rgba(124,58,237,.08);font-weight:800' : '') + '">' + cell + '</' + tag + '>';
-    });
-    html += '</tr>';
-  });
-  html += '</table></div>';
-  return html;
-}
-
-function markdownToHtml(src) {
-  if (!src) return '';
-  const parts = String(src).split('```');
-  let html = '';
-  for (let i = 0; i < parts.length; i++) {
-    if (i % 2 === 1) {
-      let code = parts[i];
-      const nl = code.indexOf('\n');
-      if (nl > -1) code = code.slice(nl + 1);
-      html += '<pre style="display:block;background:#0f172a;color:#e2e8f0;padding:13px;border-radius:12px;overflow-x:auto;font-family:Consolas,monospace;font-size:12px;margin:8px 0;white-space:pre">' + escapeHtml(code) + '</pre>';
-    } else {
-      html += inlineMarkdown(parts[i]);
-    }
+async function syncPass() {
+  const examId = (S && S.passed && S.passed.exam_id) || (resultData && resultData.record_id ? String(resultData.record_id).replace(/^r_/, '') : '');
+  if (!examId) return;
+  try {
+    await api(API_WIN, { action: 'pass', user_id: user.id, course_id: courseId, exam_id: examId }, { retries: 3 });
+    if (S) S.sync_needed = false;
+  } catch (_) {
+    toast('info', 'Saving Your Result', 'We could not save your pass to your profile yet. It will be saved when you open this page again.');
   }
-  return html;
+}
+
+function langLabel() {
+  return localStorage.getItem('idt_exam_lang') || 'English';
+}
+
+function nextShell(title, icon, inner) {
+  $('nextWrap').classList.remove('hidden');
+  $('nextSteps').innerHTML = '<div class="next-title"><i class="fa-solid ' + icon + '"></i> ' + esc(title) + '</div>' + inner;
+}
+
+function renderNext() {
+  if (!S || !S.passed) return;
+  if (S.course.is_diploma && S.course.year === 1) renderYear2();
+  else renderProject();
+}
+
+function renderYear2() {
+  const y = S.year2;
+  const name = esc(S.student.name);
+  if (!y || !y.course) {
+    nextShell('Next: Year 2', 'fa-graduation-cap', '<p class="next-sub">Congratulations ' + name + '! You passed Year 1. We could not find your Year 2 course yet. Please contact customer care.</p><a href="https://wa.me/2347040831743" target="_blank" rel="noopener" class="btn btn-green" style="text-decoration:none"><i class="fa-brands fa-whatsapp"></i> Contact Customer Care</a>');
+    return;
+  }
+  if (y.payment === 'yes' && y.status === 'active') {
+    nextShell('Year 2 is ready', 'fa-circle-check', '<p class="next-sub">Congratulations ' + name + '! Your Year 2 course is open. Go to your dashboard to continue.</p><a href="dashboard.html" class="btn btn-green" style="text-decoration:none"><i class="fa-solid fa-house"></i> Go to Dashboard</a>');
+    return;
+  }
+  if (y.payment === 'yes') {
+    activateYear2(y.slot);
+    return;
+  }
+  const amount = '₦' + Number(y.pay_amount || 0).toLocaleString('en-NG');
+  nextShell('Next: Year 2', 'fa-graduation-cap', '<p class="next-sub">Congratulations ' + name + '! You passed Year 1 with <b>' + fmtNum(S.passed.score) + ' / 100</b>. To start <b>' + esc(y.course.name) + '</b> you pay the same fee again: <b>' + amount + '</b>. After payment your Year 2 opens on your dashboard automatically.</p>' +
+    '<div class="btn-row"><button class="btn btn-green" id="btnPayYear2"><i class="fa-solid fa-credit-card"></i> Pay for Year 2</button>' + (y.slot ? '<button class="btn btn-outline" id="btnCheckPaid"><i class="fa-solid fa-rotate"></i> I have paid - Check</button>' : '') + '</div>');
+}
+
+async function activateYear2(slot) {
+  nextShell('Opening Year 2', 'fa-spinner', '<p class="next-sub">Your payment is confirmed. Opening Year 2 for you...</p>');
+  try {
+    await api(API_Y2, { action: 'activate', user_id: user.id, slot: slot }, { retries: 3 });
+    payDone();
+  } catch (e) {
+    nextShell('Year 2', 'fa-triangle-exclamation', '<p class="next-sub">' + esc(e.message) + '</p><button class="btn btn-primary" id="btnRetryActivate" data-slot="' + slot + '"><i class="fa-solid fa-rotate-right"></i> Try Again</button>');
+  }
+}
+
+function payDone() {
+  if (payPoll) clearInterval(payPoll);
+  payPoll = null;
+  $('payOverlay').classList.add('open');
+  $('payBody').innerHTML = '<div class="pay-box"><div class="st-panel ok" style="margin-bottom:12px"><i class="fa-solid fa-circle-check big"></i><h3>Payment confirmed!</h3><p>Congratulations ' + esc(S.student.name) + '! Your Year 2 course is now open. We are taking you to your dashboard.</p></div><a href="dashboard.html" class="btn btn-green" style="text-decoration:none"><i class="fa-solid fa-house"></i> Go to Dashboard</a></div>';
+  setTimeout(() => { window.location.href = 'dashboard.html'; }, 5000);
+}
+
+async function startYear2Payment() {
+  const y = S.year2;
+  miniLoad('Preparing your payment...');
+  try {
+    const prep = await api(API_Y2, { action: 'prepare', user_id: user.id, from_course_id: courseId, course_id: y.course.id }, { retries: 2 });
+    if (prep.payment === 'yes') {
+      miniHide();
+      await activateYear2(prep.slot);
+      return;
+    }
+    const pay = await api(API_PAY, { user_id: user.id, course_id: prep.course.id, course_name: prep.course.name, price: prep.course.price }, { retries: 1 });
+    miniHide();
+    payState = { slot: prep.slot, reference: pay.reference || '', url: pay.authorization_url || '', amount: prep.course.price, account: pay.account_number || '', bank: pay.bank_name || '', name: pay.account_name || '' };
+    try { localStorage.setItem('idt_y2ref_' + user.id, JSON.stringify({ slot: prep.slot, reference: payState.reference })); } catch (_) {}
+    S.year2.slot = prep.slot;
+    showPayOverlay();
+    if (payState.url) {
+      try { window.open(payState.url, '_blank', 'noopener'); } catch (_) {}
+    }
+    startPayPoll();
+  } catch (e) {
+    miniHide();
+    toast('error', 'Payment Not Started', e.message);
+  }
+}
+
+function showPayOverlay() {
+  const p = payState;
+  $('payBody').innerHTML = '<div class="pay-box"><h3>Pay for ' + esc(S.year2.course.name) + '</h3><p>Pay the exact amount below. This page checks your payment by itself. Please keep it open.</p>' +
+    '<div class="pay-amount"><i class="fa-solid fa-naira-sign"></i> ' + Number(p.amount).toLocaleString('en-NG') + '</div>' +
+    (p.account ? '<div class="pay-rows"><div class="pay-row"><span>Account</span><b>' + esc(p.account) + '</b></div>' + (p.bank ? '<div class="pay-row"><span>Bank</span><b>' + esc(p.bank) + '</b></div>' : '') + (p.name ? '<div class="pay-row"><span>Name</span><b>' + esc(p.name) + '</b></div>' : '') + '<div class="pay-row"><span>Reference</span><b>' + esc(p.reference) + '</b></div></div>' : '') +
+    (p.url ? '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" class="btn btn-primary" style="text-decoration:none;margin-bottom:10px"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Payment Page</a>' : '') +
+    '<div style="font-size:12.5px;color:var(--muted);margin-bottom:10px"><span class="pulse-dot"></span>Waiting for your payment...</div>' +
+    '<button class="btn btn-outline" id="btnPayCheckNow"><i class="fa-solid fa-rotate"></i> I have paid - Check Now</button></div>';
+  $('payOverlay').classList.add('open');
+}
+
+async function checkPaid(silent) {
+  let slot = payState ? payState.slot : (S.year2 && S.year2.slot);
+  let reference = payState ? payState.reference : '';
+  if (!reference) {
+    try {
+      const saved = JSON.parse(localStorage.getItem('idt_y2ref_' + user.id) || 'null');
+      if (saved) {
+        reference = saved.reference;
+        slot = slot || saved.slot;
+      }
+    } catch (_) {}
+  }
+  if (!slot) {
+    if (!silent) toast('info', 'No Payment Yet', 'Tap Pay for Year 2 to start your payment.');
+    return false;
+  }
+  try {
+    const res = await api(API_Y2, { action: 'check', user_id: user.id, slot: slot, reference: reference }, { retries: 1 });
+    if (res.paid) {
+      await api(API_Y2, { action: 'activate', user_id: user.id, slot: slot }, { retries: 3 });
+      payDone();
+      return true;
+    }
+    if (!silent) toast('info', 'Not Confirmed Yet', 'We have not received your payment yet. Please wait a moment and check again.');
+  } catch (e) {
+    if (!silent) toast('error', 'Could Not Check', e.message);
+  }
+  return false;
+}
+
+function startPayPoll() {
+  if (payPoll) clearInterval(payPoll);
+  payPoll = setInterval(() => {
+    if (document.hidden) return;
+    checkPaid(true);
+  }, 5000);
+}
+
+async function renderProject() {
+  const name = esc(S.student.name);
+  const course = esc(S.course.name);
+  const pr = S.project;
+  if (S.certificate_issued && pr && pr.submission) {
+    nextShell('Project submitted', 'fa-award', '<div class="st-panel ok"><i class="fa-solid fa-award big"></i><h3>Congratulations ' + name + '!</h3><p>You finished <b>' + course + '</b> and submitted your project. Your certificate is ready.</p></div><button class="btn btn-green" id="btnOpenCert"><i class="fa-solid fa-award"></i> Open Certificate</button>');
+    return;
+  }
+  if (!pr || !Array.isArray(pr.options) || pr.options.length !== 4) {
+    const langs = ['English', 'Hausa', 'Yoruba', 'Igbo', 'Pidgin', 'French', 'Arabic'];
+    nextShell('Your final project', 'fa-lightbulb', '<p class="next-sub">Congratulations <b>' + name + '</b> on finishing <b>' + course + '</b>! The last step is a project. Choose the language for your project guide, then tap the button. Your AI teacher will create four project ideas just for your course.</p>' +
+      '<div class="lang-row">' + langs.map((l) => '<button class="chip' + (l === projectLang ? ' on' : '') + '" data-plang="' + l + '">' + l + '</button>').join('') + '</div>' +
+      '<button class="btn btn-primary" id="btnMakeProjects"><i class="fa-solid fa-wand-magic-sparkles"></i> Create My Project Ideas</button>');
+    return;
+  }
+  const icons = { economy: 'fa-briefcase', health: 'fa-heart-pulse', community: 'fa-people-roof', world: 'fa-earth-africa' };
+  const labels = { economy: 'For benefit and jobs', health: 'For health', community: 'For community growth', world: 'For a better, peaceful world' };
+  const active = pr.chosen ? pr.chosen.id : selectedProject;
+  const cards = pr.options.map((o, i) => '<button class="proj-card t-' + o.theme + (active === o.id ? ' on' : '') + '" data-pid="' + o.id + '"><div class="pc-ic"><i class="fa-solid ' + icons[o.theme] + '"></i></div><small>' + (i + 1) + '. ' + labels[o.theme] + '</small><b>' + esc(o.title) + '</b><p>' + esc(o.summary) + '</p></button>').join('');
+  let detail = '';
+  const opt = pr.options.find((o) => o.id === active);
+  if (opt) {
+    detail = '<div class="proj-detail"><h4>' + esc(opt.title) + '</h4><p style="font-size:12.5px;line-height:1.7">' + esc(opt.summary) + '</p>' +
+      '<span class="lbl">What you will do</span><ol>' + opt.what_to_do.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ol>' +
+      '<span class="lbl">What to submit</span><p style="font-size:12.5px;line-height:1.7">' + esc(opt.deliverable_note) + '</p>' +
+      (opt.tips && opt.tips.length ? '<span class="lbl">Tips</span><ul>' + opt.tips.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul>' : '') + '</div>';
+  }
+  let action = '';
+  if (!pr.chosen) {
+    action = opt
+      ? '<button class="btn btn-primary" id="btnChooseProject" data-pid="' + opt.id + '"><i class="fa-solid fa-check"></i> I Choose This Project</button>'
+      : '<p class="next-sub" style="margin:0">Tap a project to read the details.</p>';
+  } else {
+    action = '<div class="proj-detail"><h4><i class="fa-solid fa-list-check" style="color:var(--violet)"></i> How to finish and get your certificate</h4><ol>' +
+      '<li>Build your project.</li><li>Record a short video (1 to 3 minutes) that shows and explains your project.</li><li>Post the video on one of your social media pages: TikTok, Facebook, Instagram, YouTube or X.</li><li>Copy the link of your video post.</li><li>Prepare a PDF or a link to your work (Google Drive, Dropbox, GitHub or a website).</li><li>Paste both links below and tap Submit.</li></ol></div>' +
+      '<div class="form-field" id="fVideo"><label for="inVideo"><i class="fa-solid fa-video"></i> Link of your video post</label><input type="url" id="inVideo" placeholder="https://www.tiktok.com/..." autocomplete="off"><small>Example: your TikTok, Facebook, Instagram, YouTube or X post link.</small><div class="err-line" id="eVideo"></div></div>' +
+      '<div class="form-field" id="fWork"><label for="inWork"><i class="fa-solid fa-file-pdf"></i> Link of your PDF or project</label><input type="url" id="inWork" placeholder="https://drive.google.com/..." autocomplete="off"><small>Make sure anyone with the link can open it.</small><div class="err-line" id="eWork"></div></div>' +
+      '<div class="form-field"><label for="inNote">Short note (optional)</label><textarea id="inNote" rows="2" maxlength="600" placeholder="Tell us one thing you want us to know about your project"></textarea></div>' +
+      '<button class="btn btn-green" id="btnSubmitProject"><i class="fa-solid fa-paper-plane"></i> Submit Project</button>';
+  }
+  nextShell(pr.chosen ? 'Your project: ' + pr.chosen.title : 'Choose your project', 'fa-lightbulb',
+    '<p class="next-sub">Congratulations <b>' + name + '</b> on finishing <b>' + course + '</b>! ' + (pr.chosen ? 'You chose your project. Finish it and submit it below.' : 'Choose one of these four projects. Tap each one to read more. Think about things you have never tried before and how you can help people.') + '</p>' +
+    '<div class="proj-grid">' + cards + '</div>' + detail + action);
+}
+
+async function makeProjects() {
+  miniLoad('Creating your project ideas...', 'This can take about half a minute.');
+  try {
+    try { localStorage.setItem('idt_exam_lang', projectLang); } catch (_) {}
+    const res = await api(API_EXAM, { action: 'projects', user_id: user.id, course_id: courseId, language: projectLang }, { retries: 1, timeout: 90000 });
+    S.project = { options: res.options, chosen: res.chosen, submission: res.submission };
+    miniHide();
+    renderProject();
+  } catch (e) {
+    miniHide();
+    toast('error', 'Could Not Create Projects', e.message);
+  }
+}
+
+async function chooseProject(id) {
+  const opt = S.project.options.find((o) => o.id === id);
+  if (!opt) return;
+  const ok = await confirmModal({ icon: 'fa-lightbulb', title: 'Choose this project?', html: 'You will build:<br><b>' + esc(opt.title) + '</b><br><br>You cannot change it after you choose.', ok: 'Yes, Choose', cancel: 'Go Back' });
+  if (!ok) return;
+  miniLoad('Saving your choice...');
+  try {
+    const res = await api(API_WIN, { action: 'project_choose', user_id: user.id, course_id: courseId, project_id: id }, { retries: 2 });
+    S.project.chosen = res.chosen;
+    miniHide();
+    toast('success', 'Great Choice!', 'Congratulations on choosing your project.');
+    renderProject();
+  } catch (e) {
+    miniHide();
+    toast('error', 'Could Not Save', e.message);
+  }
+}
+
+function fieldErr(box, id, msg) {
+  $(box).classList.toggle('bad', Boolean(msg));
+  const e = $(id);
+  e.textContent = msg || '';
+  e.classList.toggle('show', Boolean(msg));
+}
+
+function httpsOk(v) {
+  try {
+    const u = new URL(String(v).trim());
+    return u.protocol === 'https:' && u.hostname.indexOf('.') !== -1;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function submitProject() {
+  const video = $('inVideo').value.trim();
+  const work = $('inWork').value.trim();
+  fieldErr('fVideo', 'eVideo', '');
+  fieldErr('fWork', 'eWork', '');
+  let bad = false;
+  if (!httpsOk(video)) { fieldErr('fVideo', 'eVideo', 'Please paste the link of your video post. It must start with https.'); bad = true; }
+  if (!httpsOk(work)) { fieldErr('fWork', 'eWork', 'Please paste the link of your PDF or project. It must start with https.'); bad = true; }
+  if (bad) return;
+  miniLoad('Submitting your project...');
+  try {
+    await api(API_WIN, { action: 'project_submit', user_id: user.id, course_id: courseId, video_url: video, work_url: work, note: $('inNote').value.trim() }, { retries: 2 });
+    S.project.submission = { video_url: video, work_url: work };
+    S.certificate_issued = true;
+    miniHide();
+    confetti();
+    renderProject();
+  } catch (e) {
+    miniHide();
+    if (e.data && e.data.field === 'video_url') fieldErr('fVideo', 'eVideo', e.message);
+    else if (e.data && e.data.field === 'work_url') fieldErr('fWork', 'eWork', e.message);
+    else toast('error', 'Could Not Submit', e.message);
+  }
+}
+
+function pdfText(s) {
+  return String(s == null ? '' : s)
+    .replace(/[ɗƊ]/g, 'd').replace(/[ƙƘ]/g, 'k').replace(/[ɓƁ]/g, 'b').replace(/[ƴƳ]/g, 'y')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7E\n]/g, '?');
 }
 
 function loadPdfLib() {
-  if (window.jspdf) return Promise.resolve(window.jspdf);
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf);
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    s.onload = () => resolve(window.jspdf);
-    s.onerror = reject;
+    s.onload = () => (window.jspdf && window.jspdf.jsPDF ? resolve(window.jspdf) : reject(new Error('PDF tool not available')));
+    s.onerror = () => reject(new Error('Could not load the PDF tool. Check your internet.'));
     document.head.appendChild(s);
   });
 }
 
-function imageToDataUrl(url) {
+function imgData(url) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
+    const t = setTimeout(() => resolve(''), 8000);
     img.onload = () => {
+      clearTimeout(t);
       try {
         const c = document.createElement('canvas');
         c.width = img.naturalWidth;
         c.height = img.naturalHeight;
         c.getContext('2d').drawImage(img, 0, 0);
         resolve(c.toDataURL('image/png'));
-      } catch (e) {
+      } catch (_) {
         resolve('');
       }
     };
-    img.onerror = () => resolve('');
+    img.onerror = () => {
+      clearTimeout(t);
+      resolve('');
+    };
     img.src = url;
   });
 }
 
-async function buildPdfData(data, download) {
+async function buildPdf(rec) {
   await loadPdfLib();
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('p', 'mm', 'a4');
+  const doc = new window.jspdf.jsPDF('p', 'mm', 'a4');
   const w = doc.internal.pageSize.getWidth();
-  const results = Array.isArray(data.questions) ? data.questions : (Array.isArray(data.results) ? data.results : []);
-  const score = Number(data.score || 0);
-  const pct = Number(data.pct || 0);
-  const passed = data.passed === true;
-  const courseName = data.course_name || (userData && userData.course_name) || '';
-  const studentName = (userData && userData.full_name) || '';
-  const dateStr = data.date ? formatDate(data.date) : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-  const logo = await imageToDataUrl('https://i.imgur.com/oyqM5oF.png');
-  const sign = await imageToDataUrl('https://i.imgur.com/sing.png');
+  const logo = await imgData(LOGO_URL);
+  const sign1 = await imgData(SIGN_CHAIR_URL);
+  const sign2 = await imgData(SIGN_CEO_URL);
+  const name = pdfText(S.student.name);
+  const course = pdfText(S.course.name);
+  const details = rec.details || [];
+  doc.setFillColor(124, 58, 237);
+  doc.rect(0, 0, w, 32, 'F');
   if (logo) {
-    doc.addImage(logo, 'PNG', (w - 22) / 2, 12, 22, 22);
-  } else {
-    doc.setFillColor(124, 58, 237);
-    doc.circle(w / 2, 23, 11, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('IDT', w / 2, 26, { align: 'center' });
+    try {
+      doc.setFillColor(255, 255, 255);
+      doc.circle(24, 16, 11, 'F');
+      doc.addImage(logo, 'PNG', 14, 6, 20, 20);
+    } catch (_) {}
   }
-  doc.setTextColor(30, 27, 75);
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.text('Intelligent Digital Technology Academy', w / 2, 42, { align: 'center' });
+  doc.setFontSize(15);
+  doc.text('IDT ACADEMY', 42, 14);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(109, 106, 138);
-  doc.text('www.idtacademy.com.ng  •  Learn Beyond Limits', w / 2, 48, { align: 'center' });
-  doc.setDrawColor(124, 58, 237);
-  doc.setLineWidth(0.8);
-  doc.line(14, 53, w - 14, 53);
+  doc.setFontSize(9);
+  doc.text('Intelligent Digital Technology Academy | www.idtacademy.com.ng', 42, 21);
   doc.setTextColor(30, 27, 75);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
-  doc.text('FINAL EXAM RESULT', w / 2, 62, { align: 'center' });
+  doc.text('FINAL EXAM RESULT', 14, 44);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(60, 58, 107);
-  let y = 72;
-  doc.text('Student Name:  ' + studentName, 16, y);
-  doc.text('Date:  ' + dateStr, 120, y);
-  y += 7;
-  doc.text('Course:  ' + courseName, 16, y);
-  doc.text('Pass Mark:  70 / 100 (70%)', 120, y);
-  y += 7;
-  doc.text('Score:  ' + score.toFixed(1) + ' / 100', 16, y);
-  doc.text('Percentage:  ' + pct + '%', 120, y);
-  y += 7;
-  doc.text('Status:  ' + (passed ? 'PASSED' : 'NOT PASSED'), 16, y);
-  y += 12;
+  let y = 53;
+  doc.text('Student: ' + name, 14, y);
+  doc.text('Date: ' + pdfText(fmtDate(rec.date)), 120, y);
+  y += 6;
+  doc.text('Course: ' + course + (S.course.is_diploma ? ' (Year ' + S.course.year + ')' : ''), 14, y);
+  y += 6;
+  doc.text('Marks before deductions: ' + fmtNum(rec.raw_score) + '   Screenshot deduction: ' + fmtNum(rec.deduction), 14, y);
+  y += 6;
   doc.setFont('helvetica', 'bold');
-  doc.text('Question Breakdown', 16, y);
+  doc.text('Final score: ' + fmtNum(rec.score) + ' / 100   Pass mark: ' + PASS_MARK + '   Status: ' + (rec.passed ? 'PASSED' : 'NOT PASSED'), 14, y);
   y += 6;
   doc.setFont('helvetica', 'normal');
+  doc.text('Multiple choice: ' + fmtNum(rec.mcq) + '/40   True or false: ' + fmtNum(rec.tf) + '/30   Written: ' + fmtNum(rec.write) + '/30', 14, y);
+  y += 9;
+  doc.setDrawColor(124, 58, 237);
+  doc.line(14, y, w - 14, y);
+  y += 7;
   doc.setFontSize(9);
-  results.forEach((r, i) => {
-    if (y > 265) {
+  details.forEach((d) => {
+    const q = doc.splitTextToSize('Q' + d.number + ': ' + pdfText(d.question), w - 34);
+    const a = doc.splitTextToSize('Your answer: ' + pdfText(d.user_answer || '(no answer)'), w - 38);
+    const c = d.is_correct ? [] : doc.splitTextToSize('Correct answer: ' + pdfText(d.correct_answer), w - 38);
+    const need = q.length * 4.4 + a.length * 4.2 + c.length * 4.2 + 8;
+    if (y + need > 278) {
       doc.addPage();
-      y = 20;
+      y = 18;
     }
-    const ok = r.is_correct === true;
-    const sk = !String(r.user_answer || '').trim();
-    const mark = ok ? '✔' : (sk ? '—' : '✖');
-    const earned = Number(r.earned || 0).toFixed(1);
-    const marks = Number(r.marks || (String(r.type) === 'write' ? 2.5 : 1.5)).toFixed(1);
-    doc.setTextColor(ok ? 16 : 244, ok ? 185 : 63, ok ? 129 : 94);
-    doc.text(mark, 18, y);
+    const sk = !String(d.user_answer || '').trim();
+    const status = d.is_correct ? 'Correct' : (sk ? 'Skipped' : (d.earned > 0 ? 'Partial' : 'Wrong'));
+    const rgb = d.is_correct ? [16, 150, 110] : (sk ? [100, 116, 139] : (d.earned > 0 ? [180, 100, 10] : [220, 38, 38]));
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+    doc.text(status + ' (' + fmtNum(d.earned) + '/' + fmtNum(d.marks) + ')', w - 14, y, { align: 'right' });
     doc.setTextColor(30, 27, 75);
-    doc.text('Q' + (i + 1) + ': ' + String(r.question || '').slice(0, 58), 24, y);
-    doc.setTextColor(124, 58, 237);
-    doc.text(earned + '/' + marks, 196, y, { align: 'right' });
-    y += 5;
-    doc.setTextColor(109, 106, 138);
-    let ansText = 'Your answer: ' + String(r.user_answer || '(no answer)');
-    if (!ok) ansText += '  |  Correct: ' + String(r.correct_answer != null ? r.correct_answer : '');
-    const lines = doc.splitTextToSize(ansText, 172);
-    doc.text(lines, 26, y);
-    y += lines.length * 4.5 + 3;
+    doc.text(q, 14, y);
+    y += q.length * 4.4;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 58, 107);
+    doc.text(a, 18, y);
+    y += a.length * 4.2;
+    if (c.length) {
+      doc.setTextColor(16, 130, 100);
+      doc.text(c, 18, y);
+      y += c.length * 4.2;
+    }
+    y += 4;
   });
-  y += 4;
-  if (passed) {
-    doc.setDrawColor(16, 185, 129);
-    doc.setFillColor(16, 185, 129);
-    doc.roundedRect((w - 90) / 2, y, 90, 12, 3, 3, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('CONGRATULATIONS - PASSED', w / 2, y + 8, { align: 'center' });
-    y += 18;
-  } else {
-    doc.setDrawColor(244, 63, 94);
-    doc.setFillColor(244, 63, 94);
-    doc.roundedRect((w - 90) / 2, y, 90, 12, 3, 3, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('NOT PASSED - KEEP LEARNING', w / 2, y + 8, { align: 'center' });
-    y += 18;
+  if (y > 240) {
+    doc.addPage();
+    y = 20;
   }
-  if (sign) {
-    doc.addImage(sign, 'PNG', w - 55, y, 30, 14);
-  } else {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.setTextColor(30, 27, 75);
-    doc.text('IDT Academy', w - 55, y + 10);
-  }
-  doc.setFont('helvetica', 'normal');
+  y += 8;
+  if (sign1) { try { doc.addImage(sign1, 'PNG', 22, y, 26, 13); } catch (_) {} }
+  if (sign2) { try { doc.addImage(sign2, 'PNG', w - 72, y, 26, 13); } catch (_) {} }
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
+  doc.setTextColor(30, 27, 75);
+  doc.text('Haruna Lawali', 22, y + 19);
+  doc.text('Ubaida Aliyu', w - 72, y + 19);
+  doc.setFont('helvetica', 'normal');
   doc.setTextColor(109, 106, 138);
-  doc.text('Signature', w - 55, y + 16);
-  doc.text('Student Signature', 16, y + 16);
-  doc.text('IDT Academy • Official Examination Document', w / 2, y + 26, { align: 'center' });
-  if (download) {
-    doc.save('IDT_Exam_Result_' + studentName.replace(/\s+/g, '_') + '.pdf');
-    return '';
+  doc.text('Chairman, Board of Trustees', 22, y + 24);
+  doc.text('CEO, IDT Academy', w - 72, y + 24);
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.text('IDT Academy | Official Examination Document | Page ' + i + ' of ' + n, w / 2, 291, { align: 'center' });
   }
-  return doc.output('datauristring');
+  return doc;
 }
 
-async function downloadResultPdf() {
-  if (!resultData) return;
+function recordFromResult() {
+  const r = resultData;
+  return { date: new Date().toISOString(), raw_score: r.raw_score, deduction: r.deduction, score: r.score, passed: r.passed, mcq: r.parts.mcq, tf: r.parts.tf, write: r.parts.write, details: r.results };
+}
+
+async function downloadPdf(rec) {
   miniLoad('Preparing your PDF...');
   try {
-    await buildPdfData({
-      questions: resultData.results || [],
-      score: Number(resultData.score || 0),
-      pct: Number(resultData.pct || 0),
-      passed: resultData.passed === true,
-      date: new Date().toISOString()
-    }, true);
+    const doc = await buildPdf(rec);
+    doc.save('IDT_Exam_Result_' + S.student.name.replace(/[^A-Za-z0-9]+/g, '_') + '.pdf');
     miniHide();
-    showToast('success', 'PDF Downloaded', 'Your exam result PDF has been downloaded.');
-  } catch (err) {
+  } catch (e) {
     miniHide();
-    showToast('error', 'PDF Failed', 'Could not create the PDF.', err.message || String(err));
+    toast('error', 'PDF Failed', e.message);
   }
 }
 
 async function emailResult() {
-  if (!resultData) return;
-  miniLoad('Preparing your result email...');
+  if (!S.student.email) {
+    toast('error', 'No Email Found', 'There is no email address on your account.');
+    return;
+  }
+  miniLoad('Emailing your result...');
   try {
-    const pdf = await buildPdfData({
-      questions: resultData.results || [],
-      score: Number(resultData.score || 0),
-      pct: Number(resultData.pct || 0),
-      passed: resultData.passed === true,
-      date: new Date().toISOString()
-    }, false);
-    const res = await apiPost('/examdata', {
+    const rec = recordFromResult();
+    const doc = await buildPdf(rec);
+    await api(API_MAIL, {
       user_id: user.id,
-      action: 'email',
-      pdf_base64: pdf,
-      score: Number(resultData.score || 0),
-      pct: Number(resultData.pct || 0),
-      passed: resultData.passed === true,
-      course_name: (userData && userData.course_name) || '',
-      date: new Date().toISOString().slice(0, 10)
-    });
+      academy_id: user.id,
+      email: S.student.email,
+      full_name: S.student.name,
+      course_name: S.course.name,
+      score: rec.score,
+      max_marks: 100,
+      pct: Math.round(rec.score),
+      passed: rec.passed,
+      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
+      pdf_base64: doc.output('datauristring')
+    }, { timeout: 90000 });
     miniHide();
-    showToast('success', 'Email Sent!', 'Your result has been sent to ' + ((userData && (userData.email || user.email)) || user.email) + '. Check your inbox and spam folder.');
-  } catch (err) {
+    toast('success', 'Email Sent', 'Your result was sent to ' + S.student.email + '. Check your inbox and spam folder.');
+  } catch (e) {
     miniHide();
-    showToast('error', 'Email Failed', 'Could not send the email.', err.message || String(err));
+    toast('error', 'Email Failed', e.message);
   }
 }
 
-function openView(i) {
-  const item = history[i];
-  if (!item) return;
-  viewData = item;
-  $('viewHeadTitle').textContent = 'Exam • ' + formatDate(item.date);
-  $('viewDate').textContent = formatDate(item.date);
-  $('viewScore').textContent = Number(item.score || 0).toFixed(1) + ' / 100';
-  $('viewResult').textContent = item.passed ? 'PASSED' : 'NOT PASSED';
-  $('viewBadge').className = 'badge ' + (item.passed ? 'green' : 'rose');
-  $('viewBadge').innerHTML = '<i class="fa-solid fa-' + (item.passed ? 'circle-check' : 'circle-xmark') + '"></i> ' + (item.passed ? 'Passed' : 'Failed');
-  const qs = Array.isArray(item.questions) ? item.questions : [];
-  let html = '';
-  qs.forEach((x, idx) => {
-    const ok = x.is_correct === true;
-    const sk = !String(x.user_answer || '').trim();
-    const mark = ok ? '<span class="ri-mark correct">✔</span>' : (sk ? '<span class="ri-mark skipped">Skipped</span>' : '<span class="ri-mark wrong">✖</span>');
-    const earned = Number(x.earned || 0).toFixed(1);
-    const marks = Number(x.marks || (String(x.type) === 'write' ? 2.5 : 1.5)).toFixed(1);
-    html += '<div class="result-item">' +
-      '<div class="ri-head">Question ' + (idx + 1) + ' ' + mark + '<span class="ri-score">' + earned + ' / ' + marks + '</span></div>' +
-      '<div class="ri-q">' + escapeHtml(x.question || '') + '</div>' +
-      '<div class="ri-ans"><span class="' + (ok ? 'ok' : 'bad') + '">Your answer: ' + escapeHtml(x.user_answer || '(no answer)') + '</span>' +
-      (ok ? '' : '<br><span class="ok">Correct answer: ' + escapeHtml(x.correct_answer != null ? x.correct_answer : '') + '</span>') + '</div>' +
-      (x.explanation ? '<div class="ri-explain"><b><i class="fa-solid fa-lightbulb"></i> Explanation:</b> ' + escapeHtml(x.explanation) + '</div>' : '') +
-      '</div>';
-  });
-  $('viewContent').innerHTML = html;
-  $('viewOverlay').classList.add('open');
-}
-
-async function viewPdf() {
-  if (!viewData) return;
-  miniLoad('Preparing your PDF...');
+async function openView(i) {
+  const h = S.history[i];
+  if (!h) return;
+  miniLoad('Opening exam...');
   try {
-    await buildPdfData({
-      questions: Array.isArray(viewData.questions) ? viewData.questions : [],
-      score: Number(viewData.score || 0),
-      pct: Number(viewData.pct || 0),
-      passed: viewData.passed === true,
-      date: viewData.date
-    }, true);
+    const res = await api(API_EXAM, { action: 'view', user_id: user.id, course_id: courseId, record_id: h.id }, { retries: 1 });
+    viewRec = res.record;
     miniHide();
-    showToast('success', 'PDF Downloaded', 'Your exam result PDF has been downloaded.');
-  } catch (err) {
+    $('viewHeadTitle').textContent = 'Exam • ' + fmtDate(viewRec.date);
+    $('viewDate').textContent = fmtDate(viewRec.date);
+    $('viewScore').textContent = fmtNum(viewRec.score) + ' / 100';
+    $('viewResult').textContent = viewRec.passed ? 'PASSED' : 'NOT PASSED';
+    const b = $('viewBadge');
+    b.className = 'badge ' + (viewRec.passed ? 'green' : 'rose');
+    b.innerHTML = '<i class="fa-solid ' + (viewRec.passed ? 'fa-circle-check' : 'fa-circle-xmark') + '"></i> ' + (viewRec.passed ? 'Passed' : 'Failed');
+    $('viewContent').innerHTML = (viewRec.details || []).map(detailHtml).join('') || '<div class="result-item">No details saved for this exam.</div>';
+    applyFilter($('viewContent'), $('viewFilters'), 'all');
+    $('viewOverlay').classList.add('open');
+  } catch (e) {
     miniHide();
-    showToast('error', 'PDF Failed', 'Could not create the PDF.', err.message || String(err));
+    toast('error', 'Could Not Open', e.message);
   }
 }
 
-function openExplain() {
-  if (!viewData) return;
+function openExplain(recordId) {
+  explainState = { record_id: recordId, lang: '', history: [], busy: false };
+  $('langPick').classList.remove('hidden');
+  $('chatBox').classList.add('hidden');
+  $('chatMsgs').innerHTML = '';
+  $('otherLangRow').classList.add('hidden');
   $('explainOverlay').classList.add('open');
-  $('explainResult').classList.add('hidden');
-  $('explainResultHead').classList.add('hidden');
-  $('explainNote').textContent = '';
-  $('otherLangRow').classList.add('hidden');
-  $('langGrid').classList.remove('hidden');
-  rawExplain = '';
-  $('explainCopyBtn').classList.remove('done');
-  $('explainCopyBtn').innerHTML = '<i class="fa-solid fa-copy"></i>';
 }
 
-async function sendExplain(lang) {
-  if (!viewData) return;
-  miniLoad('Explaining your exam in ' + lang + '...');
+function addMsg(role, text) {
+  const row = document.createElement('div');
+  row.className = 'chat-row ' + (role === 'me' ? 'me' : 'bot');
+  row.innerHTML = '<div class="chat-av"><i class="fa-solid ' + (role === 'me' ? 'fa-user' : 'fa-robot') + '"></i></div><div class="bubble">' + (text === null ? '<span class="typing"><i></i><i></i><i></i></span>' : esc(text)) + '</div>';
+  $('chatMsgs').appendChild(row);
+  $('chatMsgs').scrollTop = $('chatMsgs').scrollHeight;
+  return row;
+}
+
+async function askTeacher(question) {
+  const st = explainState;
+  if (!st || st.busy) return;
+  st.busy = true;
+  $('chatSend').disabled = true;
+  const typing = addMsg('bot', null);
   try {
-    const qs = Array.isArray(viewData.questions) ? viewData.questions : [];
-    const res = await apiPost('/examai', {
-      user_id: user.id,
-      course_id: viewData.course_id || activeCourseId,
-      course_name: viewData.course_name || (userData && userData.course_name) || '',
-      action: 'explain',
-      language: lang,
-      score: Number(viewData.score || 0),
-      pct: Number(viewData.pct || 0),
-      passed: viewData.passed === true,
-      date: viewData.date,
-      questions: qs
-    });
-    rawExplain = res.explanation || res.message || 'No explanation returned.';
-    const result = $('explainResult');
-    result.innerHTML = markdownToHtml(rawExplain);
-    result.classList.remove('hidden');
-    $('explainResultHead').classList.remove('hidden');
-    $('explainNote').textContent = 'Explained in ' + lang + ' + English. You can copy this explanation and share it with your teacher.';
-    miniHide();
-    showToast('success', 'Explanation Ready', 'Here is your exam explanation in ' + lang + '.');
-  } catch (err) {
-    miniHide();
-    showToast('error', 'Explain Failed', 'Could not create the explanation.', err.message || String(err));
+    const res = await api(API_EXAM, { action: 'explain', user_id: user.id, course_id: courseId, record_id: st.record_id, language: st.lang, question: question || '', history: st.history.slice(-8) }, { retries: 1, timeout: 90000 });
+    typing.remove();
+    addMsg('bot', res.answer);
+    if (question) st.history.push({ role: 'user', content: question });
+    st.history.push({ role: 'assistant', content: res.answer });
+  } catch (e) {
+    typing.remove();
+    addMsg('bot', 'Sorry, I could not answer right now. ' + e.message);
+  } finally {
+    st.busy = false;
+    $('chatSend').disabled = false;
   }
 }
 
-async function copyExplain() {
-  if (!rawExplain) return;
-  try {
-    await copyText(rawExplain);
-    const btn = $('explainCopyBtn');
-    btn.classList.add('done');
-    btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-    showToast('success', 'Copied!', 'The explanation was copied to your clipboard.');
-    setTimeout(() => {
-      btn.classList.remove('done');
-      btn.innerHTML = '<i class="fa-solid fa-copy"></i>';
-    }, 2000);
-  } catch (err) {
-    showToast('error', 'Copy Failed', 'Could not copy the explanation.', err.message || String(err));
-  }
+function chooseLang(lang) {
+  if (!explainState) return;
+  explainState.lang = lang;
+  try { localStorage.setItem('idt_exam_lang', lang); } catch (_) {}
+  $('langPick').classList.add('hidden');
+  $('chatBox').classList.remove('hidden');
+  askTeacher('');
 }
 
-const staticStartBtn = $('btnStartExam');
-if (staticStartBtn) {
-  staticStartBtn.addEventListener('click', startExam);
-}
-
-$('btnBackPage').addEventListener('click', () => {
-  if (currentPage > 0) {
-    currentPage--;
-    renderPage();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-});
-
-$('btnNextPage').addEventListener('click', () => {
-  const total = examQuestions.length;
-  if (!total) return;
-  const start = currentPage * PAGE_SIZE;
-  const pageQs = examQuestions.slice(start, start + PAGE_SIZE);
-  let allAnswered = true;
-  pageQs.forEach((q, pi) => {
-    const qi = start + pi;
-    const isMcq = String(q.type) !== 'write';
-    const val = String(answers[qi] || '').trim();
-    if (isMcq && val === '') allAnswered = false;
+function bind() {
+  document.addEventListener('click', (e) => {
+    const t = e.target;
+    const q = (sel) => t.closest(sel);
+    let el;
+    if ((el = q('#btnStartExam'))) return onStart();
+    if (q('#btnResume')) return onResume();
+    if (q('#btnReload')) return refresh();
+    if ((el = q('.q-opt,.tf-btn')) && el.dataset.qid && running) {
+      sess.answers[el.dataset.qid] = el.dataset.val;
+      el.parentElement.querySelectorAll('.q-opt,.tf-btn').forEach((b) => b.classList.toggle('selected', b === el));
+      updateProgress();
+      saveSessionSoon();
+      return;
+    }
+    if ((el = q('[data-view]'))) return openView(Number(el.dataset.view));
+    if ((el = q('#resultFilters .chip'))) return applyFilter($('resultList'), $('resultFilters'), el.dataset.f);
+    if ((el = q('#viewFilters .chip'))) return applyFilter($('viewContent'), $('viewFilters'), el.dataset.f);
+    if ((el = q('[data-plang]'))) {
+      projectLang = el.dataset.plang;
+      document.querySelectorAll('[data-plang]').forEach((b) => b.classList.toggle('on', b === el));
+      return;
+    }
+    if (q('#btnMakeProjects')) return makeProjects();
+    if ((el = q('.proj-card'))) {
+      if (!S.project.chosen) {
+        selectedProject = el.dataset.pid;
+        renderProject();
+      }
+      return;
+    }
+    if ((el = q('#btnChooseProject'))) return chooseProject(el.dataset.pid);
+    if (q('#btnSubmitProject')) return submitProject();
+    if (q('#btnOpenCert')) {
+      window.location.href = 'certificate.html?user_id=' + encodeURIComponent(user.id) + '&course_id=' + encodeURIComponent(courseId);
+      return;
+    }
+    if (q('#btnPayYear2')) return startYear2Payment();
+    if (q('#btnCheckPaid')) return checkPaid(false);
+    if (q('#btnPayCheckNow')) return checkPaid(false);
+    if ((el = q('#btnRetryActivate'))) return activateYear2(Number(el.dataset.slot));
   });
-  if (!allAnswered) {
-    showToast('info', 'Answer Required', 'Please answer all multiple choice questions on this page before continuing.', '');
-    return;
-  }
-  if (start + PAGE_SIZE < total) {
-    currentPage++;
-    renderPage();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-});
 
-$('btnSubmitExam').addEventListener('click', () => {
-  if (submitting) return;
-  const total = examQuestions.length;
-  if (!total) return;
-  const start = currentPage * PAGE_SIZE;
-  const pageQs = examQuestions.slice(start, start + PAGE_SIZE);
-  let missing = 0;
-  pageQs.forEach((q, pi) => {
-    const qi = start + pi;
-    const isMcq = String(q.type) !== 'write';
-    const val = String(answers[qi] || '').trim();
-    if (isMcq && val === '') missing++;
+  $('btnBackPage').addEventListener('click', () => {
+    if (curPage > 0) {
+      curPage--;
+      renderPage();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   });
-  const totalAnswered = answers.filter((a) => String(a || '').trim() !== '').length;
-  const confirmMsg = 'You have answered ' + totalAnswered + ' of ' + total + ' questions' +
-    (missing > 0 ? ' (' + missing + ' unanswered on this page)' : '') +
-    '. Submit your exam now?';
-  const modal = document.createElement('div');
-  modal.className = 'ov-backdrop open';
-  modal.style.zIndex = '9000';
-  modal.innerHTML = '<div class="ov-card" style="max-width:420px">' +
-    '<div class="ov-head"><h3><i class="fa-solid fa-circle-check"></i> Submit Exam?</h3>' +
-    '<button class="ov-close" id="confirmClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>' +
-    '<div class="ov-body" style="text-align:center">' +
-    '<i class="fa-solid fa-hourglass-end" style="font-size:40px;color:var(--amber);margin-bottom:12px;display:block"></i>' +
-    '<p style="font-size:13px;color:var(--ink);line-height:1.7;margin-bottom:14px">' + escapeHtml(confirmMsg) + '<br><br>Once submitted, you cannot change your answers.</p>' +
-    '<div class="btn-row"><button class="btn btn-outline" id="confirmCancel" style="padding:12px 16px;font-size:13px">Cancel</button>' +
-    '<button class="btn btn-primary" id="confirmSubmit" style="padding:12px 16px;font-size:13px"><i class="fa-solid fa-check"></i> Submit</button></div>' +
-    '</div></div>';
-  document.body.appendChild(modal);
-  modal.querySelector('#confirmClose').addEventListener('click', () => modal.remove());
-  modal.querySelector('#confirmCancel').addEventListener('click', () => modal.remove());
-  modal.querySelector('#confirmSubmit').addEventListener('click', () => {
-    modal.remove();
-    submitExam(false);
+  $('btnNextPage').addEventListener('click', () => {
+    if (curPage < pages.length - 1) {
+      curPage++;
+      renderPage();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   });
-});
-
-$('btnDownloadPdf').addEventListener('click', downloadResultPdf);
-$('btnEmailResult').addEventListener('click', emailResult);
-
-$('btnGoCertificate').addEventListener('click', () => {
-  window.location.href = 'certificate.html?user_id=' + encodeURIComponent(user.id) + '&course_id=' + encodeURIComponent(activeCourseId);
-});
-
-$('btnBackDashboard').addEventListener('click', () => {
-  window.location.href = 'dashboard.html';
-});
-
-$('histTableBody').addEventListener('click', (e) => {
-  const btn = e.target.closest('.btn-view');
-  if (!btn) return;
-  openView(parseInt(btn.dataset.view, 10));
-});
-
-$('viewClose').addEventListener('click', () => $('viewOverlay').classList.remove('open'));
-$('btnViewBack').addEventListener('click', () => $('viewOverlay').classList.remove('open'));
-$('btnViewPdf').addEventListener('click', viewPdf);
-$('btnViewExplain').addEventListener('click', openExplain);
-
-$('explainClose').addEventListener('click', () => $('explainOverlay').classList.remove('open'));
-
-document.querySelectorAll('.lang-btn[data-lang]').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const lang = btn.dataset.lang;
-    $('langGrid').classList.add('hidden');
-    $('otherLangRow').classList.add('hidden');
-    sendExplain(lang);
+  $('btnSubmitExam').addEventListener('click', () => submitExam('manual'));
+  $('questionCard').addEventListener('input', (e) => {
+    const ta = e.target;
+    if (!ta || ta.tagName !== 'TEXTAREA' || !running) return;
+    sess.answers[ta.dataset.qid] = ta.value;
+    const cnt = document.querySelector('[data-cnt="' + ta.dataset.qid + '"]');
+    if (cnt) cnt.textContent = String(ta.value.length);
+    updateProgress();
+    saveSessionSoon();
   });
-});
 
-$('langOtherBtn').addEventListener('click', () => {
-  $('otherLangRow').classList.toggle('hidden');
-  if (!$('otherLangRow').classList.contains('hidden')) {
-    $('otherLangInput').focus();
-  }
-});
+  $('btnGenRetry').addEventListener('click', runGeneration);
+  $('btnGenBack').addEventListener('click', () => { window.location.href = 'dashboard.html'; });
+  $('miniLoaderBtn').addEventListener('click', () => {
+    if (pendingGrade) doGrade(pendingGrade);
+  });
+  window.addEventListener('online', () => {
+    if (pendingGrade && !$('miniLoaderBtn').classList.contains('hidden')) doGrade(pendingGrade);
+  });
 
-$('btnSendOtherLang').addEventListener('click', () => {
-  const lang = $('otherLangInput').value.trim();
-  if (!lang) {
-    showToast('error', 'Language Required', 'Please type the language you want.', '');
-    return;
-  }
-  $('otherLangRow').classList.add('hidden');
-  $('langGrid').classList.add('hidden');
-  sendExplain(lang);
-});
+  $('btnDownloadPdf').addEventListener('click', () => resultData && downloadPdf(recordFromResult()));
+  $('btnEmailResult').addEventListener('click', emailResult);
+  $('btnResultExplain').addEventListener('click', () => resultData && openExplain(resultData.record_id));
+  $('btnBackDashboard').addEventListener('click', () => { window.location.href = 'dashboard.html'; });
 
-$('explainCopyBtn').addEventListener('click', copyExplain);
+  $('viewClose').addEventListener('click', () => $('viewOverlay').classList.remove('open'));
+  $('btnViewBack').addEventListener('click', () => $('viewOverlay').classList.remove('open'));
+  $('btnViewPdf').addEventListener('click', () => viewRec && downloadPdf(viewRec));
+  $('btnViewExplain').addEventListener('click', () => viewRec && openExplain(viewRec.id));
+  $('viewOverlay').addEventListener('click', (e) => { if (e.target === $('viewOverlay')) $('viewOverlay').classList.remove('open'); });
 
-$('viewOverlay').addEventListener('click', (e) => {
-  if (e.target === $('viewOverlay')) $('viewOverlay').classList.remove('open');
-});
-
-$('explainOverlay').addEventListener('click', (e) => {
-  if (e.target === $('explainOverlay')) $('explainOverlay').classList.remove('open');
-});
-
-window.addEventListener('beforeunload', (e) => {
-  if (timer && examQuestions.length && !submitting) {
+  $('explainClose').addEventListener('click', () => $('explainOverlay').classList.remove('open'));
+  $('explainOverlay').addEventListener('click', (e) => { if (e.target === $('explainOverlay')) $('explainOverlay').classList.remove('open'); });
+  document.querySelectorAll('#langGrid .lang-btn[data-lang]').forEach((b) => b.addEventListener('click', () => chooseLang(b.dataset.lang)));
+  $('langOtherBtn').addEventListener('click', () => {
+    $('otherLangRow').classList.toggle('hidden');
+    if (!$('otherLangRow').classList.contains('hidden')) $('otherLangInput').focus();
+  });
+  $('btnSendOtherLang').addEventListener('click', () => {
+    const l = $('otherLangInput').value.trim();
+    if (!l) {
+      toast('error', 'Language Needed', 'Please type the language you want.');
+      return;
+    }
+    chooseLang(l);
+  });
+  $('chatForm').addEventListener('submit', (e) => {
     e.preventDefault();
-    e.returnValue = '';
-  }
-});
+    const v = $('chatInput').value.trim();
+    if (!v || !explainState || explainState.busy) return;
+    $('chatInput').value = '';
+    addMsg('me', v);
+    askTeacher(v);
+  });
+  $('chatInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      $('chatForm').requestSubmit();
+    }
+  });
 
-document.addEventListener('DOMContentLoaded', () => {
-  showLoading();
-  init();
+  $('payClose').addEventListener('click', () => {
+    $('payOverlay').classList.remove('open');
+    if (payPoll) clearInterval(payPoll);
+    payPoll = null;
+  });
+  $('brandLink').addEventListener('click', () => { window.location.href = 'dashboard.html'; });
+}
+
+async function init() {
   document.documentElement.classList.add('ready');
-});
+  bind();
+  user = loadUser();
+  if (!user) {
+    window.location.replace('register.html');
+    return;
+  }
+  const params = new URLSearchParams(window.location.search);
+  courseId = String(params.get('course_id') || user.course_id || '').trim();
+  if (!courseId) {
+    $('statusPanel').innerHTML = panel('lock', 'fa-triangle-exclamation', 'No course selected', 'Please open your exam from your dashboard.', '<a href="dashboard.html" class="btn btn-primary" style="text-decoration:none">Go to Dashboard</a>');
+    $('rulesCard').classList.add('hidden');
+    return;
+  }
+  await refresh();
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
+else init();
