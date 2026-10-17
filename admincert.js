@@ -6,36 +6,33 @@ const API_URL = '/api/myCert';
 
 let allProfiles = [];
 let certificates = [];
-let awaitingUsers = [];
-let currentUser = null;
+let awaiting = [];
+let current = null;
 let currentCertId = '';
 let currentPdfs = [];
 let certSaved = false;
 let pdfCount = 0;
+let uploading = 0;
 
-function safeAddEventListener(id, event, handler) {
+function on(id, event, handler) {
   const el = $(id);
-  if (el) {
-    el.addEventListener(event, handler);
-  }
+  if (el) el.addEventListener(event, handler);
 }
 
-function escapeHtml(str) {
-  return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[ch]));
+function esc(str) {
+  return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
 
 function miniLoad(text) {
-  const loaderText = $('miniLoaderText');
-  const loader = $('miniLoader');
-  if (loaderText) loaderText.textContent = text || 'Please wait...';
-  if (loader) loader.classList.add('open');
+  const t = $('miniLoaderText');
+  const l = $('miniLoader');
+  if (t) t.textContent = text || 'Please wait...';
+  if (l) l.classList.add('open');
 }
 
 function miniHide() {
-  const loader = $('miniLoader');
-  if (loader) loader.classList.remove('open');
+  const l = $('miniLoader');
+  if (l) l.classList.remove('open');
 }
 
 function removePush(card) {
@@ -44,38 +41,39 @@ function removePush(card) {
 }
 
 function pushShow(type, title, message, raw) {
-  const pushWrap = $('pushWrap');
-  if (!pushWrap) return null;
+  const wrap = $('pushWrap');
+  if (!wrap) return null;
   const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
   const card = document.createElement('div');
   card.className = 'push-card ' + type;
-  const rawHtml = raw ? '<small style="display:block;margin-top:6px;font-size:10.5px;color:#b45309;background:rgba(245,158,11,.1);border-radius:8px;padding:5px 8px;word-break:break-word">' + escapeHtml(raw) + '</small>' : '';
-  card.innerHTML =
-    '<img class="push-logo" src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy">' +
-    '<div class="push-body"><b><i class="fa-solid ' + (icons[type] || icons.info) + '"></i> ' + escapeHtml(title) + '</b><p>' + escapeHtml(message) + '</p>' + rawHtml + '</div>' +
-    '<button class="push-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>';
+  const rawHtml = raw ? '<small style="display:block;margin-top:6px;font-size:10.5px;color:#b45309;background:rgba(245,158,11,.1);border-radius:8px;padding:5px 8px;word-break:break-word">' + esc(raw) + '</small>' : '';
+  card.innerHTML = '<img class="push-logo" src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy"><div class="push-body"><b><i class="fa-solid ' + (icons[type] || icons.info) + '"></i> ' + esc(title) + '</b><p>' + esc(message) + '</p>' + rawHtml + '</div><button class="push-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>';
   const closeBtn = card.querySelector('.push-x');
-  if (closeBtn) {
-    closeBtn.addEventListener('click', () => removePush(card));
-  }
-  pushWrap.appendChild(card);
-  if (type === 'success') setTimeout(() => removePush(card), 6000);
+  if (closeBtn) closeBtn.addEventListener('click', () => removePush(card));
+  wrap.appendChild(card);
+  setTimeout(() => removePush(card), type === 'error' ? 9000 : 6000);
   return card;
 }
 
 async function copyText(txt) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    await navigator.clipboard.writeText(txt);
-  } else {
-    const ta = document.createElement('textarea');
-    ta.value = txt;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
-  }
+  const value = String(txt == null ? '' : txt);
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+  } catch (_) {}
+  const ta = document.createElement('textarea');
+  ta.value = value;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+  ta.remove();
+  if (!ok) throw new Error('Copy is not supported on this device');
 }
 
 function formatDate(iso) {
@@ -104,19 +102,14 @@ function loadImage(src) {
 }
 
 function loadPdfLib() {
-  if (window.jspdf) return Promise.resolve(window.jspdf);
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf);
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    s.onload = () => resolve(window.jspdf);
+    s.onload = () => (window.jspdf && window.jspdf.jsPDF ? resolve(window.jspdf) : reject(new Error('PDF library not available')));
     s.onerror = () => reject(new Error('Could not load PDF library'));
     document.head.appendChild(s);
   });
-}
-
-function getProjectData(ud) {
-  const pd = ud && ud.project_data;
-  return pd && typeof pd === 'object' && pd.project_link ? pd : null;
 }
 
 function showDash() {
@@ -134,31 +127,84 @@ function hideDash() {
   if ($('btnLogout')) $('btnLogout').classList.add('hidden');
 }
 
-function startedCount(u) {
-  const ud = u.user_data || {};
+function startedCount(p) {
+  const ud = p.user_data || {};
   const st = String(ud.status || '').toLowerCase();
-  return !!(ud.course_id) || ['active', 'paid', 'started', 'completed'].indexOf(st) > -1;
+  return Boolean(ud.course_id) || ['active', 'paid', 'started', 'completed'].indexOf(st) > -1;
 }
 
-function passedEntries(u) {
-  const ud = u.user_data || {};
-  const arr = Array.isArray(ud.exam_data) ? ud.exam_data : [];
-  if (arr.length > 0) {
-    return arr.filter((e) => e.passed === true);
+function projectOf(ud, courseId, legacyAllowed) {
+  const map = ud.projects && typeof ud.projects === 'object' ? ud.projects : {};
+  if (map[courseId] && typeof map[courseId] === 'object') return map[courseId];
+  const pd = ud.project_data;
+  if (legacyAllowed && pd && typeof pd === 'object' && pd.project_link) {
+    return {
+      project_title: pd.project_title || '',
+      video_url: pd.project_type === 'video' ? pd.project_link : '',
+      work_url: pd.project_type === 'video' ? '' : pd.project_link,
+      pdf_url: '',
+      note: pd.project_description || '',
+      status: pd.status || 'pending',
+      submitted_at: pd.submitted_at || '',
+      edited_at: '',
+      edit_count: 0
+    };
   }
-  if (ud.certificate_issued === true || String(ud.status).toLowerCase() === 'completed') {
-    return [{ date: ud.date_registered || new Date().toISOString(), score: 100, pct: ud.exam_grade || 100, passed: true }];
+  return null;
+}
+
+function finalEntries(p) {
+  const ud = p.user_data || {};
+  const out = [];
+  const res = ud.exam_results && typeof ud.exam_results === 'object' ? ud.exam_results : {};
+  Object.keys(res).forEach((cid) => {
+    const r = res[cid] || {};
+    out.push({
+      course_id: cid,
+      course_name: r.course_name || ud.course_name || '',
+      course_number: r.course_number || '',
+      grade: Number(r.score),
+      year1: r.year1_score,
+      diploma: r.diploma === true,
+      date: r.date || ud.exam_date || ''
+    });
+  });
+  if (out.length) return out;
+  const old = Array.isArray(ud.exam_data) ? ud.exam_data.filter((e) => e && e.passed === true) : [];
+  if (old.length) {
+    const last = old[old.length - 1];
+    out.push({ course_id: String(ud.course_id || ''), course_name: ud.course_name || '', course_number: ud.course_number || '', grade: Number(last.pct != null ? last.pct : last.score), diploma: false, date: last.date || '', legacy: true });
+    return out;
   }
-  return [];
+  if (String(ud.level_completed) === 'final' && isFinite(Number(ud.exam_grade))) {
+    out.push({ course_id: String(ud.course_id || ''), course_name: ud.course_name || '', course_number: ud.course_number || '', grade: Number(ud.exam_grade), diploma: false, date: ud.exam_date || ud.date_complet || '', legacy: true });
+  }
+  return out;
 }
 
-function lastPassed(u) {
-  const arr = passedEntries(u);
-  return arr.length ? arr[arr.length - 1] : null;
+function certMatches(row, entry, userId) {
+  const cd = row && row.certificate_data ? row.certificate_data : {};
+  if (cd.user_id !== userId) return false;
+  if (cd.course_id) return String(cd.course_id) === String(entry.course_id);
+  return String(cd.course_name || '').toLowerCase() === String(entry.course_name || '').toLowerCase();
 }
 
-function completedUsers() {
-  return allProfiles.filter((p) => passedEntries(p).length > 0);
+function buildAwaiting() {
+  const list = [];
+  allProfiles.forEach((p) => {
+    finalEntries(p).forEach((entry) => {
+      if (certificates.some((c) => certMatches(c, entry, p.id))) return;
+      const ud = p.user_data || {};
+      list.push({ profile: p, entry: entry, project: projectOf(ud, entry.course_id, entry.legacy === true) });
+    });
+  });
+  list.sort((a, b) => {
+    const pa = a.project ? 1 : 0;
+    const pb = b.project ? 1 : 0;
+    if (pa !== pb) return pb - pa;
+    return new Date(b.entry.date || 0) - new Date(a.entry.date || 0);
+  });
+  awaiting = list;
 }
 
 async function loadData() {
@@ -183,149 +229,142 @@ async function loadData() {
 function renderStats() {
   if ($('statRegistered')) $('statRegistered').textContent = allProfiles.length;
   if ($('statStarted')) $('statStarted').textContent = allProfiles.filter(startedCount).length;
-  if ($('statCompleted')) $('statCompleted').textContent = completedUsers().length;
-}
-
-function buildAwaiting() {
-  const certUserIds = new Set();
-  certificates.forEach((c) => {
-    const cd = c.certificate_data || {};
-    if (cd.user_id) certUserIds.add(cd.user_id);
-  });
-
-  awaitingUsers = completedUsers()
-    .filter((p) => !certUserIds.has(p.id))
-    .map((p) => ({ profile: p, last: lastPassed(p) }))
-    .sort((a, b) => {
-      const pa = getProjectData(a.profile.user_data) ? 1 : 0;
-      const pb = getProjectData(b.profile.user_data) ? 1 : 0;
-      if (pa !== pb) return pb - pa;
-      return new Date((b.last && b.last.date) || 0) - new Date((a.last && a.last.date) || 0);
-    });
+  if ($('statCompleted')) $('statCompleted').textContent = allProfiles.filter((p) => finalEntries(p).length > 0).length;
 }
 
 function renderAwaiting() {
   const list = $('awaitList');
   const empty = $('awaitEmpty');
-  if ($('statAwaiting')) $('statAwaiting').textContent = awaitingUsers.length;
+  if ($('statAwaiting')) $('statAwaiting').textContent = awaiting.length;
   if (!list) return;
-  if (!awaitingUsers.length) {
+  if (!awaiting.length) {
     list.innerHTML = '';
     if (empty) empty.classList.remove('hidden');
     return;
   }
   if (empty) empty.classList.add('hidden');
-  list.innerHTML = awaitingUsers.map((a, idx) => {
-    const p = a.profile;
-    const ud = p.user_data || {};
+  list.innerHTML = awaiting.map((a, idx) => {
+    const ud = a.profile.user_data || {};
     const img = ud.profile_url || ud.avatar_url || 'https://i.imgur.com/oyqM5oF.png';
-    const grade = a.last && a.last.pct != null ? a.last.pct + '%' : '—';
-    const pd = getProjectData(ud);
-    const projBadge = pd
+    const grade = isFinite(a.entry.grade) ? a.entry.grade.toFixed(1) + '%' : '—';
+    const proj = a.project
       ? '<span class="badge green"><i class="fa-solid fa-diagram-project"></i> Project Done</span>'
       : '<span class="badge rose"><i class="fa-solid fa-hourglass-half"></i> No Project</span>';
-    return '<div class="await-item">' +
-      '<img class="ai-img" src="' + img + '" alt="Student">' +
-      '<div class="ai-info"><b>' + escapeHtml(ud.full_name || 'Student') + '</b>' +
-      '<span>' + escapeHtml(ud.email || 'No email') + ' • Completed ' + escapeHtml(a.last ? formatDate(a.last.date) : '—') + '</span></div>' +
-      '<span class="badge green"><i class="fa-solid fa-star"></i> ' + escapeHtml(String(grade)) + '</span>' +
-      projBadge +
-      '<button class="btn-view" data-idx="' + idx + '"><i class="fa-solid fa-eye"></i> View</button>' +
-      '</div>';
+    const photo = ud.profile_url || ud.avatar_url
+      ? '<span class="badge green"><i class="fa-solid fa-camera"></i> Photo</span>'
+      : '<span class="badge rose"><i class="fa-solid fa-camera"></i> No Photo</span>';
+    return '<div class="await-item"><img class="ai-img" src="' + esc(img) + '" alt="Student">' +
+      '<div class="ai-info"><b>' + esc(ud.full_name || 'Student') + '</b><span>' + esc(a.entry.course_name || '—') + ' • ' + esc(ud.email || 'No email') + ' • ' + esc(formatDate(a.entry.date)) + '</span></div>' +
+      '<span class="badge green"><i class="fa-solid fa-star"></i> ' + esc(grade) + '</span>' + proj + photo +
+      '<button class="btn-view" data-idx="' + idx + '"><i class="fa-solid fa-eye"></i> View</button></div>';
   }).join('');
 }
 
-function renderHistory(ud) {
-  const arr = Array.isArray(ud.exam_data) ? ud.exam_data : [];
+function setHist(html) {
   const box = $('histList');
-  if (!box) return;
-  if (!arr.length) {
-    box.innerHTML = '<div class="hist-none">No exam history found for this student.</div>';
+  if (box) box.innerHTML = html;
+}
+
+async function renderHistory(a) {
+  const ud = a.profile.user_data || {};
+  setHist('<div class="hist-none">Loading exam history...</div>');
+  let rows = [];
+  try {
+    const res = await supabase.from('update').select('uset_update').eq('id', a.profile.id).maybeSingle();
+    const ex = res && res.data && res.data.uset_update ? res.data.uset_update.exam : null;
+    if (ex && ex.records) {
+      Object.keys(ex.records).forEach((k) => {
+        if (k.indexOf(a.entry.course_id + '__') === 0) rows = rows.concat(ex.records[k]);
+      });
+    }
+  } catch (_) {}
+  rows.sort((x, y) => new Date(y.date || 0) - new Date(x.date || 0));
+  if (rows.length) {
+    setHist(rows.map((h) => {
+      const ok = h.passed === true;
+      return '<div class="hist-row"><i class="fa-solid ' + (ok ? 'fa-circle-check' : 'fa-circle-xmark') + '" style="color:' + (ok ? '#10b981' : '#f43f5e') + '"></i><div><b>' + esc(formatDate(h.date)) + (h.year ? ' • Year ' + esc(h.year) : '') + '</b><span>Score: ' + Number(h.score || 0).toFixed(1) + ' / 100' + (h.deduction ? ' • Screenshot deduction: ' + h.deduction : '') + ' • Leaves: ' + (h.leaves || 0) + '</span></div><span class="badge ' + (ok ? 'green' : 'rose') + '">' + (ok ? 'Passed' : 'Failed') + '</span></div>';
+    }).join(''));
     return;
   }
-  box.innerHTML = arr.slice().reverse().map((h) => {
-    const ok = h.passed === true;
-    return '<div class="hist-row">' +
-      '<i class="fa-solid ' + (ok ? 'fa-circle-check' : 'fa-circle-xmark') + '" style="color:' + (ok ? '#10b981' : '#f43f5e') + '"></i>' +
-      '<div><b>' + escapeHtml(formatDate(h.date)) + '</b><span>Score: ' + Number(h.score || 0).toFixed(1) + ' • ' + Number(h.pct || 0) + '%</span></div>' +
-      '<span class="badge ' + (ok ? 'green' : 'rose') + '">' + (ok ? 'Passed' : 'Failed') + '</span>' +
-      '</div>';
-  }).join('');
+  const parts = [];
+  if (a.entry.year1 != null && isFinite(Number(a.entry.year1))) parts.push('<div class="hist-row"><i class="fa-solid fa-circle-check" style="color:#10b981"></i><div><b>Diploma Year 1</b><span>Score: ' + Number(a.entry.year1).toFixed(1) + ' / 100</span></div><span class="badge green">Passed</span></div>');
+  parts.push('<div class="hist-row"><i class="fa-solid fa-circle-check" style="color:#10b981"></i><div><b>' + esc(formatDate(a.entry.date)) + '</b><span>Final grade: ' + (isFinite(a.entry.grade) ? a.entry.grade.toFixed(1) : '—') + ' / 100</span></div><span class="badge green">Passed</span></div>');
+  setHist(parts.join(''));
 }
 
-function renderProject(ud) {
+function linkRow(icon, label, url, key) {
+  if (!url) return '<div class="proj-link"><i class="fa-solid ' + icon + '" style="color:var(--muted);flex-shrink:0"></i><span style="color:var(--muted)">' + esc(label) + ': not provided</span></div>';
+  return '<div class="proj-link"><i class="fa-solid ' + icon + '" style="color:var(--violet-d);flex-shrink:0"></i><span><b>' + esc(label) + ':</b> ' + esc(url) + '</span>' +
+    '<a class="btn-view" href="' + esc(url) + '" target="_blank" rel="noopener"><i class="fa-solid fa-up-right-from-square"></i> Open</a>' +
+    '<button class="copy-btn" data-copy="' + key + '"><i class="fa-solid fa-copy"></i> Copy</button></div>';
+}
+
+function renderProject(a) {
   const box = $('projContent');
   if (!box) return;
-
-  const pd = getProjectData(ud);
+  const pd = a.project;
   if (!pd) {
     box.innerHTML = '<div class="hist-none">No final project submitted yet by this student.</div>';
     return;
   }
-
-  const isVideo = pd.project_type === 'video';
-  const topics = Array.isArray(pd.topics) ? pd.topics : [];
-  const topicsHtml = topics.length
-    ? '<div class="topics-row">' + topics.map((t) => '<span class="topic-chip">' + escapeHtml(t) + '</span>').join('') + '</div>'
-    : '';
-
   box.innerHTML =
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
-    '<span class="badge ' + (isVideo ? 'cyan' : 'violet') + '"><i class="fa-solid ' + (isVideo ? 'fa-video' : 'fa-globe') + '"></i> ' + (isVideo ? 'Video Project' : 'Link Project') + '</span>' +
-    '<span class="badge ' + (String(pd.status) === 'pending' ? 'green' : 'violet') + '"><i class="fa-solid fa-hourglass-half"></i> ' + escapeHtml(String(pd.status || 'pending')) + '</span>' +
-    '</div>' +
-    '<div class="proj-title">' + escapeHtml(pd.project_title || 'Final Project') + '</div>' +
-    '<div class="proj-desc">' + escapeHtml(pd.project_description || '') + '</div>' +
-    '<div class="proj-link">' +
-    '<i class="fa-solid fa-link" style="color:var(--violet-d);flex-shrink:0"></i>' +
-    '<span>' + escapeHtml(pd.project_link) + '</span>' +
-    '<a class="btn-view" href="' + escapeHtml(pd.project_link) + '" target="_blank" rel="noopener"><i class="fa-solid fa-up-right-from-square"></i> Open</a>' +
-    '<button class="copy-btn" data-copy="project"><i class="fa-solid fa-copy"></i> Copy Link</button>' +
-    '</div>' +
-    (pd.submitted_at
-      ? '<div class="hist-row"><i class="fa-solid fa-clock" style="color:var(--violet-d)"></i><div><b>' + escapeHtml(formatDate(pd.submitted_at)) + '</b><span>Project submitted by ' + escapeHtml(pd.full_name || ud.full_name || 'student') + ' • Course: ' + escapeHtml(pd.course_name || ud.course_name || '—') + '</span></div></div>'
-      : '') +
-    topicsHtml;
+    '<span class="badge cyan"><i class="fa-solid fa-video"></i> Video Project</span>' +
+    '<span class="badge violet"><i class="fa-solid fa-hourglass-half"></i> ' + esc(String(pd.status || 'pending')) + '</span>' +
+    (pd.project_theme ? '<span class="badge violet"><i class="fa-solid fa-tag"></i> ' + esc(pd.project_theme) + '</span>' : '') +
+    (pd.edit_count ? '<span class="badge green"><i class="fa-solid fa-pen"></i> Edited ' + esc(pd.edit_count) + ' time(s)</span>' : '') + '</div>' +
+    '<div class="proj-title">' + esc(pd.project_title || 'Final Project') + '</div>' +
+    (pd.note ? '<div class="proj-desc">' + esc(pd.note) + '</div>' : '') +
+    linkRow('fa-video', 'Video', pd.video_url, 'video') +
+    linkRow('fa-file-pdf', 'PDF', pd.pdf_url, 'pdf') +
+    linkRow('fa-globe', 'Project link', pd.work_url, 'work') +
+    '<div class="hist-row"><i class="fa-solid fa-clock" style="color:var(--violet-d)"></i><div><b>' + esc(formatDate(pd.submitted_at)) + '</b><span>Submitted' + (pd.edited_at ? ' • Last edited ' + esc(formatDate(pd.edited_at)) : '') + ' • Course: ' + esc(a.entry.course_name || '—') + '</span></div></div>';
+}
+
+function copySources() {
+  if (!current) return {};
+  const ud = current.profile.user_data || {};
+  const pd = current.project || {};
+  return {
+    name: ud.full_name || '',
+    course: current.entry.course_name || ud.course_name || '',
+    num: current.entry.course_number || ud.course_number || '',
+    project: pd.video_url || pd.work_url || pd.pdf_url || '',
+    video: pd.video_url || '',
+    pdf: pd.pdf_url || '',
+    work: pd.work_url || '',
+    diploma: 'Diploma in ' + (current.entry.course_name || ud.course_name || 'Information Technology') + ' — IDT Academy'
+  };
 }
 
 function openView(idx) {
-  const item = awaitingUsers[idx];
-  if (!item) return;
-  currentUser = item;
-  const p = item.profile;
-  const ud = p.user_data || {};
-  const lp = item.last;
+  const a = awaiting[idx];
+  if (!a) return;
+  current = a;
+  const ud = a.profile.user_data || {};
+  const set = (id, v) => {
+    if ($(id)) $(id).textContent = v;
+  };
   if ($('viewAvatar')) $('viewAvatar').src = ud.profile_url || ud.avatar_url || 'https://i.imgur.com/oyqM5oF.png';
-  if ($('vName')) $('vName').textContent = ud.full_name || 'Student';
-  if ($('vEmail')) $('vEmail').textContent = ud.email || '—';
-  if ($('vGrade')) $('vGrade').textContent = lp && lp.pct != null ? lp.pct + '%' : '—';
-  if ($('vCourse')) $('vCourse').textContent = ud.course_name || '—';
-  if ($('vCourseNum')) $('vCourseNum').textContent = ud.course_number || '—';
-  if ($('vDateDone')) $('vDateDone').textContent = lp ? formatDate(lp.date) : '—';
-  renderHistory(ud);
-  renderProject(ud);
+  set('vName', ud.full_name || 'Student');
+  set('vEmail', ud.email || '—');
+  set('vGrade', isFinite(a.entry.grade) ? a.entry.grade.toFixed(1) + '%' : '—');
+  set('vCourse', a.entry.course_name || '—');
+  set('vCourseNum', a.entry.course_number || ud.course_number || '—');
+  set('vDateDone', formatDate(a.entry.date));
+  renderHistory(a);
+  renderProject(a);
   currentCertId = '';
   currentPdfs = [];
   certSaved = false;
   pdfCount = 0;
-  if ($('genCertId')) $('genCertId').textContent = 'Not generated yet';
+  uploading = 0;
+  set('genCertId', 'Not generated yet');
   if ($('qrBox')) $('qrBox').innerHTML = '<div class="qr-hint">Generate an ID first to see the QR code. Scanning it opens the public verification slip.</div>';
   if ($('uploadList')) $('uploadList').innerHTML = '';
-  if ($('pdfList')) $('pdfList').innerHTML = '';
+  renderPdfList();
   if ($('btnSaveCert')) $('btnSaveCert').classList.remove('done');
   if ($('viewOverlay')) $('viewOverlay').classList.add('open');
-}
-
-function copySources() {
-  const ud = currentUser ? (currentUser.profile.user_data || {}) : {};
-  const pd = getProjectData(ud);
-  return {
-    name: ud.full_name || '',
-    course: ud.course_name || '',
-    num: ud.course_number || '',
-    project: pd ? pd.project_link : '',
-    diploma: 'Diploma in ' + (ud.course_name || 'Information Technology') + ' — IDT Academy'
-  };
 }
 
 async function generateId() {
@@ -333,8 +372,7 @@ async function generateId() {
   try {
     let id = '';
     for (let i = 0; i < 20; i++) {
-      const n = Math.floor(100000 + Math.random() * 900000);
-      const cand = 'IDT/A/' + n;
+      const cand = 'IDT/A/' + Math.floor(100000 + Math.random() * 900000);
       const { data, error } = await supabase.from('certificate').select('id').eq('id', cand).maybeSingle();
       if (error) throw error;
       if (!data) {
@@ -349,18 +387,11 @@ async function generateId() {
     if (qrBox) {
       qrBox.innerHTML = '';
       if (typeof QRCode !== 'undefined') {
-        new QRCode(qrBox, {
-          text: 'https://www.idtacademy.com.ng/slip/' + id,
-          width: 200,
-          height: 200,
-          colorDark: '#1e1b4b',
-          colorLight: '#ffffff',
-          correctLevel: QRCode.CorrectLevel.H
-        });
+        new QRCode(qrBox, { text: 'https://www.idtacademy.com.ng/slip/' + id, width: 200, height: 200, colorDark: '#1e1b4b', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
       }
     }
     miniHide();
-    pushShow('success', 'Certificate ID Ready', id + ' • QR code generated. Scan it with any phone to open the slip.');
+    pushShow('success', 'Certificate ID Ready', id + ' • QR code generated.');
   } catch (err) {
     miniHide();
     pushShow('error', 'ID Generation Failed', 'Please try again.', err.message || String(err));
@@ -371,7 +402,7 @@ function downloadQr() {
   const qrBox = $('qrBox');
   const c = qrBox ? qrBox.querySelector('canvas') : null;
   if (!c) {
-    pushShow('error', 'No QR Yet', 'Generate a certificate ID first.', '');
+    pushShow('error', 'No QR Yet', 'Generate a certificate ID first.');
     return;
   }
   const a = document.createElement('a');
@@ -383,24 +414,31 @@ function downloadQr() {
   pushShow('success', 'QR Downloaded', 'The QR code was saved to your device.');
 }
 
+function renderPdfList() {
+  const box = $('pdfList');
+  if (!box) return;
+  if (!currentPdfs.length) {
+    box.innerHTML = '<div class="pdf-none">No PDFs yet. Upload certificate images above.</div>';
+    return;
+  }
+  box.innerHTML = currentPdfs.map((url, i) => '<div class="pdf-item"><i class="fa-solid fa-file-pdf"></i><span>Certificate PDF ' + (i + 1) + '</span><button class="btn-view" data-pdf="' + i + '"><i class="fa-solid fa-eye"></i> View</button></div>').join('');
+}
+
 async function uploadFiles(files) {
-  if (!currentUser) return;
+  if (!current) return;
   const uploadList = $('uploadList');
   for (const file of files) {
     const item = document.createElement('div');
     item.className = 'up-item';
-    item.innerHTML = '<span class="up-spin"></span><span class="up-name">' + escapeHtml(file.name) + '</span><span class="up-status">Converting...</span>';
+    item.innerHTML = '<span class="up-spin"></span><span class="up-name">' + esc(file.name) + '</span><span class="up-status">Converting...</span>';
     if (uploadList) uploadList.appendChild(item);
+    uploading++;
     try {
       const dataUrl = await readAsDataURL(file);
       const img = await loadImage(dataUrl);
       await loadPdfLib();
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({
-        orientation: img.naturalWidth > img.naturalHeight ? 'l' : 'p',
-        unit: 'mm',
-        format: 'a4'
-      });
+      const doc = new jsPDF({ orientation: img.naturalWidth > img.naturalHeight ? 'l' : 'p', unit: 'mm', format: 'a4' });
       const pw = doc.internal.pageSize.getWidth();
       const ph = doc.internal.pageSize.getHeight();
       const ratio = Math.min(pw / img.naturalWidth, ph / img.naturalHeight);
@@ -408,7 +446,7 @@ async function uploadFiles(files) {
       const h = img.naturalHeight * ratio;
       doc.addImage(dataUrl, 'JPEG', (pw - w) / 2, (ph - h) / 2, w, h);
       const blob = doc.output('blob');
-      const path = 'cert/' + currentUser.profile.id + '/pdf_' + Date.now() + '_' + (pdfCount++) + '.pdf';
+      const path = 'cert/' + current.profile.id + '/pdf_' + Date.now() + '_' + (pdfCount++) + '.pdf';
       const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: 'application/pdf', upsert: true });
       if (error) throw error;
       const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
@@ -426,64 +464,67 @@ async function uploadFiles(files) {
       if (status) status.textContent = '✖ Failed';
       item.classList.add('bad');
       pushShow('error', 'Conversion Failed', file.name, err.message || String(err));
+    } finally {
+      uploading = Math.max(0, uploading - 1);
     }
   }
 }
 
-function renderPdfList() {
-  const box = $('pdfList');
-  if (!box) return;
-  if (!currentPdfs.length) {
-    box.innerHTML = '<div class="pdf-none">No PDFs yet. Upload certificate images above.</div>';
-    return;
-  }
-  box.innerHTML = currentPdfs.map((url, i) => {
-    return '<div class="pdf-item"><i class="fa-solid fa-file-pdf"></i><span>Certificate PDF ' + (i + 1) + '</span>' +
-      '<button class="btn-view" data-pdf="' + i + '"><i class="fa-solid fa-eye"></i> View</button></div>';
-  }).join('');
+function certificatePayload() {
+  const ud = current.profile.user_data || {};
+  const pd = current.project || {};
+  return {
+    user_id: current.profile.id,
+    course_id: current.entry.course_id,
+    full_name: ud.full_name || '',
+    email: ud.email || '',
+    course_name: current.entry.course_name || ud.course_name || '',
+    course_number: current.entry.course_number || ud.course_number || '',
+    grade: isFinite(current.entry.grade) ? current.entry.grade : '',
+    date_completed: current.entry.date || '',
+    referral_link: ud.referral_link || '',
+    profile_url: ud.profile_url || ud.avatar_url || '',
+    project_title: pd.project_title || '',
+    project_theme: pd.project_theme || '',
+    video_url: pd.video_url || '',
+    pdf_url: pd.pdf_url || '',
+    work_url: pd.work_url || '',
+    project_link: pd.video_url || pd.work_url || pd.pdf_url || '',
+    project_submitted_at: pd.submitted_at || ''
+  };
 }
 
 async function saveCertificate() {
-  if (!currentUser) return;
+  if (!current) return;
+  if (uploading > 0) {
+    pushShow('info', 'Please Wait', 'Some files are still converting.');
+    return;
+  }
   if (!currentCertId) {
-    pushShow('error', 'ID Required', 'Generate a certificate ID first.', '');
+    pushShow('error', 'ID Required', 'Generate a certificate ID first.');
     return;
   }
   if (!currentPdfs.length) {
-    pushShow('error', 'PDFs Required', 'Upload at least one certificate image and wait for the PDF.', '');
+    pushShow('error', 'PDFs Required', 'Upload at least one certificate image and wait for the PDF.');
     return;
   }
   miniLoad('Saving certificate record...');
   try {
-    const p = currentUser.profile;
-    const ud = p.user_data || {};
-    const lp = currentUser.last;
-    const pd = getProjectData(ud);
-    const row = {
-      id: currentCertId,
-      certificate_data: {
-        user_id: p.id,
-        full_name: ud.full_name || '',
-        email: ud.email || '',
-        course_name: ud.course_name || '',
-        course_number: ud.course_number || '',
-        grade: lp && lp.pct != null ? lp.pct : '',
-        date_completed: lp ? lp.date : '',
-        date_generated: new Date().toISOString(),
-        referral_link: ud.referral_link || '',
-        profile_url: ud.profile_url || ud.avatar_url || '',
-        project_title: pd ? pd.project_title || '' : '',
-        project_type: pd ? pd.project_type || '' : '',
-        project_link: pd ? pd.project_link || '' : '',
-        project_submitted_at: pd ? pd.submitted_at || '' : '',
-        pdfs: currentPdfs.slice()
-      }
-    };
+    const p = current.profile;
+    const row = { id: currentCertId, certificate_data: Object.assign(certificatePayload(), { date_generated: new Date().toISOString(), pdfs: currentPdfs.slice() }) };
     const { error } = await supabase.from('certificate').upsert(row, { onConflict: 'id' });
     if (error) throw error;
+    certificates.push(row);
 
-    const updatedUserData = Object.assign({}, ud, { certificate_issued: true });
-    await supabase.from('user_profiles').update({ user_data: updatedUserData }).eq('id', p.id);
+    const fresh = await supabase.from('user_profiles').select('user_data').eq('id', p.id).maybeSingle();
+    const ud = fresh && fresh.data && fresh.data.user_data ? fresh.data.user_data : (p.user_data || {});
+    ud.certificate_issued = true;
+    ud.certificates = ud.certificates && typeof ud.certificates === 'object' ? ud.certificates : {};
+    ud.certificates[current.entry.course_id || 'main'] = currentCertId;
+    if (ud.projects && ud.projects[current.entry.course_id]) ud.projects[current.entry.course_id].status = 'approved';
+    const up = await supabase.from('user_profiles').update({ user_data: ud }).eq('id', p.id);
+    if (up.error) throw up.error;
+    p.user_data = ud;
 
     certSaved = true;
     miniHide();
@@ -495,40 +536,22 @@ async function saveCertificate() {
 }
 
 async function sendCertificate() {
-  if (!currentUser) return;
+  if (!current) return;
   if (!certSaved) {
-    pushShow('error', 'Not Saved Yet', 'Save the certificate before sending.', '');
+    pushShow('error', 'Not Saved Yet', 'Save the certificate before sending.');
     return;
   }
   miniLoad('Sending certificate to student email...');
   try {
-    const p = currentUser.profile;
-    const ud = p.user_data || {};
-    const lp = currentUser.last;
-    const pd = getProjectData(ud);
-    const payload = {
-      full_name: ud.full_name || '',
-      email: ud.email || '',
-      course_name: ud.course_name || '',
-      course_number: ud.course_number || '',
-      grade: lp && lp.pct != null ? lp.pct : '',
-      cert_id: currentCertId,
-      referral_link: ud.referral_link || '',
-      profile_url: ud.profile_url || ud.avatar_url || '',
-      project_title: pd ? pd.project_title || '' : '',
-      project_link: pd ? pd.project_link || '' : '',
-      pdfs: currentPdfs.slice()
-    };
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    const payload = Object.assign(certificatePayload(), { cert_id: currentCertId, pdfs: currentPdfs.slice() });
+    const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error((data && data.error) || 'Send failed');
     miniHide();
-    pushShow('success', 'Certificate Sent!', (ud.email || 'The student') + ' will receive their certificate email shortly.');
-    awaitingUsers = awaitingUsers.filter((a) => a.profile.id !== p.id);
+    const email = (current.profile.user_data || {}).email;
+    pushShow('success', 'Certificate Sent!', (email || 'The student') + ' will receive their certificate email shortly.');
+    const sentId = current.profile.id + '|' + current.entry.course_id;
+    awaiting = awaiting.filter((a) => a.profile.id + '|' + a.entry.course_id !== sentId);
     renderAwaiting();
     if ($('viewOverlay')) $('viewOverlay').classList.remove('open');
   } catch (err) {
@@ -537,19 +560,41 @@ async function sendCertificate() {
   }
 }
 
+async function copyFrom(btn) {
+  const src = copySources();
+  const key = btn.dataset.copy;
+  if (!src[key]) {
+    pushShow('error', 'Nothing to Copy', 'This field is empty for this student.');
+    return;
+  }
+  try {
+    await copyText(src[key]);
+    pushShow('success', 'Copied!', src[key].slice(0, 90) + (src[key].length > 90 ? '…' : ''));
+  } catch (err) {
+    pushShow('error', 'Copy Failed', err.message || String(err));
+  }
+}
+
+function closeView() {
+  if ($('viewOverlay')) $('viewOverlay').classList.remove('open');
+}
+
+function closePdf() {
+  if ($('pdfOverlay')) $('pdfOverlay').classList.remove('open');
+  if ($('pdfFrame')) $('pdfFrame').src = 'about:blank';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  safeAddEventListener('togglePass', 'click', () => {
+  on('togglePass', 'click', () => {
     const inp = $('loginPass');
     if (!inp) return;
     const show = inp.type === 'password';
     inp.type = show ? 'text' : 'password';
-    const toggleBtn = $('togglePass');
-    if (toggleBtn) {
-      toggleBtn.innerHTML = show ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
-    }
+    const btn = $('togglePass');
+    if (btn) btn.innerHTML = show ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
   });
 
-  safeAddEventListener('loginBtn', 'click', async () => {
+  const doLogin = async () => {
     const emailEl = $('loginEmail');
     const passEl = $('loginPass');
     const errBox = $('loginErr');
@@ -565,20 +610,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     miniLoad('Signing you in...');
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: pass
-      });
-
-      if (authError || !authData.user) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email: email, password: pass });
+      if (error || !data || !data.user) {
         miniHide();
         if (errBox) {
-          errBox.textContent = authError ? authError.message : 'Incorrect email or password.';
+          errBox.textContent = error ? error.message : 'Incorrect email or password.';
           errBox.classList.remove('hidden');
         }
         return;
       }
-
       miniHide();
       pushShow('success', 'Welcome', 'Signed in as ' + email);
       showDash();
@@ -588,17 +628,19 @@ document.addEventListener('DOMContentLoaded', () => {
         errBox.textContent = 'Sign-in failed. Please try again.';
         errBox.classList.remove('hidden');
       }
-      pushShow('error', 'Login Failed', err.message || String(err));
     }
-  });
+  };
 
-  safeAddEventListener('loginForm', 'submit', (e) => {
+  on('loginBtn', 'click', (e) => {
     e.preventDefault();
-    const loginBtn = $('loginBtn');
-    if (loginBtn) loginBtn.click();
+    doLogin();
+  });
+  on('loginForm', 'submit', (e) => {
+    e.preventDefault();
+    doLogin();
   });
 
-  safeAddEventListener('btnLogout', 'click', async () => {
+  on('btnLogout', 'click', async () => {
     await supabase.auth.signOut();
     hideDash();
     if ($('loginEmail')) $('loginEmail').value = '';
@@ -607,113 +649,55 @@ document.addEventListener('DOMContentLoaded', () => {
     pushShow('info', 'Signed Out', 'You have been logged out.');
   });
 
-  safeAddEventListener('btnHome', 'click', () => {
-    window.location.href = 'https://www.idtacademy.com.ng';
-  });
-
-  safeAddEventListener('btnRefresh', 'click', () => {
+  on('btnHome', 'click', () => { window.location.href = 'https://www.idtacademy.com.ng'; });
+  on('btnRefresh', 'click', () => {
     loadData();
     pushShow('info', 'Refreshing', 'Reloading student data from the server...');
   });
-
-  safeAddEventListener('btnViewBack', 'click', () => {
-    if ($('viewOverlay')) $('viewOverlay').classList.remove('open');
+  on('btnViewBack', 'click', closeView);
+  on('viewClose', 'click', closeView);
+  on('viewOverlay', 'click', (e) => {
+    if (e.target === $('viewOverlay')) closeView();
   });
-
-  safeAddEventListener('viewClose', 'click', () => {
-    if ($('viewOverlay')) $('viewOverlay').classList.remove('open');
-  });
-
-  safeAddEventListener('viewOverlay', 'click', (e) => {
-    if (e.target === $('viewOverlay')) $('viewOverlay').classList.remove('open');
-  });
-
-  safeAddEventListener('awaitList', 'click', (e) => {
+  on('awaitList', 'click', (e) => {
     const btn = e.target.closest('.btn-view');
-    if (!btn) return;
-    openView(parseInt(btn.dataset.idx, 10));
+    if (btn) openView(parseInt(btn.dataset.idx, 10));
   });
-
-  safeAddEventListener('copyRow', 'click', async (e) => {
+  on('copyRow', 'click', (e) => {
     const btn = e.target.closest('.copy-btn');
-    if (!btn) return;
-    const src = copySources();
-    const key = btn.dataset.copy;
-    if (!src[key]) {
-      pushShow('error', 'Nothing to Copy', 'This field is empty for this student.', '');
-      return;
-    }
-    try {
-      await copyText(src[key]);
-      pushShow('success', 'Copied!', src[key].slice(0, 90) + (src[key].length > 90 ? '…' : ''));
-    } catch (err) {
-      pushShow('error', 'Copy Failed', err.message || String(err));
-    }
+    if (btn) copyFrom(btn);
   });
-
-  safeAddEventListener('projContent', 'click', async (e) => {
+  on('projContent', 'click', (e) => {
     const btn = e.target.closest('.copy-btn');
-    if (!btn) return;
-    const src = copySources();
-    const key = btn.dataset.copy;
-    if (!src[key]) {
-      pushShow('error', 'Nothing to Copy', 'This field is empty for this student.', '');
-      return;
-    }
-    try {
-      await copyText(src[key]);
-      btn.classList.add('done');
-      btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
-      setTimeout(() => {
-        btn.classList.remove('done');
-        btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy Link';
-      }, 2000);
-      pushShow('success', 'Copied!', src[key].slice(0, 90) + (src[key].length > 90 ? '…' : ''));
-    } catch (err) {
-      pushShow('error', 'Copy Failed', err.message || String(err));
-    }
+    if (btn) copyFrom(btn);
   });
-
-  safeAddEventListener('btnGenId', 'click', generateId);
-  safeAddEventListener('btnQr', 'click', downloadQr);
-
-  safeAddEventListener('btnPickFiles', 'click', () => {
-    const fileInput = $('fileInput');
-    if (fileInput) fileInput.click();
+  on('btnGenId', 'click', generateId);
+  on('btnQr', 'click', downloadQr);
+  on('btnPickFiles', 'click', () => {
+    const fi = $('fileInput');
+    if (fi) fi.click();
   });
-
-  safeAddEventListener('fileInput', 'change', (e) => {
+  on('fileInput', 'change', (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length) {
       uploadFiles(files);
       e.target.value = '';
     }
   });
-
-  safeAddEventListener('pdfList', 'click', (e) => {
+  on('pdfList', 'click', (e) => {
     const btn = e.target.closest('.btn-view');
     if (!btn) return;
-    const idx = parseInt(btn.dataset.pdf, 10);
-    const url = currentPdfs[idx];
+    const url = currentPdfs[parseInt(btn.dataset.pdf, 10)];
     if (!url) return;
     if ($('pdfFrame')) $('pdfFrame').src = url;
     if ($('pdfOverlay')) $('pdfOverlay').classList.add('open');
   });
-
-  safeAddEventListener('pdfClose', 'click', () => {
-    if ($('pdfOverlay')) $('pdfOverlay').classList.remove('open');
-    if ($('pdfFrame')) $('pdfFrame').src = 'about:blank';
+  on('pdfClose', 'click', closePdf);
+  on('pdfOverlay', 'click', (e) => {
+    if (e.target === $('pdfOverlay')) closePdf();
   });
-
-  safeAddEventListener('pdfOverlay', 'click', (e) => {
-    if (e.target === $('pdfOverlay')) {
-      $('pdfOverlay').classList.remove('open');
-      if ($('pdfFrame')) $('pdfFrame').src = 'about:blank';
-    }
-  });
-
-  safeAddEventListener('btnSaveCert', 'click', saveCertificate);
-  safeAddEventListener('btnSendCert', 'click', sendCertificate);
+  on('btnSaveCert', 'click', saveCertificate);
+  on('btnSendCert', 'click', sendCertificate);
 
   (async function init() {
     try {
@@ -722,13 +706,11 @@ document.addEventListener('DOMContentLoaded', () => {
         showDash();
         return;
       }
-    } catch (err) {}
+    } catch (_) {}
     hideDash();
   })();
 
   supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_OUT' || !session) {
-      hideDash();
-    }
+    if (event === 'SIGNED_OUT' || !session) hideDash();
   });
 });
