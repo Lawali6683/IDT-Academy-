@@ -1,13 +1,14 @@
-import { supabase } from './supabase.js';
-import { NG } from './ng.js';
-
 const FORM_API = '/api/form';
-const SUBMIT_TIMEOUT_MS = 30000;
-const UPLOAD_TIMEOUT_MS = 40000;
-const IMGUR_CLIENT_ID = '5acf7eff9c91660';
+const IMGUR_API = 'https://api.imgur.com/3/image';
+const IMGUR_CLIENT = 'Client-ID 5acf7eff9c91660';
+const SUBMIT_TIMEOUT_MS = 25000;
+const UPLOAD_TIMEOUT_MS = 45000;
+const IMAGE_MAX_SIDE = 1400;
+const IMAGE_QUALITY = 0.85;
 const PAGE_SIZE = 12;
+const CHIP_LIMIT = 18;
+const TYPER_LIMIT = 40;
 const PICK_LIMIT = 60;
-const MAX_IMG_SIDE = 1024;
 
 const PLACEHOLDER_IMG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="420"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0a8f4e"/><stop offset="1" stop-color="#f5b301"/></linearGradient></defs><rect width="600" height="420" fill="url(#g)"/><circle cx="300" cy="170" r="60" fill="rgba(255,255,255,.22)"/><text x="300" y="290" fill="#ffffff" font-family="Arial, sans-serif" font-size="30" font-weight="bold" text-anchor="middle">Free Skills</text></svg>');
 
@@ -17,16 +18,60 @@ const CATEGORIES = {
   '3': 'Health & Community Wellness',
   '4': '2-Year Diploma Program'
 };
+
 const CAT_ORDER = ['1', '2', '3', '4'];
 
-const ID_RULES = {
-  nin: { label: 'NIN number', placeholder: '11 digits', help: 'Your National Identification Number has 11 digits.', test: (v) => /^\d{11}$/.test(v), msg: 'Your NIN must be exactly 11 digits.' },
-  voter: { label: 'Voter card number (VIN)', placeholder: 'Number on your voter card', help: 'Write the Voter Identification Number exactly as it is on your card.', test: (v) => /^[A-Z0-9]{9,22}$/.test(v), msg: 'Please enter the voter card number exactly as written on your card.' }
+const ID_TYPES = {
+  nin: { label: 'NIN', field: 'NIN number', help: 'Your NIN has 11 numbers.', placeholder: '12345678901', maxlength: 11, mode: 'numeric', test: /^\d{11}$/, error: 'Your NIN must be exactly 11 numbers.' },
+  pvc: { label: 'Voter card', field: 'Voter card number (VIN)', help: 'Write the long number on your voter card exactly as it is.', placeholder: 'Voter card number', maxlength: 24, mode: 'text', test: /^[A-Za-z0-9]{9,24}$/, error: 'Please enter your voter card number correctly. Use letters and numbers only.' }
 };
 
+const NG = {
+  'Abia': 'Aba North|Aba South|Arochukwu|Bende|Ikwuano|Isiala Ngwa North|Isiala Ngwa South|Isuikwuato|Obi Ngwa|Ohafia|Osisioma|Ugwunagbo|Ukwa East|Ukwa West|Umuahia North|Umuahia South|Umu Nneochi',
+  'Adamawa': 'Demsa|Fufure|Ganye|Girei|Gombi|Guyuk|Hong|Jada|Lamurde|Madagali|Maiha|Mayo Belwa|Michika|Mubi North|Mubi South|Numan|Shelleng|Song|Toungo|Yola North|Yola South',
+  'Akwa Ibom': 'Abak|Eastern Obolo|Eket|Esit Eket|Essien Udim|Etim Ekpo|Etinan|Ibeno|Ibesikpo Asutan|Ibiono Ibom|Ika|Ikono|Ikot Abasi|Ikot Ekpene|Ini|Itu|Mbo|Mkpat Enin|Nsit Atai|Nsit Ibom|Nsit Ubium|Obot Akara|Okobo|Onna|Oron|Oruk Anam|Udung Uko|Ukanafun|Uruan|Urue-Offong/Oruko|Uyo',
+  'Anambra': 'Aguata|Anambra East|Anambra West|Anaocha|Awka North|Awka South|Ayamelum|Dunukofia|Ekwusigo|Idemili North|Idemili South|Ihiala|Njikoka|Nnewi North|Nnewi South|Ogbaru|Onitsha North|Onitsha South|Orumba North|Orumba South|Oyi',
+  'Bauchi': 'Alkaleri|Bauchi|Bogoro|Damban|Darazo|Dass|Gamawa|Ganjuwa|Giade|Itas/Gadau|Jama\'are|Katagum|Kirfi|Misau|Ningi|Shira|Tafawa Balewa|Toro|Warji|Zaki',
+  'Bayelsa': 'Brass|Ekeremor|Kolokuma/Opokuma|Nembe|Ogbia|Sagbama|Southern Ijaw|Yenagoa',
+  'Benue': 'Ado|Agatu|Apa|Buruku|Gboko|Guma|Gwer East|Gwer West|Katsina-Ala|Konshisha|Kwande|Logo|Makurdi|Obi|Ogbadibo|Ohimini|Oju|Okpokwu|Otukpo|Tarka|Ukum|Ushongo|Vandeikya',
+  'Borno': 'Abadam|Askira/Uba|Bama|Bayo|Biu|Chibok|Damboa|Dikwa|Gubio|Guzamala|Gwoza|Hawul|Jere|Kaga|Kala/Balge|Konduga|Kukawa|Kwaya Kusar|Mafa|Magumeri|Maiduguri|Marte|Mobbar|Monguno|Ngala|Nganzai|Shani',
+  'Cross River': 'Abi|Akamkpa|Akpabuyo|Bakassi|Bekwarra|Biase|Boki|Calabar Municipal|Calabar South|Etung|Ikom|Obanliku|Obubra|Obudu|Odukpani|Ogoja|Yakuur|Yala',
+  'Delta': 'Aniocha North|Aniocha South|Bomadi|Burutu|Ethiope East|Ethiope West|Ika North East|Ika South|Isoko North|Isoko South|Ndokwa East|Ndokwa West|Okpe|Oshimili North|Oshimili South|Patani|Sapele|Udu|Ughelli North|Ughelli South|Ukwuani|Uvwie|Warri North|Warri South|Warri South West',
+  'Ebonyi': 'Abakaliki|Afikpo North|Afikpo South|Ebonyi|Ezza North|Ezza South|Ikwo|Ishielu|Ivo|Izzi|Ohaozara|Ohaukwu|Onicha',
+  'Edo': 'Akoko-Edo|Egor|Esan Central|Esan North-East|Esan South-East|Esan West|Etsako Central|Etsako East|Etsako West|Igueben|Ikpoba Okha|Orhionmwon|Oredo|Ovia North-East|Ovia South-West|Owan East|Owan West|Uhunmwonde',
+  'Ekiti': 'Ado Ekiti|Efon|Ekiti East|Ekiti South-West|Ekiti West|Emure|Gbonyin|Ido Osi|Ijero|Ikere|Ikole|Ilejemeje|Irepodun/Ifelodun|Ise/Orun|Moba|Oye',
+  'Enugu': 'Aninri|Awgu|Enugu East|Enugu North|Enugu South|Ezeagu|Igbo Etiti|Igbo Eze North|Igbo Eze South|Isi Uzo|Nkanu East|Nkanu West|Nsukka|Oji River|Udenu|Udi|Uzo Uwani',
+  'FCT - Abuja': 'Abaji|Bwari|Gwagwalada|Kuje|Kwali|Municipal Area Council',
+  'Gombe': 'Akko|Balanga|Billiri|Dukku|Funakaye|Gombe|Kaltungo|Kwami|Nafada|Shongom|Yamaltu/Deba',
+  'Imo': 'Aboh Mbaise|Ahiazu Mbaise|Ehime Mbano|Ezinihitte|Ideato North|Ideato South|Ihitte/Uboma|Ikeduru|Isiala Mbano|Isu|Mbaitoli|Ngor Okpala|Njaba|Nkwerre|Nwangele|Obowo|Oguta|Ohaji/Egbema|Okigwe|Onuimo|Orlu|Orsu|Oru East|Oru West|Owerri Municipal|Owerri North|Owerri West',
+  'Jigawa': 'Auyo|Babura|Biriniwa|Birnin Kudu|Buji|Dutse|Gagarawa|Garki|Gumel|Guri|Gwaram|Gwiwa|Hadejia|Jahun|Kafin Hausa|Kaugama|Kazaure|Kiri Kasama|Kiyawa|Maigatari|Malam Madori|Miga|Ringim|Roni|Sule Tankarkar|Taura|Yankwashi',
+  'Kaduna': 'Birnin Gwari|Chikun|Giwa|Igabi|Ikara|Jaba|Jema\'a|Kachia|Kaduna North|Kaduna South|Kagarko|Kajuru|Kaura|Kauru|Kubau|Kudan|Lere|Makarfi|Sabon Gari|Sanga|Soba|Zangon Kataf|Zaria',
+  'Kano': 'Ajingi|Albasu|Bagwai|Bebeji|Bichi|Bunkure|Dala|Dambatta|Dawakin Kudu|Dawakin Tofa|Doguwa|Fagge|Gabasawa|Garko|Garun Mallam|Gaya|Gezawa|Gwale|Gwarzo|Kabo|Kano Municipal|Karaye|Kibiya|Kiru|Kumbotso|Kunchi|Kura|Madobi|Makoda|Minjibir|Nasarawa|Rano|Rimin Gado|Rogo|Shanono|Sumaila|Takai|Tarauni|Tofa|Tsanyawa|Tudun Wada|Ungogo|Warawa|Wudil',
+  'Katsina': 'Bakori|Batagarawa|Batsari|Baure|Bindawa|Charanchi|Dandume|Danja|Dan Musa|Daura|Dutsi|Dutsin Ma|Faskari|Funtua|Ingawa|Jibia|Kafur|Kaita|Kankara|Kankia|Katsina|Kurfi|Kusada|Mai\'Adua|Malumfashi|Mani|Mashi|Matazu|Musawa|Rimi|Sabuwa|Safana|Sandamu|Zango',
+  'Kebbi': 'Aleiro|Arewa Dandi|Argungu|Augie|Bagudo|Birnin Kebbi|Bunza|Dandi|Fakai|Gwandu|Jega|Kalgo|Koko/Besse|Maiyama|Ngaski|Sakaba|Shanga|Suru|Danko/Wasagu|Yauri|Zuru',
+  'Kogi': 'Adavi|Ajaokuta|Ankpa|Bassa|Dekina|Ibaji|Idah|Igalamela-Odolu|Ijumu|Kabba/Bunu|Koton Karfe|Lokoja|Mopa-Muro|Ofu|Ogori/Magongo|Okehi|Okene|Olamaboro|Omala|Yagba East|Yagba West',
+  'Kwara': 'Asa|Baruten|Edu|Ekiti|Ifelodun|Ilorin East|Ilorin South|Ilorin West|Irepodun|Isin|Kaiama|Moro|Offa|Oke Ero|Oyun|Pategi',
+  'Lagos': 'Agege|Ajeromi-Ifelodun|Alimosho|Amuwo-Odofin|Apapa|Badagry|Epe|Eti-Osa|Ibeju-Lekki|Ifako-Ijaiye|Ikeja|Ikorodu|Kosofe|Lagos Island|Lagos Mainland|Mushin|Ojo|Oshodi-Isolo|Shomolu|Surulere',
+  'Nasarawa': 'Akwanga|Awe|Doma|Karu|Keana|Keffi|Kokona|Lafia|Nasarawa|Nasarawa Egon|Obi|Toto|Wamba',
+  'Niger': 'Agaie|Agwara|Bida|Borgu|Bosso|Chanchaga|Edati|Gbako|Gurara|Katcha|Kontagora|Lapai|Lavun|Magama|Mariga|Mashegu|Mokwa|Moya|Paikoro|Rafi|Rijau|Shiroro|Suleja|Tafa|Wushishi',
+  'Ogun': 'Abeokuta North|Abeokuta South|Ado-Odo/Ota|Egbado North|Egbado South|Ewekoro|Ifo|Ijebu East|Ijebu North|Ijebu North East|Ijebu Ode|Ikenne|Imeko Afon|Ipokia|Obafemi Owode|Odeda|Odogbolu|Ogun Waterside|Remo North|Shagamu',
+  'Ondo': 'Akoko North-East|Akoko North-West|Akoko South-East|Akoko South-West|Akure North|Akure South|Ese Odo|Idanre|Ifedore|Ilaje|Ile Oluji/Okeigbo|Irele|Odigbo|Okitipupa|Ondo East|Ondo West|Ose|Owo',
+  'Osun': 'Atakunmosa East|Atakunmosa West|Aiyedaade|Aiyedire|Boluwaduro|Boripe|Ede North|Ede South|Egbedore|Ejigbo|Ife Central|Ife East|Ife North|Ife South|Ifedayo|Ifelodun|Ila|Ilesa East|Ilesa West|Irepodun|Irewole|Isokan|Iwo|Obokun|Odo Otin|Ola Oluwa|Olorunda|Oriade|Orolu|Osogbo',
+  'Oyo': 'Afijio|Akinyele|Atiba|Atisbo|Egbeda|Ibadan North|Ibadan North-East|Ibadan North-West|Ibadan South-East|Ibadan South-West|Ibarapa Central|Ibarapa East|Ibarapa North|Ido|Irepo|Iseyin|Itesiwaju|Iwajowa|Kajola|Lagelu|Ogbomosho North|Ogbomosho South|Ogo Oluwa|Olorunsogo|Oluyole|Ona Ara|Orelope|Ori Ire|Oyo East|Oyo West|Saki East|Saki West|Surulere',
+  'Plateau': 'Barkin Ladi|Bassa|Bokkos|Jos East|Jos North|Jos South|Kanam|Kanke|Langtang North|Langtang South|Mangu|Mikang|Pankshin|Qua\'an Pan|Riyom|Shendam|Wase',
+  'Rivers': 'Abua/Odual|Ahoada East|Ahoada West|Akuku-Toru|Andoni|Asari-Toru|Bonny|Degema|Eleme|Emohua|Etche|Gokana|Ikwerre|Khana|Obio/Akpor|Ogba/Egbema/Ndoni|Ogu/Bolo|Okrika|Omuma|Opobo/Nkoro|Oyigbo|Port Harcourt|Tai',
+  'Sokoto': 'Binji|Bodinga|Dange Shuni|Gada|Goronyo|Gudu|Gwadabawa|Illela|Isa|Kebbe|Kware|Rabah|Sabon Birni|Shagari|Silame|Sokoto North|Sokoto South|Tambuwal|Tangaza|Tureta|Wamako|Wurno|Yabo',
+  'Taraba': 'Ardo Kola|Bali|Donga|Gashaka|Gassol|Ibi|Jalingo|Karim Lamido|Kurmi|Lau|Sardauna|Takum|Ussa|Wukari|Yorro|Zing',
+  'Yobe': 'Bade|Bursari|Damaturu|Fika|Fune|Geidam|Gujba|Gulani|Jakusko|Karasuwa|Machina|Nangere|Nguru|Potiskum|Tarmuwa|Yunusari|Yusufari',
+  'Zamfara': 'Anka|Bakura|Birnin Magaji/Kiyaw|Bukkuyum|Bungudu|Gummi|Gusau|Kaura Namoda|Maradun|Maru|Shinkafi|Talata Mafara|Tsafe|Zurmi'
+};
+
+const CARD = {};
 const rowState = {};
-const cam = { stream: null, facing: 'user', target: 'face', busy: false };
-const media = { face: { data: '', url: '' }, id: { data: '', url: '' } };
+const media = {
+  face: { url: '', busy: false, seq: 0, local: '' },
+  id: { url: '', busy: false, seq: 0, local: '' }
+};
 
 let availableConfig = { all: false, keys: new Set() };
 let allCourses = [];
@@ -38,13 +83,21 @@ let countdownTimer = null;
 let applyOpen = false;
 let submitting = false;
 let formUid = '';
+let typerTimer = null;
+let typerVisible = false;
 let toastCount = 0;
+let camStream = null;
+let camFacing = 'user';
+let camTarget = '';
+let camStarting = false;
 
 const $ = (id) => document.getElementById(id);
 const qsa = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
 function esc(str) {
-  return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
 }
 
 function norm(str) {
@@ -88,13 +141,28 @@ function toast(type, title, message) {
   }, type === 'error' ? 5200 : 3600);
 }
 
+function getYouTubeId(url) {
+  const u = String(url || '').trim();
+  let m = u.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+  if (m) return m[1];
+  m = u.match(/[?&]v=([A-Za-z0-9_-]{6,})/);
+  return m ? m[1] : '';
+}
+
+function isDirectVideo(url) {
+  return /\.(mp4|webm|ogg|ogv|mov)(\?.*)?$/i.test(String(url || ''));
+}
+
 function readAvailableConfig() {
   const items = qsa('#availableConfig li').map((li) => li.textContent.trim()).filter(Boolean);
-  return { all: items.some((t) => t === '#'), keys: new Set(items.filter((t) => t !== '#').map(compact).filter(Boolean)) };
+  const all = items.some((t) => t === '#');
+  const keys = new Set(items.filter((t) => t !== '#').map(compact).filter(Boolean));
+  return { all: all, keys: keys };
 }
 
 function isAvailable(course) {
-  return availableConfig.all || availableConfig.keys.has(compact(course.course_name));
+  if (availableConfig.all) return true;
+  return availableConfig.keys.has(compact(course.course_name));
 }
 
 function catName(course) {
@@ -106,14 +174,45 @@ function shortDesc(course, max) {
   return d.length > max ? d.slice(0, max).trim() + '...' : d;
 }
 
-function cardHtml(c) {
-  return '<article class="cc"><div class="cc-img"><img src="' + esc(c.image_url || PLACEHOLDER_IMG) + '" alt="' + esc(c.course_name) + '" loading="lazy" decoding="async"></div>' +
-    '<div class="cc-body"><h4>' + esc(c.course_name) + '</h4><p>' + esc(shortDesc(c, 100)) + '</p>' +
-    '<div class="acts"><button type="button" class="b-view" data-act="view" data-id="' + esc(c.id) + '"><i class="fa-solid fa-eye"></i> View</button>' +
-    '<button type="button" class="b-apply" data-act="apply" data-id="' + esc(c.id) + '"><i class="fa-solid fa-bolt"></i> Apply Free</button></div></div></article>';
+function imgTag(course, cls) {
+  return '<img' + (cls ? ' class="' + cls + '"' : '') + ' src="' + esc(course.image_url || PLACEHOLDER_IMG) + '" alt="' + esc(course.course_name) + '" loading="lazy" decoding="async">';
 }
 
+function acts(course) {
+  return '<div class="acts"><button type="button" class="b-view" data-act="view" data-id="' + esc(course.id) + '"><i class="fa-solid fa-eye"></i> View</button>' +
+    '<button type="button" class="b-apply" data-act="apply" data-id="' + esc(course.id) + '"><i class="fa-solid fa-bolt"></i> Apply Free</button></div>';
+}
+
+CARD['1'] = (c) =>
+  '<article class="cc cc-1">' +
+    '<div class="c1-bar"><i></i><i></i><i></i><em>' + esc(catName(c)) + '</em></div>' +
+    '<div class="c1-img">' + imgTag(c) + '</div>' +
+    '<div class="c1-body"><h4>' + esc(c.course_name) + '</h4><p>' + esc(shortDesc(c, 100)) + '</p>' + acts(c) + '</div>' +
+  '</article>';
+
+CARD['2'] = (c) =>
+  '<article class="cc cc-2">' +
+    '<span class="c2-hole"></span>' +
+    '<div class="c2-img">' + imgTag(c) + '</div>' +
+    '<div class="c2-body"><span class="c2-tag"><i class="fa-solid fa-tag"></i> ' + esc(catName(c)) + '</span><h4>' + esc(c.course_name) + '</h4><p>' + esc(shortDesc(c, 100)) + '</p>' + acts(c) + '</div>' +
+  '</article>';
+
+CARD['3'] = (c) =>
+  '<article class="cc cc-3">' +
+    '<div class="c3-ring">' + imgTag(c) + '<i class="fa-solid fa-heart-pulse"></i></div>' +
+    '<h4>' + esc(c.course_name) + '</h4><p>' + esc(shortDesc(c, 90)) + '</p>' + acts(c) +
+  '</article>';
+
+CARD['4'] = (c) =>
+  '<article class="cc cc-4">' +
+    '<div class="c4-frame"><div class="c4-img">' + imgTag(c) + '</div><span class="c4-seal"><i class="fa-solid fa-award"></i></span></div>' +
+    '<div class="c4-body"><small>Certificate Program</small><h4>' + esc(c.course_name) + '</h4><p>' + esc(shortDesc(c, 95)) + '</p>' + acts(c) + '</div>' +
+  '</article>';
+
 async function loadCourses() {
+  const mod = await import('./supabase.js');
+  const supabase = mod.supabase || mod.default;
+  if (!supabase) throw new Error('supabase');
   const { data, error } = await supabase.from('courses').select('*');
   if (error) throw error;
   const list = (data || []).map((row) => {
@@ -135,7 +234,7 @@ function appendCards(cat) {
   const more = row.querySelector('.cc-more');
   if (more) more.remove();
   const next = st.items.slice(st.shown, st.shown + PAGE_SIZE);
-  row.insertAdjacentHTML('beforeend', next.map(cardHtml).join(''));
+  row.insertAdjacentHTML('beforeend', next.map(CARD[cat]).join(''));
   st.shown += next.length;
   const left = st.items.length - st.shown;
   if (left > 0) {
@@ -173,6 +272,72 @@ function renderCategories() {
   if (empty) empty.classList.toggle('hidden', any);
 }
 
+function renderAvailable() {
+  const sec = $('available');
+  if (!sec) return;
+  if (!availableCourses.length) {
+    sec.classList.add('hidden');
+    stopTyper();
+    return;
+  }
+  sec.classList.remove('hidden');
+  const count = $('avCount');
+  if (count) count.textContent = String(availableCourses.length);
+  const chips = availableCourses.slice(0, CHIP_LIMIT).map((c) =>
+    '<button type="button" class="av-chip" data-act="apply" data-id="' + esc(c.id) + '">' +
+      '<img src="' + esc(c.image_url || PLACEHOLDER_IMG) + '" alt="" loading="lazy" decoding="async">' +
+      '<span>' + esc(c.course_name) + '</span><i class="fa-solid fa-arrow-right"></i>' +
+    '</button>'
+  );
+  const extra = availableCourses.length - CHIP_LIMIT;
+  if (extra > 0) chips.push('<a class="av-chip av-more" href="#courses"><i class="fa-solid fa-layer-group"></i><span>+' + extra + ' more courses</span></a>');
+  const box = $('avChips');
+  if (box) box.innerHTML = chips.join('');
+  startTyper(availableCourses.slice(0, TYPER_LIMIT).map((c) => c.course_name));
+}
+
+function stopTyper() {
+  if (typerTimer) clearTimeout(typerTimer);
+  typerTimer = null;
+}
+
+function startTyper(names) {
+  const el = $('typer');
+  stopTyper();
+  if (!el || !names.length) return;
+  let i = 0;
+  let j = 0;
+  let deleting = false;
+  const tick = () => {
+    if (!typerVisible || document.hidden) {
+      typerTimer = setTimeout(tick, 700);
+      return;
+    }
+    const full = names[i];
+    if (!deleting) {
+      j++;
+      el.textContent = full.slice(0, j);
+      if (j >= full.length) {
+        deleting = true;
+        typerTimer = setTimeout(tick, 1600);
+        return;
+      }
+      typerTimer = setTimeout(tick, 60);
+    } else {
+      j--;
+      el.textContent = full.slice(0, j);
+      if (j <= 0) {
+        deleting = false;
+        i = (i + 1) % names.length;
+        typerTimer = setTimeout(tick, 350);
+        return;
+      }
+      typerTimer = setTimeout(tick, 28);
+    }
+  };
+  tick();
+}
+
 function showCoursesError() {
   const sk = $('coursesSkeleton');
   const er = $('coursesError');
@@ -182,6 +347,8 @@ function showCoursesError() {
     const sec = $('ps-' + k);
     if (sec) sec.classList.add('hidden');
   });
+  const av = $('available');
+  if (av) av.classList.add('hidden');
 }
 
 async function initCourses() {
@@ -194,6 +361,7 @@ async function initCourses() {
     availableConfig = readAvailableConfig();
     availableCourses = allCourses.filter(isAvailable);
     if (sk) sk.classList.add('hidden');
+    renderAvailable();
     renderCategories();
     renderPicker('');
   } catch (err) {
@@ -266,8 +434,26 @@ function setupCountdown() {
 }
 
 function quakeThen(origin, done) {
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const rect = origin && origin.getBoundingClientRect ? origin.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 0, height: 0 };
-  done(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+  if (reduce) {
+    done(x, y);
+    return;
+  }
+  const rp = document.createElement('span');
+  rp.className = 'ripple';
+  rp.style.left = x + 'px';
+  rp.style.top = y + 'px';
+  document.body.appendChild(rp);
+  const page = $('page');
+  if (page) page.classList.add('quake');
+  setTimeout(() => {
+    if (page) page.classList.remove('quake');
+    rp.remove();
+  }, 650);
+  setTimeout(() => done(x, y), 360);
 }
 
 function revealApply(x, y) {
@@ -290,7 +476,7 @@ function hideApply() {
   if (ap) ap.classList.remove('open');
   applyOpen = false;
   closeSheet();
-  closeCamera();
+  closeCam();
   document.body.style.overflow = '';
 }
 
@@ -357,9 +543,7 @@ function renderPicker(filter) {
 
 function openSheet() {
   const s = $('pickSheet');
-  const b = $('pickBackdrop');
   if (s) s.classList.add('open');
-  if (b) b.classList.add('open');
   const si = $('pickSearch');
   if (si) si.value = '';
   renderPicker('');
@@ -367,9 +551,7 @@ function openSheet() {
 
 function closeSheet() {
   const s = $('pickSheet');
-  const b = $('pickBackdrop');
   if (s) s.classList.remove('open');
-  if (b) b.classList.remove('open');
 }
 
 function openModal(course) {
@@ -415,6 +597,8 @@ function closeMenu() {
   if (!applyOpen && !modalCourse) document.body.style.overflow = '';
 }
 
+const ERR_KEYS = ['Name', 'Phone', 'Course', 'State', 'Lga', 'Gender', 'Email', 'Face', 'IdType', 'IdNum', 'IdImg'];
+
 function setErr(key, msg) {
   const e = $('e' + key);
   if (e) {
@@ -436,7 +620,7 @@ function clearErr(key) {
 }
 
 function clearAllErrors() {
-  ['Name', 'Phone', 'Course', 'State', 'Lga', 'Gender', 'Email', 'Face', 'IdType', 'IdNum', 'IdPic'].forEach(clearErr);
+  ERR_KEYS.forEach(clearErr);
   const fe = $('formError');
   if (fe) {
     fe.textContent = '';
@@ -460,53 +644,49 @@ function normalizePhone(v) {
 }
 
 function getGender() {
-  if ($('gMale') && $('gMale').checked) return 'male';
-  if ($('gFemale') && $('gFemale').checked) return 'female';
+  const m = $('gMale');
+  const f = $('gFemale');
+  if (m && m.checked) return 'male';
+  if (f && f.checked) return 'female';
   return '';
 }
 
 function getIdType() {
-  if ($('idNin') && $('idNin').checked) return 'nin';
-  if ($('idVin') && $('idVin').checked) return 'voter';
+  const n = $('idNin');
+  const p = $('idPvc');
+  if (n && n.checked) return 'nin';
+  if (p && p.checked) return 'pvc';
   return '';
 }
 
-function getIdNumber() {
-  return String(($('fIdNum') || {}).value || '').replace(/\s+/g, '').toUpperCase();
+function cleanIdNumber(type, value) {
+  const v = String(value || '').replace(/[\s\-]/g, '');
+  return type === 'pvc' ? v.toUpperCase() : v;
 }
 
-function applyIdType() {
+function idNumberValid() {
   const type = getIdType();
-  const input = $('fIdNum');
-  const label = $('idNumLabel');
-  const help = $('idNumHelp');
-  if (!input) return;
-  const rule = ID_RULES[type];
-  input.disabled = !rule;
-  input.value = '';
-  input.inputMode = type === 'nin' ? 'numeric' : 'text';
-  input.placeholder = rule ? rule.placeholder : 'Choose your card first';
-  if (label) label.textContent = rule ? rule.label : 'Card number';
-  if (help) help.textContent = rule ? rule.help : 'Choose NIN or Voter\'s card above.';
+  if (!type) return false;
+  return ID_TYPES[type].test.test(cleanIdNumber(type, ($('fIdNum') || {}).value));
 }
 
 function updateProgress() {
   const bar = $('applyBar');
   if (!bar) return;
-  const type = getIdType();
   const checks = [
     String(($('fName') || {}).value || '').trim().split(/\s+/).filter(Boolean).length >= 2,
     Boolean(normalizePhone(($('fPhone') || {}).value)),
-    /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(($('fEmail') || {}).value || '').trim()),
-    Boolean(getGender()),
     Boolean(selectedCourse),
     Boolean(($('fState') || {}).value),
     Boolean(($('fLga') || {}).value),
-    Boolean(media.face.data),
-    Boolean(type && ID_RULES[type].test(getIdNumber())),
-    Boolean(media.id.data)
+    Boolean(getGender()),
+    /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(($('fEmail') || {}).value || '').trim()),
+    Boolean(media.face.url),
+    Boolean(getIdType()) && idNumberValid(),
+    Boolean(media.id.url)
   ];
-  bar.style.width = Math.round((checks.filter(Boolean).length / checks.length) * 100) + '%';
+  const done = checks.filter(Boolean).length;
+  bar.style.width = Math.round((done / checks.length) * 100) + '%';
 }
 
 function fillStates() {
@@ -527,210 +707,303 @@ function fillLgas(state) {
   sel.disabled = false;
 }
 
-function showMedia(target) {
-  const isFace = target === 'face';
-  const cap = $(isFace ? 'faceCap' : 'idCap');
-  const img = $(isFace ? 'faceImg' : 'idImg');
-  const txt = $(isFace ? 'faceBtnText' : 'idBtnText');
-  const data = media[target].data;
-  if (img) {
-    if (data) {
-      img.src = data;
-      img.classList.remove('hidden');
-    } else {
-      img.removeAttribute('src');
-      img.classList.add('hidden');
-    }
-  }
-  if (cap) cap.classList.toggle('done', Boolean(data));
-  if (txt) {
-    if (isFace) txt.textContent = data ? '✔️ Photo taken - take again' : 'Take your photo';
-    else txt.textContent = data ? '✔️ Card added - take again' : 'Take photo of card';
-  }
-}
-
-function setMedia(target, dataUrl) {
-  media[target].data = dataUrl;
-  media[target].url = '';
-  showMedia(target);
-  clearErr(target === 'face' ? 'Face' : 'IdPic');
-  updateProgress();
-}
-
-function clearMedia() {
-  media.face = { data: '', url: '' };
-  media.id = { data: '', url: '' };
-  showMedia('face');
-  showMedia('id');
-}
-
-function stopStream() {
-  if (cam.stream) {
-    cam.stream.getTracks().forEach((t) => t.stop());
-    cam.stream = null;
-  }
-  const v = $('camVideo');
-  if (v) v.srcObject = null;
-}
-
-async function startStream() {
-  stopStream();
-  const v = $('camVideo');
-  if (!v) return;
-  const attempts = [
-    { video: { facingMode: { exact: cam.facing }, width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false },
-    { video: { facingMode: cam.facing }, audio: false },
-    { video: true, audio: false }
-  ];
-  let lastErr = null;
-  for (let i = 0; i < attempts.length; i++) {
-    try {
-      cam.stream = await navigator.mediaDevices.getUserMedia(attempts[i]);
-      break;
-    } catch (err) {
-      lastErr = err;
-      if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) break;
-    }
-  }
-  if (!cam.stream) throw lastErr || new Error('No camera');
-  v.srcObject = cam.stream;
-  v.classList.toggle('mirror', cam.facing === 'user');
-  try {
-    await v.play();
-  } catch (_) {}
-}
-
-function fallbackPick(target) {
-  const input = $(target === 'face' ? 'faceFile' : 'idFile');
-  if (input) input.click();
-}
-
-async function openCamera(target) {
-  cam.target = target;
-  cam.facing = target === 'face' ? 'user' : 'environment';
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.isSecureContext) {
-    toast('info', 'Camera', 'We will open your phone camera instead.');
-    fallbackPick(target);
+function updateIdUi() {
+  const type = getIdType();
+  const body = $('idBody');
+  if (!body) return;
+  if (!type) {
+    body.classList.add('hidden');
     return;
   }
-  const box = $('camBox');
-  const guide = $('camGuide');
-  const title = $('camTitle');
-  const hint = $('camHint');
-  if (guide) guide.className = 'cam-guide ' + (target === 'face' ? 'face' : 'card');
-  if (title) title.textContent = target === 'face' ? 'Take your face photo' : 'Take photo of your ID card';
-  if (hint) hint.textContent = target === 'face' ? 'Put your face inside the circle' : 'Put the whole card inside the box';
-  if (box) box.classList.add('open');
-  try {
-    await startStream();
-  } catch (err) {
-    closeCamera();
-    const denied = err && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
-    toast('error', denied ? 'Camera is blocked' : 'Camera not found', denied ? 'Allow camera access in your browser settings and try again.' : 'We will open your phone camera instead.');
-    if (!denied) fallbackPick(target);
+  const cfg = ID_TYPES[type];
+  body.classList.remove('hidden');
+  const label = $('idNumLabel');
+  const help = $('idNumHelp');
+  const input = $('fIdNum');
+  if (label) label.textContent = cfg.field;
+  if (help) help.textContent = cfg.help;
+  if (input) {
+    input.placeholder = cfg.placeholder;
+    input.maxLength = cfg.maxlength;
+    input.inputMode = cfg.mode;
+    const cleaned = cleanIdNumber(type, input.value).slice(0, cfg.maxlength);
+    if (cleaned !== input.value) input.value = cleaned;
   }
 }
 
-function closeCamera() {
-  stopStream();
-  const box = $('camBox');
-  if (box) box.classList.remove('open');
-}
-
-async function flipCamera() {
-  if (cam.busy) return;
-  cam.busy = true;
-  cam.facing = cam.facing === 'user' ? 'environment' : 'user';
-  try {
-    await startStream();
-  } catch (err) {
-    cam.facing = cam.facing === 'user' ? 'environment' : 'user';
-    try {
-      await startStream();
-    } catch (_) {
-      closeCamera();
-    }
-    toast('error', 'Camera', 'We could not switch the camera.');
-  } finally {
-    cam.busy = false;
+function paintMedia(kind) {
+  const m = media[kind];
+  const preview = $(kind + 'Preview');
+  const empty = $(kind + 'Empty');
+  const ok = $(kind + 'Ok');
+  const load = $(kind + 'Load');
+  const view = $(kind + 'View');
+  const has = Boolean(m.local);
+  if (preview) {
+    if (has) preview.src = m.local;
+    preview.classList.toggle('hidden', !has);
   }
-}
-
-function snapshot() {
-  const v = $('camVideo');
-  if (!v || !v.videoWidth) {
-    toast('info', 'Camera', 'Please wait a moment for the camera to be ready.');
-    return;
-  }
-  const scale = Math.min(1, MAX_IMG_SIDE / Math.max(v.videoWidth, v.videoHeight));
-  const c = document.createElement('canvas');
-  c.width = Math.round(v.videoWidth * scale);
-  c.height = Math.round(v.videoHeight * scale);
-  c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
-  const target = cam.target;
-  setMedia(target, c.toDataURL('image/jpeg', 0.85));
-  closeCamera();
-}
-
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    if (!file || !/^image\//.test(file.type)) {
-      reject(new Error('type'));
-      return;
-    }
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('read'));
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = () => reject(new Error('image'));
-      img.onload = () => {
-        const scale = Math.min(1, MAX_IMG_SIDE / Math.max(img.width, img.height));
-        const c = document.createElement('canvas');
-        c.width = Math.max(1, Math.round(img.width * scale));
-        c.height = Math.max(1, Math.round(img.height * scale));
-        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        resolve(c.toDataURL('image/jpeg', 0.85));
-      };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
+  if (empty) empty.classList.toggle('hidden', has);
+  const good = Boolean(m.url) && !m.busy;
+  if (ok) ok.classList.toggle('hidden', !good);
+  if (load) load.classList.toggle('hidden', !m.busy);
+  if (view) view.classList.toggle('done', good);
+  const btns = kind === 'face' ? ['faceBtn'] : ['idCamBtn', 'idUpBtn'];
+  btns.forEach((id) => {
+    const b = $(id);
+    if (b) b.disabled = m.busy;
   });
+  const fb = $('faceBtn');
+  if (fb && kind === 'face') {
+    const span = fb.querySelector('span');
+    if (span) span.textContent = has ? 'Take it again' : 'Take your photo';
+  }
+  const cb = $('idCamBtn');
+  if (cb && kind === 'id') {
+    const span = cb.querySelector('span');
+    if (span) span.textContent = has ? 'Take again' : 'Take photo';
+  }
 }
 
-async function handleFile(target, input) {
-  const file = input.files && input.files[0];
-  input.value = '';
-  if (!file) return;
-  try {
-    setMedia(target, await fileToDataUrl(file));
-  } catch (_) {
-    toast('error', 'Photo', 'We could not read this photo. Please choose a clear picture.');
-  }
+function resetMedia() {
+  ['face', 'id'].forEach((k) => {
+    media[k].url = '';
+    media[k].busy = false;
+    media[k].local = '';
+    media[k].seq++;
+    paintMedia(k);
+  });
 }
 
 async function uploadToImgur(base64) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), UPLOAD_TIMEOUT_MS);
   try {
-    const res = await fetch('https://api.imgur.com/3/image', {
+    const res = await fetch(IMGUR_API, {
       method: 'POST',
-      headers: { Authorization: 'Client-ID ' + IMGUR_CLIENT_ID },
+      headers: { Authorization: IMGUR_CLIENT },
       body: new URLSearchParams({ image: base64, type: 'base64' }),
       signal: ctrl.signal
     });
-    const json = await res.json();
-    if (!res.ok || !json || !json.success || !json.data || !json.data.link) throw new Error('upload');
-    return String(json.data.link).replace(/^http:/, 'https:');
+    let json = null;
+    try {
+      json = await res.json();
+    } catch (_) {
+      json = null;
+    }
+    if (!res.ok || !json || !json.success || !json.data || !json.data.link) {
+      throw new Error('upload');
+    }
+    return String(json.data.link).replace(/^http:\/\//i, 'https://');
   } finally {
     clearTimeout(timer);
   }
 }
 
-async function ensureUploaded(target) {
-  const m = media[target];
-  if (m.url) return m.url;
-  m.url = await uploadToImgur(m.data.split(',')[1]);
-  return m.url;
+function drawToJpeg(source, width, height) {
+  const scale = Math.min(1, IMAGE_MAX_SIDE / Math.max(width, height));
+  const w = Math.max(1, Math.round(width * scale));
+  const h = Math.max(1, Math.round(height * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(source, 0, 0, w, h);
+  return canvas.toDataURL('image/jpeg', IMAGE_QUALITY);
+}
+
+function fileToJpeg(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const out = drawToJpeg(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
+        URL.revokeObjectURL(url);
+        resolve(out);
+      } catch (err) {
+        URL.revokeObjectURL(url);
+        reject(err);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('image'));
+    };
+    img.src = url;
+  });
+}
+
+async function processImage(kind, dataUrl) {
+  const m = media[kind];
+  const seq = ++m.seq;
+  m.local = dataUrl;
+  m.url = '';
+  m.busy = true;
+  clearErr(kind === 'face' ? 'Face' : 'IdImg');
+  paintMedia(kind);
+  updateProgress();
+  try {
+    const link = await uploadToImgur(dataUrl.split(',')[1] || '');
+    if (seq !== m.seq) return;
+    m.url = link;
+    m.busy = false;
+    paintMedia(kind);
+    updateProgress();
+  } catch (err) {
+    if (seq !== m.seq) return;
+    m.url = '';
+    m.local = '';
+    m.busy = false;
+    paintMedia(kind);
+    updateProgress();
+    toast('error', 'Upload failed', 'We could not upload your photo. Please check your network and try again.');
+  }
+}
+
+async function handleFile(kind, file) {
+  if (!file) return;
+  if (!/^image\//i.test(file.type || 'image/jpeg')) {
+    toast('error', 'Wrong file', 'Please choose a photo.');
+    return;
+  }
+  try {
+    const dataUrl = await fileToJpeg(file);
+    processImage(kind, dataUrl);
+  } catch (err) {
+    toast('error', 'Photo problem', 'We could not read this photo. Please try another photo.');
+  }
+}
+
+function stopStream() {
+  if (camStream) {
+    camStream.getTracks().forEach((t) => {
+      try { t.stop(); } catch (_) {}
+    });
+  }
+  camStream = null;
+  const v = $('camVideo');
+  if (v) {
+    try { v.pause(); } catch (_) {}
+    v.srcObject = null;
+  }
+}
+
+function setCamError(msg) {
+  const box = $('camErr');
+  const txt = $('camErrText');
+  if (txt) txt.textContent = msg || '';
+  if (box) box.classList.toggle('hidden', !msg);
+  const shot = $('camShot');
+  if (shot) shot.disabled = Boolean(msg);
+}
+
+async function startCam() {
+  if (camStarting) return;
+  camStarting = true;
+  stopStream();
+  setCamError('');
+  const video = $('camVideo');
+  try {
+    const attempts = [
+      { video: { facingMode: { exact: camFacing }, width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false },
+      { video: { facingMode: { ideal: camFacing }, width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false },
+      { video: true, audio: false }
+    ];
+    let stream = null;
+    let lastErr = null;
+    for (let i = 0; i < attempts.length && !stream; i++) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(attempts[i]);
+      } catch (err) {
+        lastErr = err;
+        if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) break;
+      }
+    }
+    if (!stream) throw lastErr || new Error('camera');
+    if (!$('camModal').classList.contains('open')) {
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+    camStream = stream;
+    const track = stream.getVideoTracks()[0];
+    const settings = track && track.getSettings ? track.getSettings() : {};
+    const facing = settings.facingMode || camFacing;
+    if (video) {
+      video.srcObject = stream;
+      video.classList.toggle('mirror', facing === 'user');
+      await video.play().catch(() => {});
+    }
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const count = devices.filter((d) => d.kind === 'videoinput').length;
+      const sw = $('camSwitch');
+      if (sw) sw.style.visibility = count > 1 ? 'visible' : 'hidden';
+    } catch (_) {}
+  } catch (err) {
+    const name = err && err.name;
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+      setCamError('Camera is blocked. Please allow camera access in your browser settings and try again.');
+    } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+      setCamError('No camera was found on this device.');
+    } else {
+      setCamError('We could not open the camera. Please close other apps that use the camera and try again.');
+    }
+  } finally {
+    camStarting = false;
+  }
+}
+
+function openCam(target) {
+  const modal = $('camModal');
+  if (!modal) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    const fallback = target === 'face' ? $('faceFile') : $('idCamFile');
+    if (fallback) fallback.click();
+    return;
+  }
+  camTarget = target;
+  camFacing = target === 'face' ? 'user' : 'environment';
+  const guide = $('camGuide');
+  if (guide) guide.className = 'cam-guide ' + (target === 'face' ? 'face' : 'card');
+  const title = $('camTitle');
+  const hint = $('camHint');
+  if (title) title.textContent = target === 'face' ? 'Take your face photo' : 'Take a photo of your ID';
+  if (hint) hint.textContent = target === 'face' ? 'Put your face inside the circle and look straight at the camera.' : 'Put your ID flat inside the box. Make all words clear.';
+  const sw = $('camSwitch');
+  if (sw) sw.style.visibility = 'visible';
+  modal.classList.add('open');
+  startCam();
+}
+
+function closeCam() {
+  const modal = $('camModal');
+  if (modal) modal.classList.remove('open');
+  stopStream();
+  setCamError('');
+  camTarget = '';
+}
+
+function switchCam() {
+  camFacing = camFacing === 'user' ? 'environment' : 'user';
+  startCam();
+}
+
+function takeShot() {
+  const video = $('camVideo');
+  if (!video || !video.videoWidth || !camStream) return;
+  const target = camTarget;
+  let dataUrl = '';
+  try {
+    dataUrl = drawToJpeg(video, video.videoWidth, video.videoHeight);
+  } catch (err) {
+    toast('error', 'Photo problem', 'We could not take the photo. Please try again.');
+    return;
+  }
+  closeCam();
+  if (target) processImage(target, dataUrl);
 }
 
 function validateForm() {
@@ -747,12 +1020,6 @@ function validateForm() {
   if (!normalizePhone($('fPhone').value)) {
     bad('Phone', $('fPhone'), 'Please enter a correct phone number, for example 08012345678.');
   }
-  if (!/^[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}$/.test(String($('fEmail').value || '').trim())) {
-    bad('Email', $('fEmail'), 'Please enter a correct email address.');
-  }
-  if (!getGender()) {
-    bad('Gender', $('gMale'), 'Please choose male or female.');
-  }
   if (!selectedCourse) {
     bad('Course', $('courseBtn'), 'Please choose the course you want to learn.');
   }
@@ -762,17 +1029,30 @@ function validateForm() {
   if (!$('fLga').value) {
     bad('Lga', $('fLga'), 'Please choose your local government.');
   }
-  if (!media.face.data) {
+  if (!getGender()) {
+    bad('Gender', $('gMale'), 'Please choose male or female.');
+  }
+  const email = String($('fEmail').value || '').trim();
+  if (!/^[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}$/.test(email)) {
+    bad('Email', $('fEmail'), 'Please enter a correct email address.');
+  }
+  if (media.face.busy) {
+    bad('Face', $('faceBtn'), 'Please wait. Your face photo is still uploading.');
+  } else if (!media.face.url) {
     bad('Face', $('faceBtn'), 'Please take your face photo.');
   }
   const type = getIdType();
   if (!type) {
-    bad('IdType', $('idNin'), 'Please choose NIN or Voter\'s card.');
-  } else if (!ID_RULES[type].test(getIdNumber())) {
-    bad('IdNum', $('fIdNum'), ID_RULES[type].msg);
-  }
-  if (!media.id.data) {
-    bad('IdPic', $('idBtn'), 'Please take a photo of your ID card or upload it.');
+    bad('IdType', $('idNin'), 'Please choose NIN or Voter card.');
+  } else {
+    if (!idNumberValid()) {
+      bad('IdNum', $('fIdNum'), ID_TYPES[type].error);
+    }
+    if (media.id.busy) {
+      bad('IdImg', $('idCamBtn'), 'Please wait. Your ID photo is still uploading.');
+    } else if (!media.id.url) {
+      bad('IdImg', $('idCamBtn'), 'Please take or upload a photo of your ID card.');
+    }
   }
   if (first) {
     try {
@@ -784,40 +1064,49 @@ function validateForm() {
   return true;
 }
 
-function setSubmitting(on, text) {
+function setSubmitting(on) {
   submitting = on;
   const btn = $('submitBtn');
   if (!btn) return;
   btn.disabled = on;
   btn.innerHTML = on
-    ? '<span class="spin"></span> ' + esc(text || 'Sending your application...')
+    ? '<span class="spin"></span> Sending your application...'
     : '<i class="fa-solid fa-paper-plane"></i> Apply Now - It is Free';
 }
 
 function showDone(firstName) {
+  const form = $('applyForm');
+  const done = $('applyDone');
   const dn = $('doneName');
   if (dn) dn.textContent = firstName;
-  $('applyForm').classList.add('hidden');
-  $('applyIntro').classList.add('hidden');
-  $('applyDone').classList.remove('hidden');
-  $('applyBar').style.width = '100%';
-  $('applyPage').scrollTop = 0;
+  if (form) form.classList.add('hidden');
+  const intro = $('applyIntro');
+  if (intro) intro.classList.add('hidden');
+  if (done) done.classList.remove('hidden');
+  const bar = $('applyBar');
+  if (bar) bar.style.width = '100%';
+  const ap = $('applyPage');
+  if (ap) ap.scrollTop = 0;
 }
 
 function resetForm() {
   const form = $('applyForm');
   if (form) form.reset();
   fillLgas('');
-  applyIdType();
   setCourse(null);
-  clearMedia();
+  resetMedia();
+  updateIdUi();
   clearAllErrors();
   formUid = newUid();
-  form.classList.remove('hidden');
-  $('applyIntro').classList.remove('hidden');
-  $('applyDone').classList.add('hidden');
-  $('applyBar').style.width = '0%';
-  $('applyPage').scrollTop = 0;
+  const done = $('applyDone');
+  const intro = $('applyIntro');
+  if (form) form.classList.remove('hidden');
+  if (intro) intro.classList.remove('hidden');
+  if (done) done.classList.add('hidden');
+  const bar = $('applyBar');
+  if (bar) bar.style.width = '0%';
+  const ap = $('applyPage');
+  if (ap) ap.scrollTop = 0;
   updateProgress();
 }
 
@@ -830,20 +1119,7 @@ async function submitForm(e) {
   }
   if (!validateForm()) return;
   const fullName = $('fName').value.trim().replace(/\s+/g, ' ');
-  setSubmitting(true, 'Uploading your photos...');
-  let faceUrl = '';
-  let idUrl = '';
-  try {
-    faceUrl = await ensureUploaded('face');
-    idUrl = await ensureUploaded('id');
-  } catch (err) {
-    setSubmitting(false);
-    showFormError(err && err.name === 'AbortError'
-      ? 'Photo upload took too long. Please check your network and try again.'
-      : 'We could not upload your photos. Please check your network and try again.');
-    return;
-  }
-  setSubmitting(true, 'Sending your application...');
+  const idType = getIdType();
   const payload = {
     uid: formUid,
     full_name: fullName,
@@ -853,16 +1129,17 @@ async function submitForm(e) {
     state: $('fState').value,
     lga: $('fLga').value,
     gender: getGender(),
+    id_type: idType,
+    id_number: cleanIdNumber(idType, $('fIdNum').value),
+    face_url: media.face.url,
+    id_url: media.id.url,
     course_id: String(selectedCourse.id),
     course_name: selectedCourse.course_name,
     course_number: String(selectedCourse.course_number || ''),
     course_price: Number(selectedCourse.price || 0),
-    id_type: getIdType(),
-    id_number: getIdNumber(),
-    face_url: faceUrl,
-    id_url: idUrl,
     website: $('fWeb').value
   };
+  setSubmitting(true);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), SUBMIT_TIMEOUT_MS);
   try {
@@ -880,11 +1157,11 @@ async function submitForm(e) {
     }
     if (!res.ok || !data || data.success !== true) {
       const msg = (data && data.error) || 'We could not send your application. Please try again.';
-      const map = { full_name: 'Name', phone: 'Phone', email: 'Email', course: 'Course', state: 'State', lga: 'Lga', gender: 'Gender', face: 'Face', id_type: 'IdType', id_number: 'IdNum', id_image: 'IdPic' };
-      const ids = { Name: 'fName', Phone: 'fPhone', Email: 'fEmail', Course: 'courseBtn', State: 'fState', Lga: 'fLga', Gender: 'gMale', Face: 'faceBtn', IdType: 'idNin', IdNum: 'fIdNum', IdPic: 'idBtn' };
+      const map = { full_name: 'Name', phone: 'Phone', email: 'Email', course: 'Course', state: 'State', lga: 'Lga', gender: 'Gender', face_url: 'Face', id_type: 'IdType', id_number: 'IdNum', id_url: 'IdImg' };
       if (data && data.field && map[data.field]) {
         setErr(map[data.field], msg);
-        const el = $(ids[map[data.field]]);
+        const target = { Name: 'fName', Phone: 'fPhone', Email: 'fEmail', Course: 'courseBtn', State: 'fState', Lga: 'fLga', Gender: 'gMale', Face: 'faceBtn', IdType: 'idNin', IdNum: 'fIdNum', IdImg: 'idCamBtn' }[map[data.field]];
+        const el = $(target);
         if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
       showFormError(msg);
@@ -898,6 +1175,82 @@ async function submitForm(e) {
   } finally {
     clearTimeout(timer);
     setSubmitting(false);
+  }
+}
+
+function mountVideo(item) {
+  const stage = $('tvStage');
+  if (!stage) return;
+  stage.innerHTML = '';
+  const yt = getYouTubeId(item.src);
+  if (yt) {
+    const f = document.createElement('iframe');
+    f.src = 'https://www.youtube-nocookie.com/embed/' + yt + '?autoplay=1&rel=0&modestbranding=1&playsinline=1';
+    f.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture; fullscreen');
+    f.setAttribute('title', item.title || 'Knowledge Showcase video');
+    f.allowFullscreen = true;
+    stage.appendChild(f);
+  } else if (isDirectVideo(item.src)) {
+    const v = document.createElement('video');
+    v.src = item.src;
+    v.controls = true;
+    v.autoplay = true;
+    v.playsInline = true;
+    stage.appendChild(v);
+  } else {
+    const f = document.createElement('iframe');
+    f.src = item.src;
+    f.setAttribute('allow', 'autoplay; picture-in-picture; fullscreen');
+    f.setAttribute('title', item.title || 'Knowledge Showcase video');
+    f.allowFullscreen = true;
+    stage.appendChild(f);
+  }
+}
+
+function setupShowcase() {
+  const items = qsa('#showcaseVideos li').map((li) => ({ src: String(li.dataset.src || '').trim(), title: String(li.dataset.title || '').trim() })).filter((v) => v.src);
+  const play = $('tvPlay');
+  const soon = $('tvSoon');
+  const list = $('tvList');
+  if (!items.length) {
+    if (soon) soon.classList.remove('hidden');
+    if (play) play.classList.add('hidden');
+    return;
+  }
+  if (play) {
+    play.classList.remove('hidden');
+    play.addEventListener('click', () => mountVideo(items[0]));
+  }
+  if (list && items.length > 1) {
+    list.classList.remove('hidden');
+    list.innerHTML = items.map((v, i) => '<button type="button" data-v="' + i + '"><i class="fa-solid fa-circle-play"></i> ' + esc(v.title || 'Video ' + (i + 1)) + '</button>').join('');
+    list.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-v]');
+      if (b) mountVideo(items[Number(b.dataset.v)]);
+    });
+  }
+}
+
+function setupReveal() {
+  const els = qsa('.rv');
+  if (!('IntersectionObserver' in window)) {
+    els.forEach((el) => el.classList.add('in'));
+    return;
+  }
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      if (en.isIntersecting) {
+        en.target.classList.add('in');
+        io.unobserve(en.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  els.forEach((el) => io.observe(el));
+  const av = $('available');
+  if (av) {
+    new IntersectionObserver((entries) => {
+      typerVisible = entries[0].isIntersecting;
+    }, { threshold: 0.1 }).observe(av);
   }
 }
 
@@ -926,7 +1279,7 @@ function setupScroll() {
 function bindEvents() {
   document.addEventListener('error', (e) => {
     const t = e.target;
-    if (t && t.tagName === 'IMG' && !t.dataset.fb && t.id !== 'faceImg' && t.id !== 'idImg') {
+    if (t && t.tagName === 'IMG' && !t.dataset.fb && !t.closest('.cap-view')) {
       t.dataset.fb = '1';
       t.src = PLACEHOLDER_IMG;
     }
@@ -953,7 +1306,9 @@ function bindEvents() {
       return;
     }
     const plain = e.target.closest('[data-apply]');
-    if (plain) openApply(null, plain);
+    if (plain) {
+      openApply(null, plain);
+    }
   });
 
   const on = (id, ev, fn) => {
@@ -992,47 +1347,79 @@ function bindEvents() {
     clearErr('Lga');
     updateProgress();
   });
-  on('faceBtn', 'click', () => openCamera('face'));
-  on('idBtn', 'click', () => openCamera('id'));
-  on('idUploadBtn', 'click', () => fallbackPick('id'));
-  on('faceFile', 'change', (e) => handleFile('face', e.target));
-  on('idFile', 'change', (e) => handleFile('id', e.target));
-  on('camClose', 'click', closeCamera);
-  on('camShot', 'click', snapshot);
-  on('camFlip', 'click', flipCamera);
-  on('idNin', 'change', () => {
-    applyIdType();
-    clearErr('IdType');
-    clearErr('IdNum');
-    updateProgress();
-  });
-  on('idVin', 'change', () => {
-    applyIdType();
-    clearErr('IdType');
-    clearErr('IdNum');
-    updateProgress();
-  });
   on('applyForm', 'submit', submitForm);
   on('applyForm', 'input', (e) => {
     const map = { fName: 'Name', fPhone: 'Phone', fEmail: 'Email', fLga: 'Lga', fIdNum: 'IdNum' };
     if (e.target && map[e.target.id]) clearErr(map[e.target.id]);
     if (e.target && e.target.name === 'gender') clearErr('Gender');
+    if (e.target && e.target.id === 'fIdNum') {
+      const type = getIdType();
+      if (type) {
+        const cleaned = cleanIdNumber(type, e.target.value);
+        if (cleaned !== e.target.value) e.target.value = cleaned;
+      }
+    }
     updateProgress();
+  });
+  qsa('input[name="idtype"]').forEach((r) => {
+    r.addEventListener('change', () => {
+      clearErr('IdType');
+      clearErr('IdNum');
+      updateIdUi();
+      updateProgress();
+    });
+  });
+
+  on('faceBtn', 'click', () => openCam('face'));
+  on('idCamBtn', 'click', () => openCam('id'));
+  on('idUpBtn', 'click', () => {
+    const f = $('idFile');
+    if (f) f.click();
+  });
+  on('faceFile', 'change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    handleFile('face', file);
+  });
+  on('idCamFile', 'change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    handleFile('id', file);
+  });
+  on('idFile', 'change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    handleFile('id', file);
+  });
+  on('camClose', 'click', closeCam);
+  on('camSwitch', 'click', switchCam);
+  on('camShot', 'click', takeShot);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopStream();
+    else if ($('camModal') && $('camModal').classList.contains('open')) startCam();
+  });
+
+  qsa('.eye').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const input = $(btn.dataset.target);
+      if (!input) return;
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.innerHTML = '<i class="fa-solid ' + (show ? 'fa-eye-slash' : 'fa-eye') + '"></i>';
+      btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    });
   });
 
   window.addEventListener('popstate', () => {
     if (applyOpen) hideApply();
   });
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) closeCamera();
-  });
-
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
+    const cam = $('camModal');
     const sheet = $('pickSheet');
-    const camBox = $('camBox');
-    if (camBox && camBox.classList.contains('open')) closeCamera();
+    if (cam && cam.classList.contains('open')) closeCam();
     else if (sheet && sheet.classList.contains('open')) closeSheet();
     else if (modalCourse) closeModal();
     else if (applyOpen) closeApply();
@@ -1040,16 +1427,25 @@ function bindEvents() {
   });
 }
 
+function safe(fn) {
+  try { fn(); } catch (err) { if (window.console) console.error(err); }
+}
+
 function init() {
-  formUid = newUid();
-  fillStates();
-  fillLgas('');
-  applyIdType();
-  setCourse(null);
-  setupCountdown();
-  setupScroll();
-  bindEvents();
-  initCourses();
+  safe(() => { formUid = newUid(); });
+  safe(setupReveal);
+  setTimeout(() => qsa('.rv:not(.in)').forEach((el) => el.classList.add('in')), 2500);
+  safe(fillStates);
+  safe(() => fillLgas(''));
+  safe(() => setCourse(null));
+  safe(() => paintMedia('face'));
+  safe(() => paintMedia('id'));
+  safe(updateIdUi);
+  safe(setupCountdown);
+  safe(setupShowcase);
+  safe(setupScroll);
+  safe(bindEvents);
+  initCourses().catch(() => showCoursesError());
   if (location.hash === '#apply') {
     try {
       history.replaceState(null, '', location.pathname + location.search);
