@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#050b1f">
+<meta name="description" content="About the Zamfara State Free Learning Skill programme, sponsored by Gov. Dauda Lawal in partnership with IDT Academy.">
+<title>About Us - Zamfara State Free Learning Skill</title>
+<link rel="icon" href="https://i.imgur.com/hakHfjI.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Playfair+Display:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--navy:#050b1f;--cy:#22d3ee;--g:#10b981;--g-d:#047857;--g-l:#d1fae5;--gold:#fbbf24;--ink:#0a1230;--mut:#5b6784;--coral:#fb7185;--ease:cubic-bezier(.22,.9,.35,1)}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{font-family:'Outfit',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink);background:var(--navy);line-height:1.6;overflow-x:hidden}
+img{max-width:100%;display:block}a{color:inherit;text-decoration:none}
+button,input,textarea{font-family:inherit}button{cursor:pointer;border:none;background:none;color:inherit}ul{list-style:none}
+.wrap{width:min(1100px,92%);margin:0 auto}.hidden{display:none!important}
+.sec{position:relative;padding:76px 0;overflow:hidden}
+.rv{opacity:0;transform:translateY(24px);transition:opacity .7s var(--ease),transform .7s var(--ease)}.rv.in{opacity:1;transform:none}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;font-weight:800;letter-spacing:2.6px;text-transform:uppercase;color:var(--g-d);background:var(--g-l);border-radius:99px;padding:8px 16px;margin-bottom:14px}
+.shead{text-align:center;max-width:720px;margin:0 auto 40px}
+.shead h2{font-size:clamp(26px,4.2vw,40px);line-height:1.15;font-weight:900;margin-bottom:10px}
+.shead h2 em{font-style:normal;background:linear-gradient(110deg,#059669,#10b981 45%,#d99a06);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.shead p{color:var(--mut);font-size:15.5px}
+.dark .shead p{color:#9db0d6}.dark .shead h2{color:#fff}
+.dark .shead h2 em{background:linear-gradient(110deg,var(--cy),#34d399 50%,var(--gold));-webkit-background-clip:text;background-clip:text}
+.dark .eyebrow{background:rgba(34,211,238,.12);color:#67e8f9}
+.cta{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:16px 28px;border-radius:16px;font-weight:800;font-size:15.5px;color:#04201a;background:linear-gradient(135deg,#34d399,#10b981);box-shadow:0 16px 34px rgba(16,185,129,.38);overflow:hidden;isolation:isolate;transition:transform .2s;border:0}
+.cta::before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.55) 50%,transparent 70%);transform:translateX(-120%);animation:sweep 3.4s ease-in-out infinite;z-index:-1}
+.cta:hover{transform:translateY(-3px)}.cta:active{transform:scale(.97)}
+.cta-line{background:rgba(255,255,255,.06);color:#fff;border:2px solid rgba(255,255,255,.3);box-shadow:none}.cta-line::before{display:none}
+@keyframes sweep{60%,100%{transform:translateX(120%)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.topbar{position:sticky;top:0;z-index:50;padding:10px 0;background:rgba(5,11,31,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.topbar .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;color:#fff;min-width:0}
+.brand img{height:46px;width:auto;max-width:130px;object-fit:contain}
+.brand b{display:block;font-size:14px;font-weight:800;line-height:1.15;white-space:nowrap}
+.brand small{font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--cy)}
+.nav-d{display:flex;gap:6px}
+.nav-d a{font-weight:700;font-size:14px;color:#cfe0ff;padding:9px 15px;border-radius:99px}
+.nav-d a:hover,.nav-d a.on{background:rgba(34,211,238,.16);color:#fff}
+.burger{display:none;width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--cy),var(--g));color:#04201a;font-size:17px;place-items:center;box-shadow:0 0 0 5px rgba(34,211,238,.18)}
+.sp-bd{position:fixed;inset:0;z-index:9300;background:rgba(2,6,20,.65);opacity:0;visibility:hidden;transition:opacity .3s,visibility .3s}.sp-bd.open{opacity:1;visibility:visible}
+.sp{position:fixed;top:0;right:0;bottom:0;z-index:9310;width:min(320px,86vw);background:linear-gradient(170deg,#050b1f,#0b2a3f 70%,#065f46);color:#fff;padding:20px;display:flex;flex-direction:column;gap:8px;transform:translateX(105%);transition:transform .38s var(--ease);border-radius:30px 0 0 30px}.sp.open{transform:none}
+.sp-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.sp-top img{height:48px;width:auto;max-width:150px;object-fit:contain}
+.sp-top button{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.14);font-size:16px}
+.sp a{display:flex;align-items:center;gap:14px;padding:14px 15px;border-radius:16px;font-weight:700;background:rgba(255,255,255,.07)}
+.sp a i{width:22px;text-align:center;color:var(--gold)}.sp a.apply{background:linear-gradient(135deg,#34d399,#10b981);color:#04201a}.sp a.apply i{color:#04201a}
+.hero{position:relative;padding:70px 0 80px;text-align:center;color:#fff;overflow:hidden;background:radial-gradient(60% 70% at 85% 0,rgba(34,211,238,.28),transparent 70%),radial-gradient(55% 60% at 5% 5%,rgba(16,185,129,.34),transparent 70%),var(--navy)}
+.hero::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(34,211,238,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(34,211,238,.08) 1px,transparent 1px);background-size:44px 44px;-webkit-mask-image:radial-gradient(80% 80% at 50% 30%,#000,transparent);mask-image:radial-gradient(80% 80% at 50% 30%,#000,transparent)}
+.hero .wrap{position:relative}.hero .eyebrow{background:rgba(251,191,36,.14);color:#fcd34d}
+.hero h1{font-size:clamp(32px,6vw,58px);line-height:1.06;font-weight:900;letter-spacing:-1px;margin-bottom:14px}
+.hero h1 em{font-style:normal;background:linear-gradient(110deg,var(--cy),#34d399 50%,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.hero p{max-width:640px;margin:0 auto;color:#b6c6e6;font-size:16.5px}
+.foot{background:#020611;color:#a9bde0;padding:44px 0 26px}
+.foot-grid{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:center;margin-bottom:22px}
+.foot .brand b{color:#fff}.foot .brand .idt{background:#fff;border-radius:10px;padding:4px 8px;height:42px}
+.foot nav{display:flex;gap:10px;flex-wrap:wrap}.foot nav a{display:inline-flex;gap:8px;align-items:center;background:rgba(255,255,255,.07);border-radius:99px;padding:10px 16px;font-size:13px;font-weight:700}
+.foot small{display:block;text-align:center;font-size:12px;border-top:1px solid rgba(255,255,255,.1);padding-top:18px}
+
+.par{background:linear-gradient(180deg,var(--navy),#f4fbf8 16%,#f4fbf8)}
+.bridge{display:grid;grid-template-columns:1fr auto 1fr;gap:20px;align-items:center;max-width:880px;margin:0 auto 26px}
+.medal{text-align:center;background:#fff;border-radius:28px;padding:26px 18px;box-shadow:0 20px 50px rgba(5,60,45,.15);border:2px solid #d1fae5}
+.medal.m2{border-color:#fde68a}.medal img{height:90px;width:auto;margin:0 auto 12px;object-fit:contain}.medal b{display:block;font-size:16px;font-weight:900}.medal small{font-size:12px;color:var(--mut);font-weight:600}
+.lk{font-size:26px;color:var(--g-d);text-align:center;animation:bob 3s ease-in-out infinite}
+.note{max-width:700px;margin:0 auto;text-align:center;color:var(--mut)}.note b{color:var(--g-d)}
+.pur{background:#06122b;color:#fff}
+.pur::before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(34,211,238,.35) 1.5px,transparent 1.6px);background-size:36px 36px;opacity:.5}
+.nodes{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:22px;max-width:960px;margin:0 auto}
+.nd{text-align:center}.nd .dot{width:90px;height:90px;margin:0 auto 14px;display:grid;place-items:center;font-size:30px;color:#04201a;background:linear-gradient(135deg,var(--cy),var(--g));clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);box-shadow:0 0 40px rgba(34,211,238,.5)}
+.nd h3{font-size:19px;font-weight:900;margin-bottom:4px}.nd p{font-size:14px;color:#9db0d6}
+.gv{background:radial-gradient(60% 50% at 10% 0,rgba(251,191,36,.2),transparent 70%),#fdf6e3}
+.gv-g{display:grid;grid-template-columns:.8fr 1.2fr;gap:44px;align-items:center}
+.gph{max-width:380px;margin:0 auto;padding:14px;background:#fff;border-radius:6px;box-shadow:0 26px 60px rgba(90,60,10,.3);transform:rotate(-2deg);position:relative}
+.gph::before{content:"";position:absolute;top:-16px;left:50%;width:110px;height:32px;margin-left:-55px;background:rgba(251,191,36,.7);transform:rotate(3deg)}
+.gph div{line-height:0;background:#0b1736}.gph img{width:100%;height:auto}
+.gv h2{font-family:'Playfair Display',Georgia,serif;font-size:clamp(28px,4.2vw,42px);font-weight:800;color:#3d2606;line-height:1.1;margin:8px 0}
+.gv p{color:#4a3d20;margin-bottom:12px}
+.gv ul li{position:relative;padding:5px 0 5px 24px;font-size:14.5px;color:#4a3d20}
+.gv ul li::before{content:"\f005";font-family:"Font Awesome 6 Free";font-weight:900;position:absolute;left:0;top:8px;font-size:11px;color:#d99a06}
+.hw{background:linear-gradient(180deg,#0b1736,#050b1f);color:#fff}
+.rail{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;max-width:1000px;margin:0 auto}
+.rail::before{content:"";position:absolute;left:12%;right:12%;top:34px;height:4px;background:linear-gradient(90deg,var(--cy),var(--g),var(--gold));border-radius:4px;opacity:.7}
+.stn{position:relative;text-align:center}.stn .no{position:relative;width:68px;height:68px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;font-size:24px;font-weight:900;color:#04201a;background:linear-gradient(135deg,var(--cy),var(--g));box-shadow:0 0 0 8px rgba(34,211,238,.15)}
+.stn h3{font-size:16px;font-weight:900;margin-bottom:4px}.stn p{font-size:13px;color:#9db0d6}
+.band{background:var(--navy);padding:60px 0}
+.band-in{position:relative;overflow:hidden;border-radius:34px;padding:50px 22px;text-align:center;color:#fff;background:conic-gradient(from 200deg at 50% 130%,#065f46,#10b981,#fbbf24,#10b981,#065f46)}
+.band-in::before{content:"";position:absolute;inset:0;background:rgba(3,20,40,.62)}.band-in>*{position:relative}
+.band-in h2{font-size:clamp(24px,4vw,38px);font-weight:900;margin-bottom:8px}.band-in p{max-width:520px;margin:0 auto 22px;color:#e4fff0}
+@media(max-width:860px){.bridge,.gv-g,.nodes{grid-template-columns:1fr}.lk{transform:rotate(90deg)}.rail{grid-template-columns:1fr;max-width:380px}.rail::before{display:none}.stn{display:grid;grid-template-columns:68px 1fr;gap:14px;text-align:left;align-items:center}.stn .no{margin:0}}
+
+@media(max-width:760px){.nav-d{display:none}.burger{display:grid}.brand small{display:none}.sec{padding:60px 0}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}.rv{opacity:1;transform:none}}
+</style>
+<noscript><style>.rv{opacity:1;transform:none}</style></noscript>
+</head>
+<body>
+<header class="topbar"><div class="wrap">
+  <a class="brand" href="gov-dauda-lawal-free-skils.html" aria-label="Home"><img src="https://i.imgur.com/hakHfjI.png" alt="Zamfara State logo"><div><b>Zamfara State</b><small>Free Learning Skill</small></div></a>
+  <nav class="nav-d" aria-label="Main"><a href="gov-dauda-lawal-free-skils.html">Home</a><a href="about.html" class="on">About Us</a><a href="contact.html">Contact Us</a></nav>
+  <button type="button" class="burger" id="bg" aria-label="Open menu"><i class="fa-solid fa-bars-staggered"></i></button>
+</div></header>
+<div class="sp-bd" id="spb"></div>
+<aside class="sp" id="spm" aria-label="Menu">
+  <div class="sp-top"><img src="https://i.imgur.com/hakHfjI.png" alt=""><button type="button" id="spx" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button></div>
+  <a href="gov-dauda-lawal-free-skils.html"><i class="fa-solid fa-house"></i> Home</a>
+  <a href="about.html"><i class="fa-solid fa-circle-info"></i> About Us</a>
+  <a href="contact.html"><i class="fa-solid fa-envelope"></i> Contact Us</a>
+  <a class="apply" href="index.html#courses"><i class="fa-solid fa-rocket"></i> Apply Free</a>
+</aside>
+<main>
+<section class="hero"><div class="wrap">
+  <span class="eyebrow">About Us</span>
+  <h1>Free skills for <em>every learner</em> in Zamfara</h1>
+  <p>The Zamfara State Free Learning Skill programme is sponsored by Gov. Dauda Lawal. It brings real, practical training to your phone, for free.</p>
+</div></section>
+
+<section class="sec par"><div class="wrap">
+  <div class="shead rv"><span class="eyebrow">Partnership</span><h2>Government and technology, <em>working together</em></h2><p>Zamfara State Government and IDT Academy join hands to bring free skills to every learner.</p></div>
+  <div class="bridge rv">
+    <div class="medal"><img src="https://i.imgur.com/hakHfjI.png" alt="Zamfara State Government" loading="lazy"><b>Zamfara State Government</b><small>Sponsor: Gov. Dauda Lawal</small></div>
+    <div class="lk" aria-hidden="true"><i class="fa-solid fa-handshake-angle"></i></div>
+    <div class="medal m2"><img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" loading="lazy"><b>IDT Academy</b><small>Training and technology partner</small></div>
+  </div>
+  <p class="note rv"><b>How it works:</b> the State Government pays for the programme, so it is free for you. IDT Academy provides the online lessons, the AI teacher and the certificate.</p>
+</div></section>
+
+<section class="sec pur dark"><div class="wrap" style="position:relative">
+  <div class="shead rv"><span class="eyebrow">Our Purpose</span><h2>Why this <em>programme</em> exists</h2><p>We want every young person in Zamfara State to have a real chance to learn, work and build.</p></div>
+  <div class="nodes">
+    <div class="nd rv"><div class="dot"><i class="fa-solid fa-seedling"></i></div><h3>Learn</h3><p>Short video lessons you can follow on your phone.</p></div>
+    <div class="nd rv"><div class="dot"><i class="fa-solid fa-screwdriver-wrench"></i></div><h3>Practise</h3><p>Real exercises, so you can use the skill in real life.</p></div>
+    <div class="nd rv"><div class="dot"><i class="fa-solid fa-briefcase"></i></div><h3>Earn</h3><p>Find work, sell your skill or start a small business.</p></div>
+  </div>
+</div></section>
+
+<section class="sec gv"><div class="wrap gv-g">
+  <figure class="gph rv"><div><img src="https://i.imgur.com/ATXMCju.png" alt="Dr. Dauda Lawal" loading="lazy" decoding="async"></div></figure>
+  <div class="rv">
+    <span class="eyebrow">Our Sponsor</span>
+    <h2>Dr. Dauda Lawal</h2>
+    <p>Governor of Zamfara State. A banker, technocrat and politician, born in Gusau on September 2, 1965. He took office on May 29, 2023.</p>
+    <ul>
+      <li>B.Sc. and M.Sc. in Political Science from Ahmadu Bello University, Zaria.</li>
+      <li>Ph.D. in Business Administration from Usmanu Danfodiyo University, Sokoto.</li>
+      <li>Executive Director at First Bank of Nigeria, Public Sector North.</li>
+      <li>Focus on security, healthcare and education, including a state of emergency on education.</li>
+    </ul>
+  </div>
+</div></section>
+
+<section class="sec hw dark"><div class="wrap">
+  <div class="shead rv"><span class="eyebrow">Easy Steps</span><h2>How you <em>join</em></h2><p>You do not need to be an expert. You only need to start.</p></div>
+  <div class="rail">
+    <div class="stn rv"><span class="no">1</span><div><h3>Apply free</h3><p>Fill the simple form. It takes about three minutes.</p></div></div>
+    <div class="stn rv"><span class="no">2</span><div><h3>Get approved</h3><p>We check your details and email you.</p></div></div>
+    <div class="stn rv"><span class="no">3</span><div><h3>Learn online</h3><p>Watch lessons and ask the AI teacher.</p></div></div>
+    <div class="stn rv"><span class="no">4</span><div><h3>Get certified</h3><p>Finish your course and earn a free certificate.</p></div></div>
+  </div>
+</div></section>
+
+<section class="band"><div class="wrap"><div class="band-in rv">
+  <h2>Your skill. Your future. Start today.</h2><p>It is free, it is online, and it takes three minutes to apply.</p>
+  <a class="cta" href="index.html#courses"><i class="fa-solid fa-rocket"></i> See Free Courses</a>
+</div></div></section>
+</main>
+<footer class="foot"><div class="wrap">
+  <div class="foot-grid">
+    <div class="brand"><img src="https://i.imgur.com/hakHfjI.png" alt=""><div><b>Zamfara State Free Learning Skill</b><small style="color:#67e8f9">Sponsored by Gov. Dauda Lawal</small></div><img class="idt" src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy"></div>
+    <nav><a href="gov-dauda-lawal-free-skils.html"><i class="fa-solid fa-house"></i> Home</a><a href="about.html"><i class="fa-solid fa-circle-info"></i> About Us</a><a href="contact.html"><i class="fa-solid fa-envelope"></i> Contact Us</a></nav>
+  </div>
+  <small>Zamfara State Government in partnership with IDT Academy. Free skills for every learner.</small>
+</div></footer>
+<script>
+(function(){
+  var m=document.getElementById('spm'),b=document.getElementById('spb');
+  function o(){m.classList.add('open');b.classList.add('open')}function c(){m.classList.remove('open');b.classList.remove('open')}
+  document.getElementById('bg').addEventListener('click',o);document.getElementById('spx').addEventListener('click',c);b.addEventListener('click',c);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')c()});
+  var els=[].slice.call(document.querySelectorAll('.rv'));
+  if(!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('in')})}
+  else{var io=new IntersectionObserver(function(en){en.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}})},{threshold:.12});els.forEach(function(e){io.observe(e)})}
+  setTimeout(function(){els.forEach(function(e){e.classList.add('in')})},2500);
+
+})();
+</script>
+</body>
+</html>
