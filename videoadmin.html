@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#7c3aed">
+<title>IDT Academy — Video Admin</title>
+<link rel="icon" href="https://i.imgur.com/mgRKw4Q.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--violet:#7c3aed;--violet-d:#6d28d9;--cyan:#06b6d4;--ink:#1e1b4b;--muted:#6d6a8a;--line:rgba(124,58,237,.16);--green:#10b981;--rose:#f43f5e;--amber:#f59e0b}
+html{scroll-behavior:smooth}
+body{font-family:'Poppins',system-ui,-apple-system,sans-serif;color:var(--ink);background:#f5f3ff;min-height:100vh;overflow-x:hidden}
+[hidden]{display:none !important}
+button,input{font-family:inherit}
+a{color:inherit;text-decoration:none}
+.bgfx{position:fixed;inset:0;z-index:-1;background:radial-gradient(700px 420px at 0% 0%,rgba(124,58,237,.16),transparent 60%),radial-gradient(640px 420px at 100% 10%,rgba(6,182,212,.14),transparent 60%),radial-gradient(rgba(124,58,237,.07) 1.2px,transparent 1.2px) 0 0/26px 26px}
+.gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.lcard{width:100%;max-width:420px;background:#fff;border:1px solid var(--line);border-radius:26px;padding:34px 28px;box-shadow:0 30px 70px rgba(80,40,160,.18)}
+
+
+.lcard .lg{width:80%;height:70%;padding:px; margin:0 auto 1px;display:block;object-fit:contain}
+.lcard h1{font-size:21px;font-weight:900;text-align:center}
+
+.lcard p.sub{text-align:center;font-size:12.5px;color:var(--muted);margin:6px 0 22px;line-height:1.6}
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px}
+.inp{width:100%;border:1.5px solid var(--line);border-radius:13px;padding:13px 14px;font-size:14px;font-weight:600;color:var(--ink);background:#faf9ff;outline:none;transition:border-color .2s,box-shadow .2s}
+.inp:focus{border-color:var(--violet);box-shadow:0 0 0 4px rgba(124,58,237,.12);background:#fff}
+.pw{position:relative}
+.pw .inp{padding-right:46px}
+.eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:#8b84a8;cursor:pointer}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:12px 18px;font-size:13px;font-weight:800;cursor:pointer;transition:transform .2s,box-shadow .2s,opacity .2s;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn-p{background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#fff;box-shadow:0 10px 24px rgba(109,40,217,.3)}
+.btn-p:hover:not(:disabled){transform:translateY(-2px)}
+.btn-g{background:rgba(124,58,237,.1);color:var(--violet-d)}
+.btn-g:hover:not(:disabled){background:rgba(124,58,237,.18)}
+.btn-d{background:rgba(244,63,94,.1);color:#be123c}
+.btn-d:hover:not(:disabled){background:rgba(244,63,94,.2)}
+.btn-block{width:100%}
+.deny{background:rgba(244,63,94,.1);color:#9f1239;border-radius:12px;padding:12px 14px;font-size:12.5px;font-weight:600;margin-bottom:14px;line-height:1.6}
+.deny b{display:block;font-weight:800;margin-bottom:4px}
+.deny code{display:block;margin-top:8px;padding:8px 10px;border-radius:8px;background:#fff;color:#4c1d95;font:600 11px/1.5 'Courier New',monospace;word-break:break-all;user-select:all}
+.top{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 4%;background:rgba(255,255,255,.9);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.top .br{display:flex;align-items:center;gap:10px;min-width:0}
+.top .br img{width:40px;height:40px;border-radius:50%;background:#fff;padding:5px;box-shadow:0 6px 16px rgba(124,58,237,.25);object-fit:contain}
+.top .br b{font-size:15px;font-weight:900;display:block;line-height:1.15}
+.top .br small{font-size:10.5px;color:var(--muted);font-weight:700;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
+.wrap{max-width:1100px;margin:0 auto;padding:22px 4% 80px}
+.hero{background:linear-gradient(135deg,#1e1b4b,#4c1d95 55%,#0e7490);color:#fff;border-radius:24px;padding:24px 26px;margin-bottom:20px;position:relative;overflow:hidden}
+.hero::after{content:"\f03d";font-family:"Font Awesome 6 Free";font-weight:900;position:absolute;right:-6px;bottom:-30px;font-size:150px;color:rgba(255,255,255,.07);transform:rotate(-8deg)}
+.hero h2{font-size:clamp(19px,3vw,25px);font-weight:900;margin-bottom:6px;position:relative;z-index:2}
+.hero p{font-size:13px;line-height:1.7;color:#cfd0f5;max-width:680px;position:relative;z-index:2}
+.stat{display:inline-flex;align-items:center;gap:8px;margin-top:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:99px;padding:7px 14px;font-size:12px;font-weight:800;position:relative;z-index:2}
+.banner{background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.5);color:#92400e;border-radius:14px;padding:12px 16px;font-size:12.5px;font-weight:700;line-height:1.6;margin-bottom:16px}
+.tabs{display:flex;gap:9px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:14px;padding:10px 15px;font-size:12.5px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all .2s}
+.tab em{font-style:normal;font-size:10.5px;background:rgba(124,58,237,.12);color:var(--violet-d);padding:2px 8px;border-radius:99px}
+.tab.on{background:linear-gradient(135deg,var(--violet),var(--violet-d));color:#fff;border-color:transparent;box-shadow:0 10px 22px rgba(109,40,217,.28)}
+.tab.on em{background:rgba(255,255,255,.22);color:#fff}
+.search{position:relative;margin-bottom:20px}
+.search i{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:#a78bfa}
+.search .inp{padding-left:42px;background:#fff}
+.blk{margin-bottom:34px}
+.blk-h{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.blk-h h2{font-size:17px;font-weight:900;display:flex;align-items:center;gap:10px}
+.blk-h h2 i{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;background:linear-gradient(135deg,var(--violet),var(--cyan))}
+.blk-h .n{font-size:11.5px;font-weight:800;background:rgba(124,58,237,.12);color:var(--violet-d);padding:4px 11px;border-radius:99px}
+.blk-h p{font-size:12px;color:var(--muted);font-weight:600;margin-left:auto;text-align:right}
+.co{background:#fff;border:1px solid var(--line);border-radius:22px;margin-bottom:16px;box-shadow:0 16px 40px rgba(80,40,160,.08);overflow:hidden}
+.co.added{border-color:rgba(16,185,129,.45)}
+.co-h{display:flex;align-items:center;gap:14px;padding:14px 18px;background:linear-gradient(120deg,rgba(124,58,237,.07),rgba(6,182,212,.07));border-bottom:1px solid var(--line)}
+.co:not(.open) .co-h{border-bottom:0}
+.co.added .co-h{background:linear-gradient(120deg,rgba(16,185,129,.1),rgba(6,182,212,.06))}
+.co-h img{width:70px;height:52px;border-radius:12px;object-fit:contain;background:#ede9fe;flex-shrink:0}
+.co-t{min-width:0}
+.co-t h3{font-size:15px;font-weight:800;line-height:1.3}
+.co-t small{font-size:11.5px;color:var(--muted);font-weight:700}
+.co-live{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.co-live span{font-size:10px;font-weight:800;padding:3px 9px;border-radius:99px;background:rgba(16,185,129,.15);color:#047857}
+.co-h .pr{margin-left:auto;font-weight:900;color:var(--violet-d);font-size:14px;white-space:nowrap}
+.co:not(.open) .sls{display:none}
+.sls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px}
+.sl{border:1.5px solid var(--line);border-radius:16px;padding:14px;background:#fcfbff;display:flex;flex-direction:column;gap:10px;min-width:0}
+.sl.live{border-color:rgba(16,185,129,.55);background:linear-gradient(160deg,rgba(16,185,129,.07),#fff)}
+.sl.ov{grid-column:1/-1}
+.sl-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sl-top b{font-size:13px;font-weight:900;display:flex;align-items:center;gap:8px}
+.sl-top b i{color:var(--violet)}
+.chip{font-size:10px;font-weight:800;padding:4px 10px;border-radius:99px;white-space:nowrap}
+.chip.live{background:rgba(16,185,129,.15);color:#047857}
+.chip.auto{background:rgba(245,158,11,.15);color:#b45309}
+.chip.new{background:rgba(124,58,237,.1);color:var(--violet-d)}
+.chip.none{background:rgba(100,116,139,.14);color:#475569}
+.sl .inp{padding:10px 12px;font-size:12.5px;border-radius:11px}
+.ro{font-size:12.5px;font-weight:700;color:var(--muted);background:rgba(124,58,237,.06);border-radius:11px;padding:10px 12px}
+.ro b{color:var(--violet-d)}
+.sl-prev:empty{display:none}
+.sl-prev{border-radius:12px;overflow:hidden}
+.sl-act{display:flex;gap:8px;flex-wrap:wrap}
+.sl-act .btn{padding:10px 14px;font-size:12px}
+.sl-act .btn-p{flex:1}
+.empty{text-align:center;padding:38px 20px;background:#fff;border:2px dashed rgba(124,58,237,.25);border-radius:22px;color:var(--muted);font-size:13.5px;font-weight:600;line-height:1.7}
+.empty i{display:block;font-size:30px;color:#a78bfa;margin-bottom:10px}
+.toasts{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:9px;max-width:min(92vw,360px)}
+.toast{background:#fff;border:1px solid var(--line);border-left:4px solid var(--violet);border-radius:13px;padding:12px 14px;font-size:12.5px;font-weight:700;box-shadow:0 14px 34px rgba(30,27,75,.18);animation:tin .3s ease both}
+.toast.success{border-left-color:var(--green)}
+.toast.error{border-left-color:var(--rose)}
+.toast b{display:block;font-weight:900;margin-bottom:2px}
+.toast small{display:block;margin-top:4px;font-size:11px;color:var(--muted);font-weight:600;word-break:break-word}
+@keyframes tin{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+.spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;display:inline-block}
+.spin.big{width:44px;height:44px;border-width:4px;border-color:rgba(124,58,237,.2);border-top-color:var(--violet)}
+@keyframes sp{to{transform:rotate(360deg)}}
+.busy{position:fixed;inset:0;z-index:9990;background:rgba(245,243,255,.72);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center}
+.loading{text-align:center;padding:60px 20px;color:var(--muted);font-weight:700}
+.loading .spin{display:block;margin:0 auto 12px;border-color:rgba(124,58,237,.2);border-top-color:var(--violet);width:30px;height:30px}
+@media(max-width:700px){.sls{grid-template-columns:1fr;padding:12px}.co-h{flex-wrap:wrap}.co-h .pr{margin-left:0}.hero{padding:20px 18px}.blk-h p{display:none}}
+</style>
+</head>
+<body>
+<div class="bgfx"></div>
+<div class="toasts" id="toasts"></div>
+<div class="busy" id="busy" hidden><span class="spin big"></span></div>
+
+<main class="gate" id="gate" hidden>
+  <form class="lcard" id="gForm" autocomplete="on" novalidate>
+    <img class="lg" src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy">
+    <h1>Video Admin</h1>
+    <p class="sub">Sign in with your IDT Academy account to manage the course preview videos.</p>
+    <div class="deny" id="gDeny" hidden></div>
+    <div class="fld"><label for="gEmail">Email</label><input class="inp" id="gEmail" type="email" autocomplete="username" placeholder="you@email.com"></div>
+    <div class="fld"><label for="gPass">Password</label><div class="pw"><input class="inp" id="gPass" type="password" autocomplete="current-password" placeholder="••••••••"><button class="eye" id="gEye" type="button" aria-label="Show password"><i class="fa-solid fa-eye"></i></button></div></div>
+    <button class="btn btn-p btn-block" id="gBtn" type="submit"><i class="fa-solid fa-right-to-bracket"></i> Sign In</button>
+  </form>
+</main>
+
+<div id="app" hidden>
+  <header class="top">
+    <div class="br"><img src="https://i.imgur.com/oyqM5oF.png" alt=""><div><b>IDT Academy Video Admin</b><small id="who"></small></div></div>
+    <button class="btn btn-g" id="logout" type="button"><i class="fa-solid fa-right-from-bracket"></i> Log out</button>
+  </header>
+  <div class="wrap">
+    <section class="hero">
+      <h2>Course Preview Videos</h2>
+      <p>Each course shows its first two topic videos from your course data. Press <b>Watch</b> to check a video, then <b>Add to site</b>. Added courses move to <b>On the website</b> at the bottom, where you can view or change them anytime. The <b>Overview</b> video is optional.</p>
+      <span class="stat"><i class="fa-solid fa-circle-check"></i> <span id="liveCount">0</span> videos live on the website</span>
+    </section>
+    <div class="banner" id="tblWarn" hidden><i class="fa-solid fa-triangle-exclamation"></i> The video table was not found. Run <b>supabase_video_previews.sql</b> in the Supabase SQL Editor first, then refresh this page.</div>
+    <nav class="tabs" id="tabs"></nav>
+    <div class="search"><i class="fa-solid fa-magnifying-glass"></i><input class="inp" id="q" type="search" placeholder="Search course name or number..." autocomplete="off"></div>
+    <div id="status"></div>
+    <div id="lists" hidden>
+      <section class="blk">
+        <div class="blk-h"><h2><i class="fa-solid fa-hand-pointer"></i> Choose videos</h2><span class="n" id="pendN">0</span><p>Courses waiting for a video</p></div>
+        <div id="pendList"></div>
+        <div class="empty" id="pendEmpty" hidden></div>
+      </section>
+      <section class="blk">
+        <div class="blk-h"><h2><i class="fa-solid fa-globe"></i> On the website</h2><span class="n" id="addN">0</span><p>View or change added videos</p></div>
+        <div id="addList"></div>
+        <div class="empty" id="addEmpty" hidden></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { supabase } from './supabase.js';
+import { createPlayer, ytId, esc } from './videos.js';
+
+const ADMIN_HASHES = [
+  '3629a9d0cb01cf9c152ee801c322735a04d7235dd44d3058fc37d671a83a0c52'
+];
+const SALT = 'idt-admin:';
+const TOPIC_SLOTS = 2;
+const CATS = { '1': 'Technology & Computing', '2': 'Vocational & Agricultural', '3': 'Health & Wellness', '4': '2-Year Diploma' };
+const CAT_ICON = { '1': 'fa-microchip', '2': 'fa-seedling', '3': 'fa-heart-pulse', '4': 'fa-award' };
+const DEFS = Array.from({ length: TOPIC_SLOTS }, (_, i) => ({ kind: 'topic', slot: i + 1, label: 'Topic ' + (i + 1), icon: 'fa-circle-play' }))
+  .concat([{ kind: 'overview', slot: 0, label: 'Course Overview', icon: 'fa-bullseye' }]);
+
+const $ = (id) => document.getElementById(id);
+const state = { courses: [], byId: new Map(), acMap: new Map(), saved: new Map(), cat: '1', q: '', open: new Set() };
+const players = new Map();
+let busyN = 0;
+
+const key = (cid, kind, slot) => cid + '|' + kind + '|' + slot;
+const money = (n) => (Number(n) || 0).toLocaleString('en-NG');
+const catOf = (c) => String(c.category || '1');
+const normEmail = (e) => String(e || '').trim().toLowerCase();
+const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+
+function toast(type, title, message, raw) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = '<b>' + esc(title) + '</b>' + esc(message || '') + (raw ? '<small>' + esc(raw) + '</small>' : '');
+  $('toasts').appendChild(el);
+  setTimeout(() => el.remove(), type === 'error' ? 6500 : 3600);
+}
+
+function busy(on) {
+  busyN = Math.max(0, busyN + (on ? 1 : -1));
+  $('busy').hidden = busyN === 0;
+}
+
+const hexToBytes = (hex) => {
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i * 2, 2), 16);
+  return out;
+};
+const bytesToHex = (bytes) => Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+
+async function hashPassword(password, saltHex) {
+  const enc = new TextEncoder();
+  const km = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: hexToBytes(saltHex), iterations: 100000, hash: 'SHA-256' }, km, 256);
+  return bytesToHex(new Uint8Array(bits));
+}
+
+async function emailHash(email) {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(SALT + email));
+  return bytesToHex(new Uint8Array(d));
+}
+
+async function passwordOk(ud, email, password) {
+  const hash = ud.password_hash || ud.passwordHash || '';
+  const salt = ud.password_salt || ud.passwordSalt || '';
+  const plain = ud.password || '';
+  if (hash && salt) return (await hashPassword(password, salt)) === hash;
+  if (plain) return String(plain) === password;
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  return !error && !!(data && data.user);
+}
+
+function showGate(denyHtml) {
+  $('app').hidden = true;
+  $('gate').hidden = false;
+  const d = $('gDeny');
+  d.hidden = !denyHtml;
+  d.innerHTML = denyHtml || '';
+}
+
+async function enter(email) {
+  const e = normEmail(email);
+  const h = await emailHash(e);
+  if (ADMIN_HASHES.indexOf(h) === -1) {
+    showGate('<b>This account cannot manage videos.</b>If you are the owner, add this code to <b style="display:inline">ADMIN_HASHES</b> in admin-videos.html:<code>' + h + '</code>');
+    return false;
+  }
+  $('who').textContent = e;
+  $('gate').hidden = true;
+  $('app').hidden = false;
+  await loadData();
+  return true;
+}
+
+async function handleLogin(ev) {
+  ev.preventDefault();
+  const email = normEmail($('gEmail').value);
+  const password = $('gPass').value;
+  if (!validEmail(email)) { toast('error', 'Invalid Email', 'Please enter a valid email address.'); $('gEmail').focus(); return; }
+  if (!password) { toast('error', 'Password Required', 'Please enter your password.'); $('gPass').focus(); return; }
+  busy(true);
+  try {
+    const { data: rows, error } = await supabase.from('user_profiles').select('*').filter('user_data->>email', 'eq', email);
+    if (error) { toast('error', 'Database Error', 'Could not check your account.', error.message); return; }
+    if (!rows || !rows.length) { toast('error', 'No Account Found', 'No user found with this email. Please register first.'); return; }
+    const row = rows[0];
+    const ud = row.user_data || {};
+    if (!(await passwordOk(ud, email, password))) {
+      toast('error', 'Wrong Password', 'The password you entered is incorrect.');
+      $('gPass').focus();
+      return;
+    }
+    try { localStorage.setItem('idt_user', JSON.stringify({ id: row.id, full_name: ud.full_name || '', email: ud.email || email })); } catch (e) {}
+    const ok = await enter(ud.email || email);
+    if (ok) toast('success', 'Welcome!', 'Login successful.');
+  } catch (err) {
+    toast('error', 'Login Failed', 'An unexpected error occurred.', err.message || String(err));
+  } finally {
+    busy(false);
+  }
+}
+
+async function savedEmail() {
+  try {
+    const raw = localStorage.getItem('idt_user');
+    if (!raw) return '';
+    const u = JSON.parse(raw);
+    if (!u || !u.id) return '';
+    const { data, error } = await supabase.from('user_profiles').select('*').eq('id', u.id).maybeSingle();
+    if (error || !data) return '';
+    return normEmail((data.user_data && data.user_data.email) || u.email);
+  } catch (e) {
+    return '';
+  }
+}
+
+function parseJson(v) {
+  if (typeof v !== 'string') return v;
+  try { return JSON.parse(v); } catch (e) { return null; }
+}
+
+function parseCourse(row) {
+  const c = parseJson(row.course_data);
+  if (!c || typeof c !== 'object' || !c.id) return null;
+  return Object.assign({}, c, { id: String(c.id), _row: String(row.id || '') });
+}
+
+function topicList(c) {
+  const ac = state.acMap.get(c.id) || state.acMap.get(c._row) || {};
+  const arr = Array.isArray(ac.topics) ? ac.topics.slice() : [];
+  arr.sort((a, b) => (Number(a.topic_number) || 0) - (Number(b.topic_number) || 0));
+  return arr.slice(0, TOPIC_SLOTS).map((t) => ({ name: String((t && t.topic_name) || '').trim(), url: String((t && t.video_url) || '').trim() }));
+}
+
+function ytProp(o) {
+  for (const k of Object.keys(o)) {
+    const v = o[k];
+    if (typeof v === 'string' && /youtu\.?be/i.test(v) && ytId(v)) return v.trim();
+  }
+  return '';
+}
+
+const rowsOf = (cid) => DEFS.map((d) => state.saved.get(key(cid, d.kind, d.slot))).filter(Boolean);
+
+function slotHtml(c, def) {
+  const sv = state.saved.get(key(c.id, def.kind, def.slot));
+  let name = '';
+  let url = '';
+  let tag = 'new';
+  let text = 'Not added';
+  if (sv) {
+    name = sv.topic_name || '';
+    url = sv.video_url || '';
+    tag = 'live';
+    text = 'Live on site';
+  } else if (def.kind === 'topic') {
+    const tp = topicList(c)[def.slot - 1];
+    if (tp && tp.url) { name = tp.name || ('Topic ' + def.slot); url = tp.url; tag = 'auto'; text = 'From course topics'; }
+    else if (tp) { name = tp.name; tag = 'none'; text = 'No video yet'; }
+    else { tag = 'none'; text = 'No topic yet'; }
+  } else {
+    const u = ytProp(c);
+    if (u) { url = u; tag = 'auto'; text = 'Pre-filled'; }
+  }
+  const fields = def.kind === 'topic'
+    ? '<input class="inp f-name" maxlength="200" placeholder="Topic name" value="' + esc(name) + '">'
+    : '<div class="ro">Price shown to students: <b>₦' + money(c.price) + '</b> (from the course)</div>';
+  return '<div class="sl' + (sv ? ' live' : '') + (def.kind === 'overview' ? ' ov' : '') + '" data-cid="' + esc(c.id) + '" data-kind="' + def.kind + '" data-slot="' + def.slot + '">' +
+    '<div class="sl-top"><b><i class="fa-solid ' + def.icon + '"></i> ' + def.label + '</b><span class="chip ' + tag + '">' + text + '</span></div>' +
+    fields +
+    '<input class="inp f-url" placeholder="YouTube video link" value="' + esc(url) + '">' +
+    '<div class="sl-prev"></div>' +
+    '<div class="sl-act"><button type="button" class="btn btn-g" data-act="watch"><i class="fa-solid fa-play"></i> Watch</button>' +
+    '<button type="button" class="btn btn-p" data-act="add"><i class="fa-solid ' + (sv ? 'fa-floppy-disk' : 'fa-plus') + '"></i> ' + (sv ? 'Update' : 'Add to site') + '</button>' +
+    (sv ? '<button type="button" class="btn btn-d" data-act="del"><i class="fa-solid fa-trash"></i> Remove</button>' : '') + '</div></div>';
+}
+
+function courseHtml(c) {
+  const rows = rowsOf(c.id);
+  const added = rows.length > 0;
+  const open = !added || state.open.has(c.id);
+  const live = rows.map((r) => '<span>' + (r.kind === 'overview' ? 'Overview' : 'Topic ' + r.slot) + '</span>').join('');
+  return '<article class="co' + (added ? ' added' : '') + (open ? ' open' : '') + '" data-cid="' + esc(c.id) + '">' +
+    '<div class="co-h">' +
+    '<img src="' + esc(c.image_url || '') + '" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">' +
+    '<div class="co-t"><h3>' + esc(c.course_name || 'Untitled course') + '</h3><small>#' + esc(c.course_number || '') + ' · ' + esc(CATS[catOf(c)] || '') + '</small>' +
+    (added ? '<div class="co-live">' + live + '</div>' : '') + '</div>' +
+    '<span class="pr">₦' + money(c.price) + '</span>' +
+    (added ? '<button type="button" class="btn btn-g" data-act="toggle"><i class="fa-solid fa-eye"></i> View / Change</button>' : '') +
+    '</div><div class="sls">' + DEFS.map((d) => slotHtml(c, d)).join('') + '</div></article>';
+}
+
+function visibleCourses() {
+  const q = state.q.trim().toLowerCase();
+  return state.courses.filter((c) => catOf(c) === state.cat &&
+    (!q || String(c.course_name || '').toLowerCase().includes(q) || String(c.course_number || '').toLowerCase().includes(q)));
+}
+
+function renderTabs() {
+  $('tabs').innerHTML = ['1', '2', '3', '4'].map((c) => {
+    const n = state.courses.filter((x) => catOf(x) === c).length;
+    return '<button type="button" class="tab' + (c === state.cat ? ' on' : '') + '" data-c="' + c + '"><i class="fa-solid ' + CAT_ICON[c] + '"></i> ' + esc(CATS[c]) + ' <em>' + n + '</em></button>';
+  }).join('');
+  $('liveCount').textContent = state.saved.size;
+}
+
+function syncBlocks() {
+  const pn = $('pendList').children.length;
+  const an = $('addList').children.length;
+  $('pendN').textContent = pn;
+  $('addN').textContent = an;
+  const searching = state.q.trim() !== '';
+  const total = state.courses.filter((c) => catOf(c) === state.cat).length;
+  const pe = $('pendEmpty');
+  pe.hidden = pn > 0;
+  pe.innerHTML = '<i class="fa-solid ' + (total && !searching ? 'fa-circle-check' : 'fa-folder-open') + '"></i>' +
+    (searching ? 'No course matches your search.' : total ? 'Every course in this category already has videos on the website.' : 'No courses in this category yet.');
+  const ae = $('addEmpty');
+  ae.hidden = an > 0;
+  ae.innerHTML = '<i class="fa-solid fa-film"></i>' + (searching ? 'No added course matches your search.' : 'Nothing added yet. Videos you add above will appear here.');
+}
+
+function dropPlayers(cid) {
+  Array.from(players.keys()).forEach((k) => {
+    const v = players.get(k);
+    if (!cid || v.cid === cid) {
+      v.p.destroy();
+      players.delete(k);
+    }
+  });
+}
+
+function renderLists() {
+  dropPlayers();
+  const vis = visibleCourses();
+  $('pendList').innerHTML = vis.filter((c) => !rowsOf(c.id).length).map(courseHtml).join('');
+  $('addList').innerHTML = vis.filter((c) => rowsOf(c.id).length).map(courseHtml).join('');
+  renderTabs();
+  syncBlocks();
+}
+
+function findCard(cid) {
+  return Array.from(document.querySelectorAll('.co')).find((el) => el.dataset.cid === cid) || null;
+}
+
+function refreshCourse(cid) {
+  const c = state.byId.get(cid);
+  if (!c) return;
+  dropPlayers(cid);
+  const old = findCard(cid);
+  const t = document.createElement('div');
+  t.innerHTML = courseHtml(c);
+  const el = t.firstElementChild;
+  const added = rowsOf(cid).length > 0;
+  const target = added ? $('addList') : $('pendList');
+  if (old && old.parentNode === target) {
+    old.replaceWith(el);
+  } else {
+    if (old) old.remove();
+    if (added) {
+      target.insertBefore(el, target.firstChild);
+    } else {
+      const idx = state.courses.indexOf(c);
+      const next = Array.from(target.children).find((n) => {
+        const o = state.byId.get(n.dataset.cid);
+        return o && state.courses.indexOf(o) > idx;
+      });
+      target.insertBefore(el, next || null);
+    }
+  }
+  renderTabs();
+  syncBlocks();
+}
+
+function watch(row) {
+  const k = key(row.dataset.cid, row.dataset.kind, row.dataset.slot);
+  const prev = row.querySelector('.sl-prev');
+  const ex = players.get(k);
+  if (ex) {
+    ex.p.destroy();
+    players.delete(k);
+    prev.innerHTML = '';
+    return;
+  }
+  const id = ytId(row.querySelector('.f-url').value);
+  if (!id) { toast('error', 'Invalid Link', 'Enter a valid YouTube link first.'); return; }
+  players.set(k, { cid: row.dataset.cid, p: createPlayer(prev, id, { autoplay: true }) });
+}
+
+async function save(row, btn) {
+  const cid = row.dataset.cid;
+  const c = state.byId.get(cid);
+  if (!c) return;
+  const kind = row.dataset.kind;
+  const slot = Number(row.dataset.slot);
+  const id = ytId(row.querySelector('.f-url').value);
+  if (!id) { toast('error', 'Invalid Link', 'Enter a valid YouTube link.'); return; }
+  let name = '';
+  if (kind === 'topic') {
+    name = row.querySelector('.f-name').value.trim();
+    if (!name) { toast('error', 'Topic Name Required', 'Please enter the topic name.'); return; }
+    if (name.length > 200) { toast('error', 'Name Too Long', 'Topic name must be 200 characters or less.'); return; }
+  }
+  const wasAdded = rowsOf(cid).length > 0;
+  const payload = {
+    course_id: cid,
+    course_name: String(c.course_name || '').slice(0, 300),
+    category: catOf(c),
+    kind,
+    slot,
+    topic_name: name,
+    video_url: 'https://www.youtube.com/watch?v=' + id,
+    price: Math.max(0, Number(c.price) || 0),
+    sort_order: slot
+  };
+  btn.disabled = true;
+  try {
+    const { data, error } = await supabase.from('video_previews').upsert(payload, { onConflict: 'course_id,kind,slot' }).select().single();
+    if (error) throw error;
+    state.saved.set(key(cid, kind, slot), data);
+    refreshCourse(cid);
+    toast('success', 'Saved', wasAdded ? 'The video was updated on the website.' : 'Added. This course moved to "On the website" below.');
+  } catch (e) {
+    btn.disabled = false;
+    toast('error', 'Could Not Save', 'Please check the SQL file was run in Supabase.', (e && e.message) || '');
+  }
+}
+
+async function remove(row, btn) {
+  const sv = state.saved.get(key(row.dataset.cid, row.dataset.kind, row.dataset.slot));
+  if (!sv) return;
+  if (!confirm('Remove this video from the website?')) return;
+  btn.disabled = true;
+  try {
+    const { data, error } = await supabase.from('video_previews').delete().eq('id', sv.id).select();
+    if (error) throw error;
+    if (!data || !data.length) throw new Error('Nothing was removed.');
+    state.saved.delete(key(row.dataset.cid, row.dataset.kind, row.dataset.slot));
+    refreshCourse(row.dataset.cid);
+    toast('success', 'Removed', 'The video is no longer on the website.');
+  } catch (e) {
+    btn.disabled = false;
+    toast('error', 'Could Not Remove', 'Please try again.', (e && e.message) || '');
+  }
+}
+
+async function loadData() {
+  $('lists').hidden = true;
+  $('status').innerHTML = '<div class="loading"><span class="spin"></span>Loading courses...</div>';
+  try {
+    const [cr, tr, vr] = await Promise.all([
+      supabase.from('courses').select('*'),
+      supabase.from('all_couse_post').select('*'),
+      supabase.from('video_previews').select('*')
+    ]);
+    if (cr.error) throw cr.error;
+    state.courses = (cr.data || []).map(parseCourse).filter(Boolean)
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    state.byId = new Map(state.courses.map((c) => [c.id, c]));
+    state.acMap = new Map();
+    if (tr.error) toast('error', 'Topics Not Loaded', 'Could not read the course topics.', tr.error.message);
+    else (tr.data || []).forEach((r) => state.acMap.set(String(r.id), parseJson(r.all_course) || {}));
+    state.saved = new Map();
+    $('tblWarn').hidden = !vr.error;
+    if (!vr.error) (vr.data || []).forEach((r) => state.saved.set(key(r.course_id, r.kind, r.slot), r));
+    $('status').innerHTML = '';
+    $('lists').hidden = false;
+    renderLists();
+  } catch (e) {
+    $('status').innerHTML = '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i>Could not load the courses.<br><button class="btn btn-p" id="retry" type="button" style="margin-top:14px"><i class="fa-solid fa-rotate"></i> Try again</button></div>';
+    $('retry').onclick = loadData;
+  }
+}
+
+$('gForm').addEventListener('submit', handleLogin);
+$('gEye').addEventListener('click', () => {
+  const inp = $('gPass');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  $('gEye').innerHTML = '<i class="fa-solid ' + (show ? 'fa-eye-slash' : 'fa-eye') + '"></i>';
+});
+$('logout').addEventListener('click', () => {
+  try { localStorage.removeItem('idt_user'); } catch (e) {}
+  dropPlayers();
+  state.open.clear();
+  showGate('');
+  toast('info', 'Logged Out', 'You have been logged out successfully.');
+});
+$('tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('.tab');
+  if (!b) return;
+  state.cat = b.dataset.c;
+  renderLists();
+});
+let qt = 0;
+$('q').addEventListener('input', () => {
+  clearTimeout(qt);
+  qt = setTimeout(() => { state.q = $('q').value; renderLists(); }, 200);
+});
+$('lists').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const act = b.dataset.act;
+  if (act === 'toggle') {
+    const co = b.closest('.co');
+    if (!co) return;
+    const open = co.classList.toggle('open');
+    if (open) state.open.add(co.dataset.cid);
+    else {
+      state.open.delete(co.dataset.cid);
+      dropPlayers(co.dataset.cid);
+      co.querySelectorAll('.sl-prev').forEach((p) => { p.innerHTML = ''; });
+    }
+    return;
+  }
+  const row = b.closest('.sl');
+  if (!row) return;
+  if (act === 'watch') watch(row);
+  else if (act === 'add') save(row, b);
+  else if (act === 'del') remove(row, b);
+});
+
+(async function init() {
+  busy(true);
+  let email = '';
+  try { email = await savedEmail(); } catch (e) {}
+  try {
+    const ok = email ? await enter(email) : false;
+    if (!ok) showGate('');
+  } catch (e) {
+    showGate('');
+  }
+  busy(false);
+})();
+</script>
+</body>
+</html>
