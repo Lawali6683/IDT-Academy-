@@ -12,8 +12,10 @@ const PART_INFO = {
 };
 const MAX_LEAVES = 5;
 const CONCURRENCY = 2;
-const BATCH_ATTEMPTS = 3;
+const BATCH_TRIES = 4;
 const PASS_MARK = 60;
+const SIM_LEVELS = [0.7, 0.8, 0.9, 0.97, 1.01];
+const DEFAULT_TARGETS = { mcq: 40, tf: 30, write: 10 };
 const LOGO_URL = 'https://i.imgur.com/oyqM5oF.png';
 const SIGN_CHAIR_URL = 'https://i.imgur.com/z8HOr4D.png';
 const SIGN_CEO_URL = 'https://i.imgur.com/leqHq9I.png';
@@ -44,6 +46,7 @@ let selectedProject = '';
 let toastCount = 0;
 let memSession = null;
 let pendingGrade = null;
+let genBusy = false;
 
 function esc(v) {
   return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -51,6 +54,12 @@ function esc(v) {
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function errText(e) {
+  const m = String((e && e.message) || 'Something went wrong.');
+  const d = e && e.detail ? String(e.detail) : '';
+  return d && m.indexOf(d) === -1 ? m + ' [' + d + ']' : m;
 }
 
 function fmtDur(ms) {
@@ -113,6 +122,10 @@ function friendly(status) {
   return 'The request failed. Please try again.';
 }
 
+function isHard(e) {
+  return Boolean(e && e.status && e.status >= 400 && e.status < 500 && e.status !== 408 && e.status !== 429);
+}
+
 async function api(url, body, opt) {
   const o = opt || {};
   const retries = o.retries || 0;
@@ -130,13 +143,18 @@ async function api(url, body, opt) {
       const err = new Error((data && data.error) || friendly(res.status));
       err.status = res.status;
       err.data = data;
-      if (res.status >= 400 && res.status < 500 && res.status !== 429 && res.status !== 408) throw err;
+      err.detail = data && data.detail ? String(data.detail) : (data ? '' : 'HTTP ' + res.status);
+      if (isHard(err)) throw err;
       lastErr = err;
     } catch (e) {
       clearTimeout(t);
-      if (e.status && e.status < 500 && e.status !== 429 && e.status !== 408) throw e;
-      if (e.status) lastErr = e;
-      else lastErr = new Error(e.name === 'AbortError' ? 'The request took too long.' : 'Network problem. Check your internet connection.');
+      if (isHard(e)) throw e;
+      if (e && e.status) {
+        lastErr = e;
+      } else {
+        lastErr = new Error(e && e.name === 'AbortError' ? 'The request took too long.' : 'Network problem. Check your internet connection.');
+        lastErr.detail = String((e && e.message) || '').slice(0, 160);
+      }
     }
     if (a < retries) await sleep(1500 * (a + 1));
   }
@@ -353,7 +371,7 @@ function renderIntro() {
     default: {
       setBadge('violet', 'fa-hourglass-half', 'Ready');
       if (local && local.phase === 'gen') {
-        box.innerHTML = panel('info', 'fa-wand-magic-sparkles', 'Continue preparing your exam', 'Your exam was not finished preparing. Tap the button to continue. Your time starts only when the exam is ready.', startBtn);
+        box.innerHTML = panel('info', 'fa-wand-magic-sparkles', 'Continue preparing your exam', 'Your exam was not finished preparing. Tap the button to continue from where it stopped. Your time starts only when the exam is ready.', startBtn);
       } else {
         box.innerHTML = '<div style="margin-bottom:6px">' + startBtn + '</div>';
       }
@@ -376,7 +394,7 @@ async function refresh() {
     $('introBadge').className = 'badge rose';
     $('introBadge').innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Error';
     $('introSubtitle').textContent = 'We could not load your exam';
-    $('statusPanel').innerHTML = panel('lock', 'fa-triangle-exclamation', 'We could not open your exam', esc(e.message), '<div class="btn-row"><button class="btn btn-primary" id="btnReload"><i class="fa-solid fa-rotate-right"></i> Try Again</button><a href="dashboard.html" class="btn btn-outline" style="text-decoration:none"><i class="fa-solid fa-arrow-left"></i> Dashboard</a></div>');
+    $('statusPanel').innerHTML = panel('lock', 'fa-triangle-exclamation', 'We could not open your exam', esc(errText(e)), '<div class="btn-row"><button class="btn btn-primary" id="btnReload"><i class="fa-solid fa-rotate-right"></i> Try Again</button><a href="dashboard.html" class="btn btn-outline" style="text-decoration:none"><i class="fa-solid fa-arrow-left"></i> Dashboard</a></div>');
     $('rulesCard').classList.add('hidden');
   }
 }
@@ -439,126 +457,304 @@ function setGen(pct, title, msg) {
   if (msg) $('genMsg').textContent = msg;
 }
 
-function genFail(message) {
+function genNote(text) {
   const e = $('genError');
-  e.textContent = message;
+  if (!e) return;
+  if (!text) {
+    e.classList.add('hidden');
+    return;
+  }
+  e.textContent = text;
   e.classList.remove('hidden');
+}
+
+function genFail(message) {
+  genNote(message);
   $('btnGenRetry').classList.remove('hidden');
   $('genTitle').textContent = 'Could not finish preparing';
 }
 
-async function runGeneration() {
-  showOnly('examGen');
-  $('genError').classList.add('hidden');
-  $('btnGenRetry').classList.add('hidden');
-  setGen(0, 'Preparing your exam', 'Please wait. We are preparing your questions one part at a time. This can take one to two minutes. Do not close this page.');
-  try {
-    sess = readSession();
-    if (!sess || sess.phase !== 'gen' || sess.user_id !== user.id || sess.course_id !== courseId) {
-      const prep = await api(API_EXAM, { action: 'prepare', user_id: user.id, course_id: courseId }, { retries: 2 });
-      sess = { v: 1, user_id: user.id, course_id: courseId, phase: 'gen', exam_id: prep.exam_id, plan_token: prep.plan_token, batches: prep.batches, total: prep.total, got: {}, created: Date.now() };
-      saveSession();
-    }
-    await generateAll();
-    setGen(100, 'Almost ready', 'Starting your exam...');
-    assemble();
-    const begin = await api(API_EXAM, { action: 'begin', user_id: user.id, course_id: courseId, plan_token: sess.plan_token }, { retries: 3 });
-    sess.phase = 'run';
-    sess.started_at = begin.started_at;
-    sess.ends_at = begin.ends_at;
-    sess.offset = begin.server_now - Date.now();
-    sess.answers = {};
-    sess.page = 0;
-    sess.shots = 0;
-    sess.leaves = 0;
-    delete sess.got;
-    delete sess.plan_token;
-    sess.begin_token_saved = true;
-    saveSession();
-    await sleep(500);
-    startRun();
-  } catch (e) {
-    if (e.status === 409) {
-      clearSession();
-      sess = null;
-      toast('error', 'Exam Not Available', e.message);
-      showOnly('examIntro');
-      refresh();
-      return;
-    }
-    genFail(e.message || 'Something went wrong. Please try again.');
+async function waitOnline() {
+  while (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    genNote('No internet connection. Your exam will continue by itself when the internet comes back.');
+    await new Promise((resolve) => {
+      let done = false;
+      const fin = () => {
+        if (done) return;
+        done = true;
+        window.removeEventListener('online', fin);
+        resolve();
+      };
+      window.addEventListener('online', fin);
+      setTimeout(fin, 4000);
+    });
   }
+}
+
+async function persist(fn, maxTries) {
+  let tries = 0;
+  let net = 0;
+  while (true) {
+    await waitOnline();
+    try {
+      const r = await fn();
+      genNote('');
+      return r;
+    } catch (e) {
+      if (isHard(e)) throw e;
+      if (e && e.status) {
+        tries++;
+        if (maxTries && tries >= maxTries) throw e;
+      } else {
+        net++;
+      }
+      const wait = Math.min(1500 * (tries + net), 12000);
+      genNote('Trying again in ' + Math.ceil(wait / 1000) + ' seconds. ' + errText(e));
+      await sleep(wait);
+    }
+  }
+}
+
+function wordSet(text) {
+  const set = {};
+  String(text || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).forEach((w) => {
+    if (w.length > 2) set[w] = true;
+  });
+  return set;
+}
+
+function sameIdea(a, b, limit) {
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  if (!ka.length || !kb.length) return false;
+  let inter = 0;
+  ka.forEach((w) => { if (b[w]) inter++; });
+  return inter / (ka.length + kb.length - inter) >= limit;
+}
+
+function targets() {
+  const t = (sess && sess.targets) || {};
+  return {
+    mcq: Number(t.mcq) || DEFAULT_TARGETS.mcq,
+    tf: Number(t.tf) || DEFAULT_TARGETS.tf,
+    write: Number(t.write) || DEFAULT_TARGETS.write
+  };
+}
+
+function needTotal() {
+  const t = targets();
+  return t.mcq + t.tf + t.write;
+}
+
+function groups() {
+  const out = [];
+  const got = (sess && sess.got) || {};
+  Object.keys(got).map(Number).sort((a, b) => a - b).forEach((k) => {
+    if (got[k] && Array.isArray(got[k].questions)) out.push(got[k]);
+  });
+  ((sess && sess.extra) || []).forEach((g) => {
+    if (g && Array.isArray(g.questions)) out.push(g);
+  });
+  return out;
+}
+
+function validQuestion(q) {
+  if (!q || !q.qid || !String(q.question || '').trim()) return false;
+  if (q.type === 'mcq') return Array.isArray(q.options) && q.options.length === 4;
+  return q.type === 'tf' || q.type === 'write';
+}
+
+function compose() {
+  const t = targets();
+  const limit = SIM_LEVELS[Math.max(0, Math.min(SIM_LEVELS.length - 1, Number(sess.relax) || 0))];
+  const kept = { mcq: [], tf: [], write: [] };
+  const sets = [];
+  const ids = {};
+  groups().forEach((g) => {
+    g.questions.forEach((q) => {
+      if (!validQuestion(q) || ids[q.qid]) return;
+      if (kept[q.type].length >= t[q.type]) return;
+      const ws = wordSet(q.question);
+      if (sets.some((s) => sameIdea(s, ws, limit))) return;
+      ids[q.qid] = true;
+      sets.push(ws);
+      kept[q.type].push(q);
+    });
+  });
+  return {
+    kept: kept,
+    short: { mcq: t.mcq - kept.mcq.length, tf: t.tf - kept.tf.length, write: t.write - kept.write.length },
+    count: kept.mcq.length + kept.tf.length + kept.write.length
+  };
+}
+
+function isComplete(c) {
+  return c.short.mcq <= 0 && c.short.tf <= 0 && c.short.write <= 0;
 }
 
 function stems() {
-  const out = [];
-  Object.keys(sess.got).forEach((k) => {
-    sess.got[k].questions.forEach((q) => out.push(String(q.question || '').slice(0, 110)));
-  });
-  return out.slice(-70);
+  const all = [];
+  groups().forEach((g) => g.questions.forEach((q) => all.push(String(q.question || '').slice(0, 110))));
+  return all.slice(-120);
+}
+
+function showProgress() {
+  const c = compose();
+  const need = needTotal();
+  setGen(Math.min(99, (c.count / need) * 99), null, 'Questions ready: ' + c.count + ' of ' + need + '. Please keep this page open.');
 }
 
 async function doBatch(i) {
-  let lastErr = null;
-  for (let a = 0; a < BATCH_ATTEMPTS; a++) {
-    try {
-      const res = await api(API_EXAM, { action: 'batch', user_id: user.id, course_id: courseId, plan_token: sess.plan_token, batch_index: i, avoid: stems() }, { timeout: 75000 });
-      sess.got[i] = { questions: res.questions, blob: res.blob };
-      saveSession();
-      return;
-    } catch (e) {
-      lastErr = e;
-      if (e.status && e.status < 500 && e.status !== 429) throw e;
-      await sleep(1500 * (a + 1));
-    }
-  }
-  throw lastErr || new Error('Could not prepare a part of the exam.');
+  const res = await persist(() => api(API_EXAM, { action: 'batch', user_id: user.id, course_id: courseId, plan_token: sess.plan_token, batch_index: i, avoid: stems(), relax: sess.relax || 0 }, { timeout: 110000 }), BATCH_TRIES);
+  sess.got[i] = { questions: res.questions, blob: res.blob };
+  saveSession();
 }
 
 async function generateAll() {
   const total = sess.batches.length;
   const pending = [];
   for (let i = 0; i < total; i++) if (!sess.got[i]) pending.push(i);
-  let failed = null;
-  const update = () => {
-    const done = Object.keys(sess.got).length;
-    setGen((done / total) * 96, null, 'Part ' + done + ' of ' + total + ' is ready. Please keep this page open.');
-  };
-  update();
+  let fatal = null;
   const worker = async () => {
-    while (pending.length && !failed) {
+    while (pending.length && !fatal) {
       const i = pending.shift();
       try {
         await doBatch(i);
-        update();
       } catch (e) {
-        failed = e;
+        if (isHard(e)) fatal = e;
       }
+      showProgress();
     }
   };
   const workers = [];
   for (let w = 0; w < CONCURRENCY; w++) workers.push(worker());
   await Promise.all(workers);
-  if (failed) throw failed;
+  if (fatal) throw fatal;
+}
+
+async function fillShortage() {
+  sess.extra = sess.extra || [];
+  sess.round = Number(sess.round) || 0;
+  sess.relax = Number(sess.relax) || 0;
+  sess.stall = Number(sess.stall) || 0;
+  while (true) {
+    const c = compose();
+    showProgress();
+    if (isComplete(c)) return;
+    const need = { mcq: Math.max(0, c.short.mcq), tf: Math.max(0, c.short.tf), write: Math.max(0, c.short.write) };
+    const before = c.count;
+    const res = await persist(() => api(API_EXAM, { action: 'topup', user_id: user.id, course_id: courseId, plan_token: sess.plan_token, need: need, round: sess.round, relax: sess.relax, avoid: stems() }, { timeout: 110000 }), 0);
+    sess.extra.push({ questions: res.questions, blob: res.blob });
+    const after = compose().count;
+    if (after <= before) {
+      sess.stall++;
+      if (sess.stall % 2 === 0 && sess.relax < SIM_LEVELS.length - 1) sess.relax++;
+    } else {
+      sess.stall = 0;
+    }
+    sess.round++;
+    saveSession();
+  }
 }
 
 function assemble() {
-  const keys = Object.keys(sess.got).map(Number).sort((a, b) => a - b);
-  let all = [];
+  const c = compose();
+  if (!isComplete(c)) throw new Error('The exam questions are incomplete. Please try again.');
+  const list = c.kept.mcq.concat(c.kept.tf, c.kept.write);
+  const used = {};
+  list.forEach((q) => { used[q.qid] = true; });
   const blobs = [];
-  keys.forEach((k) => {
-    all = all.concat(sess.got[k].questions);
-    blobs.push(sess.got[k].blob);
+  groups().forEach((g) => {
+    if (g.blob && g.questions.some((q) => used[q.qid])) blobs.push(g.blob);
   });
-  const order = { mcq: 0, tf: 1, write: 2 };
-  all = all.map((q, i) => [q, i]).sort((a, b) => (order[a[0].type] - order[b[0].type]) || (a[1] - b[1])).map((x) => x[0]);
-  const ids = {};
-  all.forEach((q) => { ids[q.qid] = true; });
-  if (all.length !== sess.total || Object.keys(ids).length !== all.length) {
-    throw new Error('The exam questions are incomplete. Please try again.');
-  }
-  sess.questions = all;
+  sess.questions = list;
   sess.blobs = blobs;
+}
+
+async function runGeneration() {
+  if (genBusy) return;
+  genBusy = true;
+  try {
+    showOnly('examGen');
+    genNote('');
+    $('btnGenRetry').classList.add('hidden');
+    setGen(0, 'Preparing your exam', 'Please wait. We are preparing your questions one part at a time. This can take a few minutes. Do not close this page.');
+    let restarted = false;
+    while (true) {
+      try {
+        sess = readSession();
+        if (!sess || sess.phase !== 'gen' || sess.user_id !== user.id || sess.course_id !== courseId) {
+          const prep = await persist(() => api(API_EXAM, { action: 'prepare', user_id: user.id, course_id: courseId }, { timeout: 60000 }), 0);
+          sess = {
+            v: 2,
+            user_id: user.id,
+            course_id: courseId,
+            phase: 'gen',
+            exam_id: prep.exam_id,
+            plan_token: prep.plan_token,
+            batches: prep.batches,
+            total: prep.total,
+            targets: prep.targets || DEFAULT_TARGETS,
+            language: prep.language || 'English',
+            got: {},
+            extra: [],
+            round: 0,
+            relax: 0,
+            stall: 0,
+            created: Date.now()
+          };
+          saveSession();
+        }
+        sess.got = sess.got || {};
+        sess.extra = sess.extra || [];
+        showProgress();
+        await generateAll();
+        await fillShortage();
+        assemble();
+        setGen(99, 'Almost ready', 'Starting your exam...');
+        const begin = await persist(() => api(API_EXAM, { action: 'begin', user_id: user.id, course_id: courseId, plan_token: sess.plan_token }, { timeout: 60000 }), 0);
+        sess.phase = 'run';
+        sess.started_at = begin.started_at;
+        sess.ends_at = begin.ends_at;
+        sess.offset = begin.server_now - Date.now();
+        sess.answers = {};
+        sess.page = 0;
+        sess.shots = 0;
+        sess.leaves = 0;
+        delete sess.got;
+        delete sess.extra;
+        delete sess.plan_token;
+        delete sess.round;
+        delete sess.relax;
+        delete sess.stall;
+        saveSession();
+        genNote('');
+        setGen(100, 'Ready', 'Starting your exam...');
+        await sleep(500);
+        startRun();
+        return;
+      } catch (e) {
+        if (e && e.status === 409) {
+          clearSession();
+          sess = null;
+          toast('error', 'Exam Not Available', e.message);
+          showOnly('examIntro');
+          refresh();
+          return;
+        }
+        if (e && e.status === 400 && !restarted && /valid|expired/i.test(String(e.message))) {
+          restarted = true;
+          clearSession();
+          sess = null;
+          continue;
+        }
+        genFail(errText(e));
+        return;
+      }
+    }
+  } finally {
+    genBusy = false;
+  }
 }
 
 function buildPages() {
@@ -819,7 +1015,7 @@ async function doGrade(reason) {
     shots: sess.shots || 0,
     leaves: sess.leaves || 0,
     reason: reason,
-    language: localStorage.getItem('idt_exam_lang') || 'English'
+    language: sess.language || localStorage.getItem('idt_exam_lang') || 'English'
   };
   try {
     const data = await api(API_EXAM, payload, { retries: 2, timeout: 100000 });
@@ -838,7 +1034,7 @@ async function doGrade(reason) {
     }
     $('miniLoaderText').textContent = 'Could not save yet';
     const sub = $('miniLoaderSub');
-    sub.textContent = e.message + ' Your answers are safe on this device. Check your internet and tap Try Again.';
+    sub.textContent = errText(e) + ' Your answers are safe on this device. Check your internet and tap Try Again.';
     sub.classList.remove('hidden');
     $('miniLoaderBtn').classList.remove('hidden');
   }
@@ -1000,7 +1196,7 @@ async function activateYear2(slot) {
     await api(API_Y2, { action: 'activate', user_id: user.id, slot: slot }, { retries: 3 });
     payDone();
   } catch (e) {
-    nextShell('Year 2', 'fa-triangle-exclamation', '<p class="next-sub">' + esc(e.message) + '</p><button class="btn btn-primary" id="btnRetryActivate" data-slot="' + slot + '"><i class="fa-solid fa-rotate-right"></i> Try Again</button>');
+    nextShell('Year 2', 'fa-triangle-exclamation', '<p class="next-sub">' + esc(errText(e)) + '</p><button class="btn btn-primary" id="btnRetryActivate" data-slot="' + slot + '"><i class="fa-solid fa-rotate-right"></i> Try Again</button>');
   }
 }
 
@@ -1034,7 +1230,7 @@ async function startYear2Payment() {
     startPayPoll();
   } catch (e) {
     miniHide();
-    toast('error', 'Payment Not Started', e.message);
+    toast('error', 'Payment Not Started', errText(e));
   }
 }
 
@@ -1074,7 +1270,7 @@ async function checkPaid(silent) {
     }
     if (!silent) toast('info', 'Not Confirmed Yet', 'We have not received your payment yet. Please wait a moment and check again.');
   } catch (e) {
-    if (!silent) toast('error', 'Could Not Check', e.message);
+    if (!silent) toast('error', 'Could Not Check', errText(e));
   }
   return false;
 }
@@ -1091,7 +1287,7 @@ async function renderProject() {
   const name = esc(S.student.name);
   const course = esc(S.course.name);
   const pr = S.project;
-  if (S.certificate_issued && pr && pr.submission) {
+  if (S.certificate_issued) {
     nextShell('Project submitted', 'fa-award', '<div class="st-panel ok"><i class="fa-solid fa-award big"></i><h3>Congratulations ' + name + '!</h3><p>You finished <b>' + course + '</b> and submitted your project. Your certificate is ready.</p></div><button class="btn btn-green" id="btnOpenCert"><i class="fa-solid fa-award"></i> Open Certificate</button>');
     return;
   }
@@ -1120,12 +1316,8 @@ async function renderProject() {
       ? '<button class="btn btn-primary" id="btnChooseProject" data-pid="' + opt.id + '"><i class="fa-solid fa-check"></i> I Choose This Project</button>'
       : '<p class="next-sub" style="margin:0">Tap a project to read the details.</p>';
   } else {
-    action = '<div class="proj-detail"><h4><i class="fa-solid fa-list-check" style="color:var(--violet)"></i> How to finish and get your certificate</h4><ol>' +
-      '<li>Build your project.</li><li>Record a short video (1 to 3 minutes) that shows and explains your project.</li><li>Post the video on one of your social media pages: TikTok, Facebook, Instagram, YouTube or X.</li><li>Copy the link of your video post.</li><li>Prepare a PDF or a link to your work (Google Drive, Dropbox, GitHub or a website).</li><li>Paste both links below and tap Submit.</li></ol></div>' +
-      '<div class="form-field" id="fVideo"><label for="inVideo"><i class="fa-solid fa-video"></i> Link of your video post</label><input type="url" id="inVideo" placeholder="https://www.tiktok.com/..." autocomplete="off"><small>Example: your TikTok, Facebook, Instagram, YouTube or X post link.</small><div class="err-line" id="eVideo"></div></div>' +
-      '<div class="form-field" id="fWork"><label for="inWork"><i class="fa-solid fa-file-pdf"></i> Link of your PDF or project</label><input type="url" id="inWork" placeholder="https://drive.google.com/..." autocomplete="off"><small>Make sure anyone with the link can open it.</small><div class="err-line" id="eWork"></div></div>' +
-      '<div class="form-field"><label for="inNote">Short note (optional)</label><textarea id="inNote" rows="2" maxlength="600" placeholder="Tell us one thing you want us to know about your project"></textarea></div>' +
-      '<button class="btn btn-green" id="btnSubmitProject"><i class="fa-solid fa-paper-plane"></i> Submit Project</button>';
+    action = '<div class="support-note green" style="display:flex;gap:10px;background:rgba(16,185,129,.08);border:1.5px dashed rgba(16,185,129,.4);border-radius:14px;padding:13px 14px;font-size:12.5px;line-height:1.65;margin-bottom:14px"><i class="fa-solid fa-circle-check" style="color:#059669;font-size:17px;margin-top:2px"></i><div><b>Great choice!</b> The next step is on the certificate page. There you will take your passport photo, then fill your project form: your video link (required), and your PDF or project link (optional).</div></div>' +
+      '<button class="btn btn-green" id="btnOpenCert"><i class="fa-solid fa-award"></i> Continue to Project and Certificate</button>';
   }
   nextShell(pr.chosen ? 'Your project: ' + pr.chosen.title : 'Choose your project', 'fa-lightbulb',
     '<p class="next-sub">Congratulations <b>' + name + '</b> on finishing <b>' + course + '</b>! ' + (pr.chosen ? 'You chose your project. Finish it and submit it below.' : 'Choose one of these four projects. Tap each one to read more. Think about things you have never tried before and how you can help people.') + '</p>' +
@@ -1136,13 +1328,13 @@ async function makeProjects() {
   miniLoad('Creating your project ideas...', 'This can take about half a minute.');
   try {
     try { localStorage.setItem('idt_exam_lang', projectLang); } catch (_) {}
-    const res = await api(API_EXAM, { action: 'projects', user_id: user.id, course_id: courseId, language: projectLang }, { retries: 1, timeout: 90000 });
+    const res = await api(API_EXAM, { action: 'projects', user_id: user.id, course_id: courseId, language: projectLang }, { retries: 2, timeout: 110000 });
     S.project = { options: res.options, chosen: res.chosen, submission: res.submission };
     miniHide();
     renderProject();
   } catch (e) {
     miniHide();
-    toast('error', 'Could Not Create Projects', e.message);
+    toast('error', 'Could Not Create Projects', errText(e));
   }
 }
 
@@ -1160,48 +1352,7 @@ async function chooseProject(id) {
     renderProject();
   } catch (e) {
     miniHide();
-    toast('error', 'Could Not Save', e.message);
-  }
-}
-
-function fieldErr(box, id, msg) {
-  $(box).classList.toggle('bad', Boolean(msg));
-  const e = $(id);
-  e.textContent = msg || '';
-  e.classList.toggle('show', Boolean(msg));
-}
-
-function httpsOk(v) {
-  try {
-    const u = new URL(String(v).trim());
-    return u.protocol === 'https:' && u.hostname.indexOf('.') !== -1;
-  } catch (_) {
-    return false;
-  }
-}
-
-async function submitProject() {
-  const video = $('inVideo').value.trim();
-  const work = $('inWork').value.trim();
-  fieldErr('fVideo', 'eVideo', '');
-  fieldErr('fWork', 'eWork', '');
-  let bad = false;
-  if (!httpsOk(video)) { fieldErr('fVideo', 'eVideo', 'Please paste the link of your video post. It must start with https.'); bad = true; }
-  if (!httpsOk(work)) { fieldErr('fWork', 'eWork', 'Please paste the link of your PDF or project. It must start with https.'); bad = true; }
-  if (bad) return;
-  miniLoad('Submitting your project...');
-  try {
-    await api(API_WIN, { action: 'project_submit', user_id: user.id, course_id: courseId, video_url: video, work_url: work, note: $('inNote').value.trim() }, { retries: 2 });
-    S.project.submission = { video_url: video, work_url: work };
-    S.certificate_issued = true;
-    miniHide();
-    confetti();
-    renderProject();
-  } catch (e) {
-    miniHide();
-    if (e.data && e.data.field === 'video_url') fieldErr('fVideo', 'eVideo', e.message);
-    else if (e.data && e.data.field === 'work_url') fieldErr('fWork', 'eWork', e.message);
-    else toast('error', 'Could Not Submit', e.message);
+    toast('error', 'Could Not Save', errText(e));
   }
 }
 
@@ -1366,7 +1517,7 @@ async function downloadPdf(rec) {
     miniHide();
   } catch (e) {
     miniHide();
-    toast('error', 'PDF Failed', e.message);
+    toast('error', 'PDF Failed', errText(e));
   }
 }
 
@@ -1396,7 +1547,7 @@ async function emailResult() {
     toast('success', 'Email Sent', 'Your result was sent to ' + S.student.email + '. Check your inbox and spam folder.');
   } catch (e) {
     miniHide();
-    toast('error', 'Email Failed', e.message);
+    toast('error', 'Email Failed', errText(e));
   }
 }
 
@@ -1420,7 +1571,7 @@ async function openView(i) {
     $('viewOverlay').classList.add('open');
   } catch (e) {
     miniHide();
-    toast('error', 'Could Not Open', e.message);
+    toast('error', 'Could Not Open', errText(e));
   }
 }
 
@@ -1449,14 +1600,14 @@ async function askTeacher(question) {
   $('chatSend').disabled = true;
   const typing = addMsg('bot', null);
   try {
-    const res = await api(API_EXAM, { action: 'explain', user_id: user.id, course_id: courseId, record_id: st.record_id, language: st.lang, question: question || '', history: st.history.slice(-8) }, { retries: 1, timeout: 90000 });
+    const res = await api(API_EXAM, { action: 'explain', user_id: user.id, course_id: courseId, record_id: st.record_id, language: st.lang, question: question || '', history: st.history.slice(-8) }, { retries: 2, timeout: 110000 });
     typing.remove();
     addMsg('bot', res.answer);
     if (question) st.history.push({ role: 'user', content: question });
     st.history.push({ role: 'assistant', content: res.answer });
   } catch (e) {
     typing.remove();
-    addMsg('bot', 'Sorry, I could not answer right now. ' + e.message);
+    addMsg('bot', 'Sorry, I could not answer right now. ' + errText(e));
   } finally {
     st.busy = false;
     $('chatSend').disabled = false;
@@ -1504,7 +1655,6 @@ function bind() {
       return;
     }
     if ((el = q('#btnChooseProject'))) return chooseProject(el.dataset.pid);
-    if (q('#btnSubmitProject')) return submitProject();
     if (q('#btnOpenCert')) {
       window.location.href = 'certificate.html?user_id=' + encodeURIComponent(user.id) + '&course_id=' + encodeURIComponent(courseId);
       return;
