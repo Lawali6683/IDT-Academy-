@@ -22,12 +22,14 @@ const EXAM = {
   tokenMs: 3 * 60 * 60 * 1000
 };
 
-const MAX_BATCH_Q = 18;
-const MAX_BATCH_CHARS = 16000;
-const TOPIC_CHARS = 3000;
+const MAX_BATCH_Q = 15;
+const MAX_TOPICS_PER_BATCH = 10;
+const BATCH_CHARS = 14000;
+const TOPIC_MIN_CHARS = 500;
+const TOPIC_MAX_CHARS = 3500;
 const AI_TIMEOUT_MS = 30000;
 const AI_TOTAL_MS = 50000;
-const SIMILAR_LIMIT = 0.7;
+const SIMILAR_LEVELS = [0.7, 0.8, 0.9, 0.97, 1.01];
 const SOCIAL_NOTE = 'The student must post a video about the project on a social media page.';
 
 const ANGLES = [
@@ -42,6 +44,25 @@ const ANGLES = [
   'rules and good practice',
   'basic facts every student must know'
 ];
+
+const LANG_LISTS = {
+  English: 'the is are was were of and to in that for with this which what from by on as it be or an at not can will have has you your we they their its these those when how why also used use'.split(' '),
+  Hausa: 'da na ta ya su ce ne ba ga ko kuma wannan wadannan domin saboda yana suna take ake zai za babu akwai shi ita mai masu daga cikin kan tare amma idan sai abin abu kamar mutane yi yin aiki hakan haka shine wanda wacce wadanda me menene yaya wanne wane yadda lokacin duk kowane kowa ana ina inda kafin bayan don zuwa'.split(' '),
+  Yoruba: 'ni ti ati si fun nitori pe lati je awon won ninu ohun eyi ki tabi kan ko se wa ba'.split(' '),
+  Igbo: 'nke maka ya ndi bu otu ihe ka ma anyi gi mgbe site nwere obula gbasara ndi'.split(' '),
+  French: 'le la les un une des est sont pour avec dans que qui ce cette et en du de au aux sur par pas plus nous vous ou ne'.split(' '),
+  Spanish: 'el los las un una es son para con que se por del al como mas pero este esta'.split(' ')
+};
+
+const LANG_SETS = {};
+Object.keys(LANG_LISTS).forEach(function (k) {
+  const set = {};
+  LANG_LISTS[k].forEach(function (w) { set[w] = true; });
+  LANG_SETS[k] = set;
+});
+
+const EN_CHECK = {};
+'the is are was were of and that this which what with from for does will should would has have not or by been these those their your when where how why'.split(' ').forEach(function (w) { EN_CHECK[w] = true; });
 
 class HttpError extends Error {
   constructor(status, message, extra) {
@@ -68,6 +89,32 @@ function clean(value, max) {
 
 function cleanBlock(value, max) {
   return String(value == null ? '' : value).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim().slice(0, max || 2000);
+}
+
+function toText(v) {
+  if (v == null) return '';
+  if (typeof v === 'string') return v;
+  if (Array.isArray(v)) return v.map(toText).join('\n');
+  if (typeof v === 'object') return Object.keys(v).map(function (k) { return toText(v[k]); }).join('\n');
+  return String(v);
+}
+
+function cleanNotes(v) {
+  return toText(v)
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<\/(p|div|li|h[1-6]|tr)>|<br\s*\/?>/gi, '\n')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/data:[a-z]+\/[a-z0-9.+-]+;base64,[A-Za-z0-9+\/=]+/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/https?:\/\/\S+/gi, ' ')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n+/g, '\n')
+    .trim();
 }
 
 function sbBase(env) {
@@ -190,7 +237,7 @@ async function callGemini(apiKey, model, system, userText, jsonMode, maxTokens) 
   const ctrl = new AbortController();
   const timer = setTimeout(function () { ctrl.abort(); }, AI_TIMEOUT_MS);
   try {
-    const cfg = { temperature: jsonMode ? 0.5 : 0.7, topP: 0.9, maxOutputTokens: maxTokens || 8192 };
+    const cfg = { temperature: jsonMode ? 0.55 : 0.7, topP: 0.92, maxOutputTokens: maxTokens || 8192 };
     if (model.indexOf('2.5') !== -1) cfg.thinkingConfig = { thinkingBudget: 0 };
     if (jsonMode) cfg.responseMimeType = 'application/json';
     const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(apiKey), {
@@ -234,7 +281,7 @@ async function callOpenRouter(apiKey, model, system, userText, jsonMode, maxToke
       const payload = {
         model: model,
         messages: [{ role: 'system', content: system }, { role: 'user', content: userText }],
-        temperature: jsonMode ? 0.5 : 0.7,
+        temperature: jsonMode ? 0.55 : 0.7,
         max_tokens: maxTokens || 8192
       };
       if (modes[m]) payload.response_format = { type: 'json_object' };
@@ -295,27 +342,58 @@ async function ai(env, system, userText, jsonMode, maxTokens) {
   throw new HttpError(503, 'The AI service could not answer right now.', { detail: errs.join(' | ') });
 }
 
-function detectLanguage(text) {
+function stripMarks(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function detectLanguage(text, fallback) {
   const raw = String(text || '');
-  const t = ' ' + raw.toLowerCase().replace(/\s+/g, ' ') + ' ';
-  if (/[\u0600-\u06FF]/.test(raw)) return 'Arabic';
-  const lists = {
-    Hausa: [' yana ', ' kuma ', ' wannan ', ' domin ', ' nufin ', ' abin ', ' kamar ', ' sai ', ' zai ', ' mutane ', ' gaskiya ', ' ita ', ' shi '],
-    Yoruba: [' nitori ', ' pupo ', ' jare ', ' ko ni ', ' ti o ', ' fun ', ' won '],
-    Igbo: [' nke ', ' maka ', ' anyi ', ' biko ', ' oma '],
-    French: [' le ', ' la ', ' les ', ' une ', ' est ', ' pour ', ' avec ', ' vous ', ' nous '],
-    Spanish: [' una ', ' para ', ' usted ', ' nosotros ', ' que es ']
-  };
-  let best = 'English';
-  let bestScore = 3;
-  Object.keys(lists).forEach(function (lang) {
-    const score = lists[lang].reduce(function (n, w) { return n + (t.split(w).length - 1); }, 0);
+  const letters = (raw.match(/\p{L}/gu) || []).length;
+  const arabic = (raw.match(/[\u0600-\u06FF]/g) || []).length;
+  if (letters && arabic / letters > 0.3) return 'Arabic';
+  const tokens = stripMarks(raw).split(/[^\p{L}]+/u).filter(Boolean).slice(0, 900);
+  if (tokens.length < 12) return fallback;
+  let best = fallback;
+  let bestScore = 4;
+  Object.keys(LANG_SETS).forEach(function (lang) {
+    let score = 0;
+    for (let i = 0; i < tokens.length; i++) if (LANG_SETS[lang][tokens[i]]) score++;
     if (score > bestScore) {
       bestScore = score;
       best = lang;
     }
   });
   return best;
+}
+
+function topicLanguages(usable) {
+  const per = usable.map(function (t) {
+    return detectLanguage(t.name + ' ' + String(t.text || '').slice(0, 2500), null);
+  });
+  const tally = {};
+  per.forEach(function (l, i) {
+    if (l) tally[l] = (tally[l] || 0) + Math.max(1, Math.min(String(usable[i].text || '').length, 2500));
+  });
+  let overall = 'English';
+  let top = 0;
+  Object.keys(tally).forEach(function (l) {
+    if (tally[l] > top) {
+      top = tally[l];
+      overall = l;
+    }
+  });
+  return { overall: overall, per: per.map(function (l) { return l || overall; }) };
+}
+
+function languageOk(text, lang) {
+  if (!lang || lang === 'English') return true;
+  if (lang === 'Arabic') return /[\u0600-\u06FF]/.test(text);
+  const tokens = stripMarks(text).split(/[^\p{L}]+/u).filter(Boolean);
+  let hits = 0;
+  for (let i = 0; i < tokens.length; i++) if (EN_CHECK[tokens[i]]) hits++;
+  if (hits >= 3) return false;
+  if (tokens.length <= 9 && hits >= 2) return false;
+  return true;
 }
 
 function cleanLanguageName(value) {
@@ -374,8 +452,8 @@ async function loadTopics(env, courseId) {
     if (Array.isArray(ac)) list = ac;
     else if (ac && Array.isArray(ac.topics)) list = ac.topics;
   }
-  return list.slice().sort(function (a, b) {
-    return Number((a && a.topic_number) != null ? a.topic_number : 0) - Number((b && b.topic_number) != null ? b.topic_number : 0);
+  return list.filter(function (t) { return t && typeof t === 'object'; }).sort(function (a, b) {
+    return Number(a.topic_number != null ? a.topic_number : 0) - Number(b.topic_number != null ? b.topic_number : 0);
   });
 }
 
@@ -436,7 +514,7 @@ function progressCheck(ctx, cap) {
   if (reached < required - 1) {
     out.missing_topics = (required - 1) - reached;
     for (let i = Math.max(0, reached + 1); i < required && out.names.length < 5; i++) {
-      out.names.push(clean(topics[i] && topics[i].topic_name, 80) || ('Topic ' + (i + 1)));
+      out.names.push(clean(toText(topics[i] && topics[i].topic_name), 80) || ('Topic ' + (i + 1)));
     }
     out.ok = false;
   }
@@ -628,12 +706,20 @@ function usableTopics(topics) {
   const out = [];
   (Array.isArray(topics) ? topics : []).forEach(function (t) {
     if (!t || typeof t !== 'object') return;
-    const name = clean(t.topic_name, 160);
-    const text = String(t.topic_text == null ? '' : t.topic_text).trim();
+    const name = clean(toText(t.topic_name), 160);
+    const text = cleanNotes(t.topic_text != null ? t.topic_text : (t.text != null ? t.text : t.content));
     if (!name && !text) return;
     out.push({ name: name || 'Topic', text: text });
   });
   return out;
+}
+
+function examTopics(rawTopics) {
+  const sorted = Array.isArray(rawTopics) ? rawTopics : [];
+  const pool = sorted.length >= 3 ? sorted.slice(1, -1) : sorted;
+  let usable = usableTopics(pool);
+  if (!usable.length) usable = usableTopics(sorted);
+  return usable;
 }
 
 function evenCounts(total, n) {
@@ -659,6 +745,10 @@ function sliceItem(item) {
   return out;
 }
 
+function limitFor(count) {
+  return Math.max(TOPIC_MIN_CHARS, Math.min(TOPIC_MAX_CHARS, Math.floor(BATCH_CHARS / Math.max(1, count))));
+}
+
 function buildPlan(topics) {
   const n = topics.length;
   const mcq = evenCounts(EXAM.mcq, n);
@@ -671,20 +761,37 @@ function buildPlan(topics) {
     }
   }
   const batches = [];
-  let cur = { topics: [], q: 0, chars: 0 };
+  let cur = { topics: [], q: 0 };
   slices.forEach(function (sl) {
     const q = sl.mcq + sl.tf + sl.write;
-    const chars = Math.min(String(topics[sl.i].text || '').length, TOPIC_CHARS);
-    if (cur.topics.length && (cur.q + q > MAX_BATCH_Q || cur.chars + chars > MAX_BATCH_CHARS)) {
+    if (cur.topics.length && (cur.q + q > MAX_BATCH_Q || cur.topics.length >= MAX_TOPICS_PER_BATCH)) {
       batches.push(cur);
-      cur = { topics: [], q: 0, chars: 0 };
+      cur = { topics: [], q: 0 };
     }
     cur.topics.push(sl);
     cur.q += q;
-    cur.chars += chars;
   });
   if (cur.topics.length) batches.push(cur);
-  return batches.map(function (b) { return { q: b.q, topics: b.topics }; });
+  return batches.map(function (b) {
+    const lim = limitFor(b.topics.length);
+    return { q: b.q, topics: b.topics.map(function (sl) { return Object.assign({ lim: lim }, sl); }) };
+  });
+}
+
+function excerptOf(text, sl, offset) {
+  const s = String(text || '');
+  const lim = sl.lim || 3000;
+  if (s.length <= lim) return s;
+  const parts = sl.parts || 1;
+  const part = (sl.part || 1) - 1;
+  let frac = parts > 1 ? part / (parts - 1) : 0;
+  frac = (frac + (offset || 0) * 0.37) % 1;
+  let start = Math.floor((s.length - lim) * frac);
+  if (start > 0) {
+    const back = s.lastIndexOf(' ', start);
+    if (back > start - 80) start = back + 1;
+  }
+  return s.slice(start, start + lim);
 }
 
 function wordSet(text) {
@@ -695,13 +802,18 @@ function wordSet(text) {
   return set;
 }
 
-function similar(a, b) {
+function similar(a, b, limit) {
   const ka = Object.keys(a);
   const kb = Object.keys(b);
   if (!ka.length || !kb.length) return false;
   let inter = 0;
   ka.forEach(function (w) { if (b[w]) inter++; });
-  return inter / (ka.length + kb.length - inter) >= SIMILAR_LIMIT;
+  return inter / (ka.length + kb.length - inter) >= limit;
+}
+
+function relaxOf(value) {
+  const n = Math.floor(Number(value) || 0);
+  return Math.max(0, Math.min(SIMILAR_LEVELS.length - 1, n));
 }
 
 function mapType(value) {
@@ -732,7 +844,7 @@ function tfValue(correct) {
   if (correct === false) return 'false';
   const s = String(correct == null ? '' : correct).trim().toLowerCase();
   if (['true', 't', 'yes', 'gaskiya', 'a'].indexOf(s) !== -1) return 'true';
-  if (['false', 'f', 'no', 'karya', 'b'].indexOf(s) !== -1) return 'false';
+  if (['false', 'f', 'no', 'karya', '\u0199arya', 'kuskure', 'b'].indexOf(s) !== -1) return 'false';
   return '';
 }
 
@@ -818,16 +930,24 @@ function extractQuestionList(text) {
   return out;
 }
 
-function collectQuestions(list, batch, avoid) {
+function quotaOf(batch) {
   const quota = { mcq: 0, tf: 0, write: 0 };
-  const single = batch.topics.length === 1 ? batch.topics[0].i : null;
-  const known = {};
   batch.topics.forEach(function (t) {
     quota.mcq += t.mcq;
     quota.tf += t.tf;
     quota.write += t.write;
-    known[t.i] = true;
   });
+  return quota;
+}
+
+function collectQuestions(list, batch, avoid, langs, opts) {
+  const o = opts || {};
+  const limit = SIMILAR_LEVELS[relaxOf(o.relax)];
+  const skipLang = relaxOf(o.relax) >= 4;
+  const quota = quotaOf(batch);
+  const single = batch.topics.length === 1 ? batch.topics[0].i : null;
+  const known = {};
+  batch.topics.forEach(function (t) { known[t.i] = true; });
   const got = { mcq: 0, tf: 0, write: 0 };
   const seen = [];
   const avoidSets = avoid.map(wordSet);
@@ -836,16 +956,21 @@ function collectQuestions(list, batch, avoid) {
     if (!item || typeof item !== 'object') return;
     let type = mapType(item.type);
     if (!type) {
-      const opts = Array.isArray(item.options) ? item.options.length : 0;
-      type = opts >= 4 ? 'mcq' : (opts === 2 || typeof item.correct === 'boolean' ? 'tf' : 'write');
+      const opts2 = Array.isArray(item.options) ? item.options.length : 0;
+      type = opts2 >= 4 ? 'mcq' : (opts2 === 2 || typeof item.correct === 'boolean' ? 'tf' : 'write');
     }
     if (got[type] >= quota[type]) return;
     const built = buildOne(item, type);
     if (!built) return;
-    const ws = wordSet(built.pub.question);
-    if (seen.some(function (sx) { return similar(sx, ws); }) || avoidSets.some(function (sx) { return similar(sx, ws); })) return;
     let ti = Number(item.topic_index != null ? item.topic_index : item.topic);
     if (!known[ti]) ti = single != null ? single : batch.topics[0].i;
+    if (!skipLang) {
+      const lang = langs && langs.per ? langs.per[ti] : 'English';
+      const body = built.pub.question + ' ' + (type === 'mcq' ? built.pub.options.join(' ') : '');
+      if (!languageOk(body, lang || (langs && langs.overall))) return;
+    }
+    const ws = wordSet(built.pub.question);
+    if (seen.some(function (sx) { return similar(sx, ws, limit); }) || avoidSets.some(function (sx) { return similar(sx, ws, limit); })) return;
     seen.push(ws);
     got[type]++;
     picked.push({ ti: ti, built: built });
@@ -857,16 +982,19 @@ function collectQuestions(list, batch, avoid) {
   };
 }
 
-function batchPrompt(name, usable, lang, batch, avoid, variation, attempt) {
+function batchPrompt(name, usable, langs, batch, avoid, variation, attempt) {
   const lines = batch.topics.map(function (sl) {
     const t = usable[sl.i % usable.length] || { name: '', text: '' };
-    const part = sl.parts > 1 ? ' (part ' + sl.part + ' of ' + sl.parts + ': use a different section of the notes from the other parts)' : '';
-    const notes = String(t.text || '').slice(0, TOPIC_CHARS);
-    return 'TOPIC ' + sl.i + ': ' + t.name + part + '\nRequired: ' + sl.mcq + ' mcq, ' + sl.tf + ' tf, ' + sl.write + ' write\nNotes:\n' + (notes || '(No notes were written for this topic. Use the topic name and the basic knowledge of this subject.)');
+    const lang = (langs.per && langs.per[sl.i]) || langs.overall;
+    const part = sl.parts > 1 ? ' (part ' + sl.part + ' of ' + sl.parts + ': this block shows a different section of the notes from the other parts)' : '';
+    const notes = excerptOf(t.text, sl, batch.offset);
+    return 'TOPIC ' + sl.i + ': ' + t.name + part + '\nLanguage: ' + lang + '\nRequired: ' + sl.mcq + ' mcq, ' + sl.tf + ' tf, ' + sl.write + ' write\nNotes:\n' + (notes || '(No notes were written for this topic. Use the topic name, the course name and the basic knowledge of this subject.)');
   }).join('\n\n');
   const angle = ANGLES[(Math.max(0, Math.floor(Number(batch.angle) || 0)) + attempt) % ANGLES.length];
   const system = 'You are the chief examiner of IDT Academy. You write fair, clear exam questions from the lesson notes you are given. '
-    + 'For every TOPIC block write the required number of each question type. '
+    + 'For every TOPIC block write exactly the required number of each question type. '
+    + 'LANGUAGE RULE: write the question, every option, the explanation, the model answer and the marking guide of each TOPIC only in the language shown after "Language:" for that TOPIC. When that language is not English, do not write English sentences at all. A technical word that has no translation may stay in English. '
+    + 'The notes may contain spelling mistakes, broken words, strange symbols, repeated text or parts that do not match the topic name. Never complain about them, never ask about the mistakes, and never write a question about a mistake. Understand the meaning that was intended and write good questions anyway. If the notes are empty or useless, use the topic name and the course name. '
     + 'Type "mcq": multiple choice with exactly 4 different options (plain text, no letters in the text), one correct option, "correct" is the letter A, B, C or D. Vary the correct letters. Never use "all of the above" or "none of the above". '
     + 'Type "tf": a true or false statement, "options" is ["True","False"], "correct" is "true" or "false". The statement must be clearly true or clearly false. Use about half true and half false. '
     + 'Type "write": a short written question the student can answer in one to three sentences or a short list. Give "model_answer" with the key points and "marking" with what a marker should look for. '
@@ -875,41 +1003,66 @@ function batchPrompt(name, usable, lang, batch, avoid, variation, attempt) {
     + 'You must always return the full required number of questions of every type, even when the notes are short. '
     + 'Every question must make sense by itself: never write "according to the text" or "in the notes". '
     + 'Never repeat or rephrase a question, and never repeat any question from the avoid list. Every question must ask about a different idea. '
-    + 'Write everything in ' + lang + '. A technical word with no translation may stay in English. '
     + 'Do not use markdown symbols. Every question needs a one-sentence "explanation". '
     + 'Return ONLY valid JSON: {"questions":[{"topic_index":0,"type":"mcq","question":"...","options":["...","...","...","..."],"correct":"A","explanation":"..."},{"topic_index":0,"type":"tf","question":"...","options":["True","False"],"correct":"true","explanation":"..."},{"topic_index":0,"type":"write","question":"...","options":[],"model_answer":"...","marking":"...","explanation":"..."}]}';
   const prompt = 'Course: ' + name + '\n\n' + lines
     + '\n\nFocus mainly on: ' + angle
     + (avoid.length ? '\n\nAVOID LIST (already used questions):\n- ' + avoid.join('\n- ') : '')
-    + '\n\nVariation code: ' + variation + (attempt > 0 ? '\nThe last answer had too few valid questions. Return the full required number this time.' : '')
+    + '\n\nVariation code: ' + variation + (attempt > 0 ? '\nThe last answer had too few valid questions or the wrong language. Return the full required number this time and use the Language of each TOPIC only.' : '')
     + '\n\nWrite the questions now. Return only the JSON object.';
   return { system: system, prompt: prompt };
 }
 
-async function generateForBatch(env, name, usable, lang, batch, avoid) {
+function remainingBatch(batch, got) {
+  const quota = quotaOf(batch);
+  const rem = { mcq: Math.max(0, quota.mcq - got.mcq), tf: Math.max(0, quota.tf - got.tf), write: Math.max(0, quota.write - got.write) };
+  const n = batch.topics.length;
+  const mc = evenCounts(rem.mcq, n);
+  const tfc = evenCounts(rem.tf, n);
+  const wc = evenCounts(rem.write, n);
+  const topics = [];
+  batch.topics.forEach(function (t, j) {
+    const item = Object.assign({}, t, { mcq: mc[j], tf: tfc[j], write: wc[j] });
+    if (item.mcq + item.tf + item.write > 0) topics.push(item);
+  });
+  return Object.assign({}, batch, { topics: topics, q: rem.mcq + rem.tf + rem.write });
+}
+
+async function generateForBatch(env, name, usable, langs, batch, avoid, opts) {
   const started = Date.now();
-  let best = null;
-  let lastError = null;
+  const quota = quotaOf(batch);
+  const got = { mcq: 0, tf: 0, write: 0 };
+  const picked = [];
   const errs = [];
+  let lastError = null;
   for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt >= 1 && Date.now() - started > 35000) break;
+    if (attempt >= 1 && Date.now() - started > 40000) break;
+    const rem = remainingBatch(batch, got);
+    if (!rem.topics.length) break;
     try {
-      const p = batchPrompt(name, usable, lang, batch, avoid, randomId(), attempt);
+      const used = avoid.concat(picked.map(function (p) { return clean(p.built.pub.question, 110); })).slice(-140);
+      const p = batchPrompt(name, usable, langs, rem, used, randomId(), attempt);
       const text = await ai(env, p.system, p.prompt, true, 12288);
-      const res = collectQuestions(extractQuestionList(text), batch, avoid);
+      const res = collectQuestions(extractQuestionList(text), rem, used, langs, opts);
+      res.picked.forEach(function (x) {
+        picked.push(x);
+        got[x.built.pub.type]++;
+      });
       if (!res.picked.length) errs.push('The AI answer had no usable question.');
-      if (!best || res.picked.length > best.picked.length) best = res;
-      if (res.picked.length >= res.requested) break;
     } catch (err) {
       lastError = err;
       errs.push(err && err.extra && err.extra.detail ? err.extra.detail : clean(err && err.message, 200));
     }
   }
-  if (!best || !best.picked.length) {
+  if (!picked.length) {
     if (lastError instanceof HttpError) throw lastError;
     throw new HttpError(502, 'The AI did not return usable questions. Please try again.', { detail: errs.join(' | ') });
   }
-  return best;
+  return {
+    picked: picked,
+    requested: quota.mcq + quota.tf + quota.write,
+    shortage: { mcq: Math.max(0, quota.mcq - got.mcq), tf: Math.max(0, quota.tf - got.tf), write: Math.max(0, quota.write - got.write) }
+  };
 }
 
 async function packQuestions(env, plan, picked, userId) {
@@ -928,6 +1081,10 @@ async function packQuestions(env, plan, picked, userId) {
   return { questions: questions, blob: blob };
 }
 
+function cleanAvoid(list) {
+  return (Array.isArray(list) ? list : []).slice(-120).map(function (x) { return clean(x, 140); }).filter(Boolean);
+}
+
 async function actionPrepare(env, body) {
   const userId = clean(body.user_id, 80);
   const courseId = clean(body.course_id, 120);
@@ -937,13 +1094,13 @@ async function actionPrepare(env, body) {
   if (ev.state !== 'ready') {
     throw new HttpError(409, 'You cannot start this exam right now.', { state: ev.state });
   }
-  const usable = usableTopics(ctx.topics);
+  const usable = examTopics(ctx.topics);
   if (!usable.length) throw new HttpError(404, 'This course has no lesson notes yet, so an exam cannot be made. Please contact support.');
   const batches = buildPlan(usable);
-  const lang = detectLanguage(usable.slice(0, 8).map(function (t) { return t.text.slice(0, 800); }).join(' '));
+  const langs = topicLanguages(usable);
   const examId = crypto.randomUUID();
   const iat = Date.now();
-  const planToken = await seal(env, { u: userId, c: courseId, k: ctx.key, y: ctx.year, e: examId, l: lang, n: ctx.name, b: batches, iat: iat, exp: iat + EXAM.tokenMs });
+  const planToken = await seal(env, { u: userId, c: courseId, k: ctx.key, y: ctx.year, e: examId, l: langs.overall, n: ctx.name, b: batches, iat: iat, exp: iat + EXAM.tokenMs });
   return json({
     success: true,
     exam_id: examId,
@@ -952,7 +1109,7 @@ async function actionPrepare(env, body) {
     targets: { mcq: EXAM.mcq, tf: EXAM.tf, write: EXAM.write },
     batches: batches.map(function (b) { return b.q; }),
     topics_used: usable.length,
-    language: lang,
+    language: langs.overall,
     seconds: EXAM.seconds
   });
 }
@@ -964,11 +1121,12 @@ async function actionBatch(env, body) {
   if (plan.u !== userId || plan.c !== courseId) throw new HttpError(403, 'This exam data does not belong to you.');
   const index = Number(body.batch_index);
   if (!isFinite(index) || index < 0 || index >= plan.b.length) throw new HttpError(400, 'Invalid batch number.');
-  const usable = usableTopics(await loadTopics(env, courseId));
+  const usable = examTopics(await loadTopics(env, courseId));
   if (!usable.length) throw new HttpError(404, 'This course has no lesson notes.');
-  const avoid = (Array.isArray(body.avoid) ? body.avoid : []).slice(-70).map(function (x) { return clean(x, 140); }).filter(Boolean);
-  const batch = Object.assign({}, plan.b[index], { angle: index });
-  const res = await generateForBatch(env, plan.n || 'Course', usable, plan.l, batch, avoid);
+  const langs = topicLanguages(usable);
+  const avoid = cleanAvoid(body.avoid);
+  const batch = Object.assign({}, plan.b[index], { angle: index, offset: 0 });
+  const res = await generateForBatch(env, plan.n || 'Course', usable, langs, batch, avoid, { relax: relaxOf(body.relax) });
   const packed = await packQuestions(env, plan, res.picked, userId);
   return json({ success: true, batch_index: index, questions: packed.questions, blob: packed.blob, shortage: res.shortage });
 }
@@ -990,22 +1148,24 @@ async function actionTopup(env, body) {
     sum--;
   }
   if (sum <= 0) throw new HttpError(400, 'Nothing is needed.');
-  const usable = usableTopics(await loadTopics(env, courseId));
+  const usable = examTopics(await loadTopics(env, courseId));
   if (!usable.length) throw new HttpError(404, 'This course has no lesson notes.');
+  const langs = topicLanguages(usable);
   const n = usable.length;
   const k = Math.min(4, n);
   const round = Math.max(0, Math.floor(Number(body.round) || 0));
   const mc = evenCounts(need.mcq, k);
   const tfc = evenCounts(need.tf, k);
   const wc = evenCounts(need.write, k);
+  const lim = limitFor(k);
   const topics = [];
   for (let j = 0; j < k; j++) {
-    const item = { i: (round * k + j) % n, mcq: mc[j], tf: tfc[j], write: wc[j], part: 1, parts: 1 };
+    const item = { i: (round * k + j) % n, mcq: mc[j], tf: tfc[j], write: wc[j], part: 1, parts: 1, lim: lim };
     if (item.mcq + item.tf + item.write > 0) topics.push(item);
   }
   if (!topics.length) throw new HttpError(400, 'Nothing is needed.');
-  const avoid = (Array.isArray(body.avoid) ? body.avoid : []).slice(-70).map(function (x) { return clean(x, 140); }).filter(Boolean);
-  const res = await generateForBatch(env, plan.n || 'Course', usable, plan.l, { q: sum, topics: topics, angle: round + 3 }, avoid);
+  const avoid = cleanAvoid(body.avoid);
+  const res = await generateForBatch(env, plan.n || 'Course', usable, langs, { q: sum, topics: topics, angle: round + 3, offset: round }, avoid, { relax: relaxOf(body.relax) });
   const packed = await packQuestions(env, plan, res.picked, userId);
   return json({ success: true, questions: packed.questions, blob: packed.blob, shortage: res.shortage });
 }
@@ -1130,7 +1290,7 @@ async function actionGrade(env, body) {
   const late = now > active.ends_at + EXAM.graceMs;
 
   const allKeys = {};
-  const blobs = Array.isArray(body.blobs) ? body.blobs.slice(0, 80) : [];
+  const blobs = Array.isArray(body.blobs) ? body.blobs.slice(0, 150) : [];
   const seenBlobs = {};
   for (const token of blobs) {
     const b = await unseal(env, token);
@@ -1339,7 +1499,7 @@ async function actionProjects(env, body) {
   }
   const lang = cleanLanguageName(body.language || 'English');
   const student = String(ctx.ud.full_name || 'Student');
-  const notes = ctx.topics.slice(0, 40).map(function (t) { return '- ' + clean(t && t.topic_name, 100) + ': ' + clean(t && t.topic_text, 160); }).join('\n');
+  const notes = ctx.topics.slice(0, 40).map(function (t) { return '- ' + clean(toText(t && t.topic_name), 100) + ': ' + clean(cleanNotes(t && t.topic_text), 160); }).join('\n');
   const system = 'You are a project mentor at IDT Academy. Design four different final projects for a student who has just finished the course "' + ctx.name + '". '
     + 'Every project must use the skills taught in the course notes and must be realistic for a Nigerian student to finish in 7 to 14 days with only a phone or a computer. '
     + 'The four projects follow these themes in this order: p1 "economy" (benefit, jobs and business), p2 "health" (health and wellbeing), p3 "community" (community development), p4 "world" (a safer, peaceful and better world). '
