@@ -1,116 +1,40 @@
 import { supabase } from './supabase.js';
 
+const VIDEO_LINKS = {
+  promo: 'https://youtu.be/-zyW9mzwAkM?si=FJ13206GZ3MnKctO',
+  teaching: 'https://youtu.be/-zyW9mzwAkM?si=FJ13206GZ3MnKctO',
+  orientation: 'https://youtu.be/-zyW9mzwAkM?si=FJ13206GZ3MnKctO'
+};
+
+function loadLateStyles() {
+  const add = (href) => {
+    const l = document.createElement('link');
+    l.rel = 'stylesheet';
+    l.href = href;
+    document.head.appendChild(l);
+  };
+  add('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
+  add('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap');
+}
+
 function showLoading() {
-  let loader = document.getElementById('idt-loader-2');
-  if (loader) {
-    loader.classList.remove('idt-hide');
-  } else {
-    const loaderHTML = `
-      <div class="idt-loader-2" id="idt-loader-2">
-        <div class="i2-bg">
-          <span class="i2-blob i2-b1"></span>
-          <span class="i2-blob i2-b2"></span>
-          <span class="i2-blob i2-b3"></span>
-          <span class="i2-glow"></span>
-          <span class="i2-grid"></span>
-          <span class="i2-star i2-s1"></span><span class="i2-star i2-s2"></span>
-          <span class="i2-star i2-s3"></span><span class="i2-star i2-s4"></span>
-          <span class="i2-star i2-s5"></span><span class="i2-star i2-s6"></span>
-          <span class="i2-star i2-s7"></span><span class="i2-star i2-s8"></span>
-          <span class="i2-star i2-s9"></span><span class="i2-star i2-s10"></span>
-          <span class="i2-star i2-s11"></span><span class="i2-star i2-s12"></span>
-        </div>
-        <div class="i2-wrap">
-          <div class="i2-bookwrap">
-            <span class="i2-orbit"></span>
-            <div class="i2-book">
-              <div class="i2-cover i2-cl"><img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="i2-coverlogo"></div>
-              <div class="i2-cover i2-cr"><img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="i2-coverlogo i2-crlogo"></div>
-              <div class="i2-page i2-p1"><i></i><i></i><i></i><i></i></div>
-              <div class="i2-page i2-p2"><i></i><i></i><i></i></div>
-              <div class="i2-page i2-p3"><i></i><i></i></div>
-              <div class="i2-spine"></div>
-              <div class="i2-ribbon"></div>
-            </div>
-          </div>
-          <span class="i2-title">IDT <b>Academy</b></span>
-          <span class="i2-tagline">Learn Beyond Limits</span>
-          <div class="i2-loadbar"><span></span></div>
-          <p class="i2-status">Turning pages... <b id="i2num">0</b>%</p>
-        </div>
-      </div>
-      <style>
-        .idt-loader-2{position:fixed;inset:0;z-index:99999;background:#05060f;display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;transition:opacity .6s ease,visibility .6s ease;overflow:hidden;user-select:none}
-        .idt-loader-2.idt-hide{opacity:0;visibility:hidden;pointer-events:none}
-        .i2-bg{position:absolute;inset:0;overflow:hidden}
-        .i2-blob{position:absolute;border-radius:50%;filter:blur(75px);opacity:.5}
-        .i2-b1{width:420px;height:420px;left:-130px;top:-130px;background:#7c3aed;animation:i2drift1 14s ease-in-out infinite}
-        .i2-b2{width:380px;height:380px;right:-110px;top:18%;background:#0ea5e9;animation:i2drift2 17s ease-in-out infinite}
-        .i2-b3{width:320px;height:320px;left:32%;bottom:-150px;background:#f59e0b;opacity:.3;animation:i2drift3 19s ease-in-out infinite}
-        @keyframes i2drift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(90px,70px) scale(1.18)}}
-        @keyframes i2drift2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-80px,60px) scale(1.12)}}
-        @keyframes i2drift3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(60px,-70px) scale(1.2)}}
-        .i2-glow{position:absolute;left:50%;top:50%;width:620px;height:620px;transform:translate(-50%,-50%);border-radius:50%;background:conic-gradient(from 0deg,transparent,rgba(124,92,255,.22),transparent 30%,rgba(34,211,238,.18),transparent 60%,rgba(251,191,36,.16),transparent);filter:blur(55px);animation:i2spin 11s linear infinite}
-        .i2-grid{position:absolute;left:-60%;right:-60%;bottom:-8%;height:42%;background-image:linear-gradient(rgba(124,92,255,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(124,92,255,.16) 1px,transparent 1px);background-size:46px 46px;transform:perspective(420px) rotateX(60deg);transform-origin:bottom;animation:i2gridmove 3.4s linear infinite;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.9),transparent);mask-image:linear-gradient(to top,rgba(0,0,0,.9),transparent)}
-        @keyframes i2gridmove{to{background-position-y:46px}}
-        .i2-star{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;animation:i2twinkle 3.2s ease-in-out infinite}
-        .i2-s1{left:10%;top:16%}.i2-s2{left:82%;top:10%;animation-delay:.7s}.i2-s3{left:24%;top:78%;animation-delay:1.2s}
-        .i2-s4{left:70%;top:80%;animation-delay:1.8s}.i2-s5{left:45%;top:6%;animation-delay:.4s}.i2-s6{left:6%;top:48%;animation-delay:2.2s}
-        .i2-s7{left:92%;top:42%;animation-delay:1.5s}.i2-s8{left:58%;top:90%;animation-delay:.9s}.i2-s9{left:34%;top:24%;animation-delay:2.6s}
-        .i2-s10{left:66%;top:30%;animation-delay:.2s}.i2-s11{left:16%;top:60%;animation-delay:1.9s}.i2-s12{left:88%;top:66%;animation-delay:2.9s}
-        @keyframes i2twinkle{0%,100%{opacity:.15;transform:scale(.7)}50%{opacity:1;transform:scale(1.25)}}
-        .i2-wrap{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center}
-        .i2-bookwrap{position:relative;width:240px;height:240px;display:flex;align-items:center;justify-content:center}
-        .i2-orbit{position:absolute;left:50%;top:50%;width:226px;height:226px;margin:-113px 0 0 -113px;border:1px dashed rgba(167,139,250,.35);border-radius:50%;animation:i2spin 8s linear infinite;pointer-events:none}
-        .i2-orbit::before{content:"";position:absolute;top:-4px;left:50%;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#fbbf24;box-shadow:0 0 14px #fbbf24}
-        @keyframes i2spin{to{transform:rotate(360deg)}}
-        .i2-book{position:relative;width:180px;height:126px;perspective:800px;animation:i2float 3.6s ease-in-out infinite;filter:drop-shadow(0 24px 40px rgba(124,92,255,.3))}
-        @keyframes i2float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-        .i2-cover{position:absolute;top:0;width:50%;height:100%;background:linear-gradient(180deg,#8b5cf6,#6d28d9);box-shadow:0 14px 30px rgba(0,0,0,.35)}
-        .i2-cl{left:0;border-radius:6px 2px 2px 6px;transform-origin:right center;animation:i2sway 3.6s ease-in-out infinite;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#a78bfa 0%,#8b5cf6 45%,#6d28d9 100%)}
-        .i2-cr{right:0;border-radius:2px 6px 6px 2px;transform-origin:left center;background:linear-gradient(145deg,#7c3aed 0%,#6d28d9 50%,#4c1d95 100%);animation:i2sway 3.6s ease-in-out reverse;display:flex;align-items:center;justify-content:center}
-        @keyframes i2sway{0%,100%{transform:rotateY(0)}50%{transform:rotateY(16deg)}}
-        .i2-coverlogo{width:48px;height:48px;object-fit:contain;background:#fff;border-radius:50%;padding:7px;box-shadow:0 6px 18px rgba(0,0,0,.4),0 0 0 2px rgba(255,255,255,.25)}
-        .i2-crlogo{width:42px;height:42px;opacity:.85}
-        .i2-page{position:absolute;top:5px;left:50%;width:46%;height:92%;background:linear-gradient(180deg,#f8fafc,#e2e8f0);border-radius:2px 6px 6px 2px;transform-origin:left center;box-shadow:0 0 16px rgba(0,0,0,.3);display:flex;flex-direction:column;padding-top:8px}
-        .i2-page i{display:block;height:2px;border-radius:2px;background:#cbd5e1;margin:5px 10px}
-        .i2-page i:nth-child(2){width:78%;background:#c4b5fd}
-        .i2-page i:nth-child(3){width:60%}
-        .i2-page i:nth-child(4){width:86%;background:#a5f3fc}
-        .i2-p1{z-index:3;animation:i2flip 3.6s ease-in-out infinite}
-        .i2-p2{z-index:2;animation:i2flip 3.6s ease-in-out 1.2s infinite}
-        .i2-p3{z-index:1;animation:i2flip 3.6s ease-in-out 2.4s infinite}
-        @keyframes i2flip{0%{transform:rotateY(0)}40%{transform:rotateY(-160deg)}70%,100%{transform:rotateY(0)}}
-        .i2-spine{position:absolute;left:50%;top:0;bottom:0;width:9px;margin-left:-4.5px;background:linear-gradient(90deg,rgba(0,0,0,.45),rgba(0,0,0,.05) 50%,rgba(0,0,0,.45));border-radius:4px;z-index:4}
-        .i2-ribbon{position:absolute;left:50%;bottom:-24px;width:13px;height:24px;margin-left:-6.5px;background:linear-gradient(180deg,#fbbf24,#d97706);border-radius:0 0 7px 7px;transform-origin:top center;z-index:5;animation:i2dangle 3.6s ease-in-out infinite;box-shadow:0 6px 14px rgba(217,119,6,.45)}
-        @keyframes i2dangle{0%,100%{transform:rotate(0)}50%{transform:rotate(12deg)}}
-        .i2-title{margin-top:18px;font-size:27px;font-weight:800;letter-spacing:5px;text-transform:uppercase;background:linear-gradient(90deg,#f8fafc 0%,#a78bfa 30%,#22d3ee 55%,#fbbf24 80%,#f8fafc 100%);background-size:220% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;animation:i2shine 4s linear infinite}
-        .i2-title b{font-weight:900}
-        @keyframes i2shine{to{background-position:220% center}}
-        .i2-tagline{margin-top:9px;font-size:11px;letter-spacing:7px;color:#8b93c7;text-transform:uppercase}
-        .i2-loadbar{width:230px;height:4px;border-radius:4px;background:rgba(255,255,255,.09);margin-top:24px;overflow:hidden}
-        .i2-loadbar span{display:block;height:100%;width:100%;border-radius:4px;background:linear-gradient(90deg,#7c3aed,#22d3ee,#fbbf24);transform-origin:left;animation:i2fill 2.8s ease-in-out forwards}
-        @keyframes i2fill{0%{transform:scaleX(0)}100%{transform:scaleX(1)}}
-        .i2-status{margin-top:13px;font-size:12px;letter-spacing:3px;color:#94a3b8;text-transform:uppercase;animation:i2fade 2.4s ease-in-out infinite}
-        .i2-status b{color:#fbbf24}
-        @keyframes i2fade{0%,100%{opacity:.45}50%{opacity:1}}
-      </style>
-    `;
-    document.body.insertAdjacentHTML('beforeend', loaderHTML);
-  }
+  const loader = document.getElementById('idt-loader-2');
+  if (loader) loader.classList.remove('idt-hide');
   const n = document.getElementById('i2num');
   let c = 0;
   if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
   window.idtLoaderInterval = setInterval(() => {
-    c += 3;
-    if (n) n.textContent = String(c >= 100 ? 100 : c);
-    if (c >= 100) clearInterval(window.idtLoaderInterval);
+    c = Math.min(c + 3, 99);
+    if (n) n.textContent = String(c);
+    if (c >= 99) clearInterval(window.idtLoaderInterval);
   }, 84);
 }
 
 function hideLoading() {
   const l = document.getElementById('idt-loader-2');
   if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
+  const num = document.getElementById('i2num');
+  if (num) num.textContent = '100';
   if (l) l.classList.add('idt-hide');
   if (window.idtLoaderSafety) {
     clearTimeout(window.idtLoaderSafety);
@@ -123,6 +47,11 @@ function forceHideLoader() {
   window.idtLoaderHidden = true;
   hideLoading();
 }
+
+window.idtLoaderHidden = false;
+window.idtLoaderSafety = setTimeout(forceHideLoader, 6000);
+loadLateStyles();
+showLoading();
 
 const $ = (id) => document.getElementById(id);
 const PLACEHOLDER_IMG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="420"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c3aed"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs><rect width="600" height="420" fill="url(#g)"/><circle cx="300" cy="180" r="64" fill="rgba(255,255,255,.18)"/><text x="300" y="300" fill="#ffffff" font-family="Arial, sans-serif" font-size="34" font-weight="bold" text-anchor="middle">IDT Academy</text></svg>');
@@ -238,11 +167,15 @@ function cardHTML(course) {
   const shortDesc = desc.length > 110 ? desc.slice(0, 110) + '...' : desc;
   const isDiploma = String(course.category) === '4';
   const priceTag = isDiploma ? 'Per Year' : 'One-time';
+  const imgSrc = course.image_url || PLACEHOLDER_IMG;
+  const bgStyle = course.image_url ? ' style="--bg:url(\'' + escapeHtml(String(course.image_url).replace(/[\\'"()\s]/g, (ch) => '%' + ch.charCodeAt(0).toString(16).toUpperCase())) + '\')"' : '';
 
   return '<div class="course-card" data-id="' + escapeHtml(course.id) + '">' +
-    '<div class="c-img">' +
+    '<div class="c-img"' + bgStyle + '>' +
+      '<img src="' + escapeHtml(imgSrc) + '" alt="' + escapeHtml(course.course_name || 'Course') + '" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=\'' + PLACEHOLDER_IMG + '\'">' +
+    '</div>' +
+    '<div class="c-meta">' +
       '<span class="c-badge"><i class="fa-solid fa-layer-group"></i> ' + escapeHtml(catName) + '</span>' +
-      '<img src="' + escapeHtml(course.image_url || PLACEHOLDER_IMG) + '" alt="' + escapeHtml(course.course_name || 'Course') + '" loading="lazy" onerror="this.onerror=null;this.src=\'' + PLACEHOLDER_IMG + '\'">' +
       '<span class="c-num">#' + escapeHtml(course.course_number || '') + '</span>' +
     '</div>' +
     '<div class="c-body">' +
@@ -263,9 +196,6 @@ function cardHTML(course) {
 function injectAllEmptyBlock() {
   let el = $('allEmpty');
   if (el) return el;
-  const styleEl = document.createElement('style');
-  styleEl.textContent = '.all-empty{text-align:center;padding:56px 20px;background:#fff;border:2px dashed rgba(124,58,237,.25);border-radius:26px;margin:10px auto 60px;max-width:640px}.all-empty i{font-size:44px;color:#a78bfa;margin-bottom:14px}.all-empty h3{font-size:21px;font-weight:900;margin-bottom:8px}.all-empty p{color:#6d6a8a;font-size:14px;line-height:1.65}';
-  document.head.appendChild(styleEl);
   const head = document.querySelector('#courses .section-head') || document.body;
   el = document.createElement('div');
   el.id = 'allEmpty';
@@ -408,13 +338,7 @@ function setupRowInteractions() {
   });
 }
 
-function injectSearchStyles() {
-  if (document.getElementById('idt-search-style')) return;
-  const st = document.createElement('style');
-  st.id = 'idt-search-style';
-  st.textContent = '.course-search-wrap{position:relative;max-width:640px;margin:0 auto 40px;z-index:60;padding:0 8px}.course-search-box{display:flex;align-items:center;gap:12px;background:#fff;border:2px solid rgba(124,58,237,.18);border-radius:60px;padding:14px 22px;box-shadow:0 10px 30px rgba(76,29,149,.08);transition:border-color .25s ease,box-shadow .25s ease}.course-search-box:focus-within{border-color:#7c3aed;box-shadow:0 12px 34px rgba(124,58,237,.18)}.course-search-box .srch-ico{color:#a78bfa;font-size:17px;flex-shrink:0}.course-search-input{flex:1;border:none;outline:none;background:transparent;font-size:15px;font-weight:600;color:#2d2350;font-family:inherit;min-width:0}.course-search-input::placeholder{color:#a8a3c4;font-weight:500}.course-search-clear{display:none;align-items:center;justify-content:center;width:30px;height:30px;border:none;border-radius:50%;background:rgba(124,58,237,.1);color:#7c3aed;cursor:pointer;flex-shrink:0;transition:background .2s ease}.course-search-clear:hover{background:rgba(124,58,237,.2)}.course-search-clear.show{display:flex}.course-search-results{display:none;position:absolute;top:calc(100% + 10px);left:8px;right:8px;background:#fff;border:1px solid rgba(124,58,237,.14);border-radius:22px;box-shadow:0 24px 60px rgba(46,16,101,.16);overflow:hidden;max-height:420px;overflow-y:auto}.course-search-results.open{display:block;animation:csrIn .28s ease}@keyframes csrIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}.csr-item{display:flex;align-items:center;gap:14px;padding:13px 18px;cursor:pointer;transition:background .18s ease;border-bottom:1px solid rgba(124,58,237,.07)}.csr-item:last-child{border-bottom:none}.csr-item:hover{background:rgba(124,58,237,.06)}.csr-img{width:64px;height:48px;border-radius:12px;object-fit:cover;flex-shrink:0;background:#ede9fe}.csr-body{flex:1;min-width:0}.csr-body h5{font-size:14px;font-weight:800;color:#2d2350;margin:0 0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.csr-body span{font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px}.csr-price{font-size:13px;font-weight:800;color:#059669;flex-shrink:0;white-space:nowrap}.csr-arrow{color:#c4b5fd;flex-shrink:0}.csr-empty{padding:26px 20px;text-align:center;color:#8b84a8;font-size:14px;font-weight:600}.csr-empty i{display:block;font-size:26px;color:#c4b5fd;margin-bottom:8px}@media (max-width:640px){.course-search-box{padding:12px 16px}.csr-img{width:52px;height:40px}.course-search-results{max-height:340px}}';
-  document.head.appendChild(st);
-}
+function injectSearchStyles() {}
 
 function setupSearch() {
   injectSearchStyles();
@@ -612,9 +536,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const mStart = $('mStart');
   const refBannerClose = $('refBannerClose');
   const topbar = $('topbar');
-  showLoading();
-  window.idtLoaderHidden = false;
-  window.idtLoaderSafety = setTimeout(forceHideLoader, 4000);
   handleRefCode();
   loadCourses();
   setupSearch();
@@ -712,5 +633,999 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(maybeHideLoader, 500);
     setTimeout(forceHideLoader, 600);
   });
-  setTimeout(forceHideLoader, 5000);
 });
+
+
+(function () {
+  try {
+    var cu = window.location.href;
+    var c1 = document.querySelector('link[rel="canonical"]');
+    var c2 = document.querySelector('meta[property="og:url"]');
+    var c3 = document.querySelector('meta[name="twitter:url"]');
+    if (c1) c1.setAttribute('href', cu);
+    if (c2) c2.setAttribute('content', cu);
+    if (c3) c3.setAttribute('content', cu);
+  } catch (e) {}
+
+  function go() {
+    var br = document.querySelector('.topbar .brand');
+    if (!br) return;
+    br.addEventListener('click', function () { location.href = br.getAttribute('data-href') || 'index.html'; });
+    br.addEventListener('keydown', function (e) { if (e.key === 'Enter') location.href = br.getAttribute('data-href') || 'index.html'; });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go);
+  else go();
+})();
+
+(function () {
+  try {
+  (function () {
+    const APP_ICON = 'https://i.imgur.com/mgRKw4Q.png';
+    const LOGO = 'https://i.imgur.com/oyqM5oF.png';
+    const SW_URL = '/sw.js';
+    const HIDE_KEY = 'idt_pwa_installed';
+    let deferredPrompt = null;
+    let installBtn = null;
+
+    function isStandalone() {
+      return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    }
+
+    function isIos() {
+      return /iphone|ipad|ipod/i.test(window.navigator.userAgent) ||
+        (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+    }
+
+    function isAndroid() {
+      return /android/i.test(window.navigator.userAgent);
+    }
+
+    function isDesktop() {
+      return !isIos() && !isAndroid();
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register(SW_URL).catch(function () {});
+      });
+    }
+
+    function createButton() {
+      if (installBtn) return installBtn;
+      installBtn = document.createElement('button');
+      installBtn.className = 'idt-pwa-btn';
+      installBtn.type = 'button';
+      installBtn.setAttribute('aria-label', 'Install IDT Academy App');
+      installBtn.innerHTML = '<i class="fa-solid fa-mobile-screen-button"></i><span>Install App</span>';
+      installBtn.addEventListener('click', handleInstallClick);
+      var bb = document.getElementById('burgerBtn');
+      if (bb && bb.parentNode) {
+        bb.parentNode.insertBefore(installBtn, bb);
+      } else {
+        installBtn.classList.add('idt-pwa-float');
+        document.body.appendChild(installBtn);
+      }
+      return installBtn;
+    }
+
+    function showButton() {
+      if (isStandalone()) {
+        try { localStorage.setItem(HIDE_KEY, '1'); } catch (e) {}
+        return;
+      }
+      try {
+        if (localStorage.getItem(HIDE_KEY) === '1') return;
+      } catch (e) {}
+      createButton();
+      requestAnimationFrame(function () {
+        if (installBtn) installBtn.classList.remove('idt-pwa-hide');
+      });
+    }
+
+    function hideButton() {
+      if (installBtn) installBtn.classList.add('idt-pwa-hide');
+    }
+
+    function stepHtml(icon, title, text) {
+      return '<div class="idt-pwa-step"><i class="fa-solid ' + icon + '"></i><div><b>' + title + '</b><span>' + text + '</span></div></div>';
+    }
+
+    function createModal(kind) {
+      let back = document.querySelector('.idt-pwa-back');
+      if (back) back.remove();
+      back = document.createElement('div');
+      back.className = 'idt-pwa-back';
+
+      let bodyHtml = '';
+
+      if (kind === 'ios') {
+        bodyHtml =
+          stepHtml('fa-share-nodes', 'Step 1', 'Tap the Share button (the square with an arrow pointing up) at the bottom of Safari.') +
+          stepHtml('fa-plus', 'Step 2', 'Scroll down and tap "Add to Home Screen".') +
+          stepHtml('fa-circle-check', 'Step 3', 'Tap "Add". The IDT Academy app will appear on your home screen.');
+      } else if (kind === 'android') {
+        bodyHtml =
+          stepHtml('fa-bars', 'Step 1', 'Tap the three-dot menu (⋮) at the top right corner of your browser.') +
+          stepHtml('fa-mobile-screen', 'Step 2', 'Tap "Add to Home screen" or "Install app".') +
+          stepHtml('fa-circle-check', 'Step 3', 'Tap "Install". The IDT Academy app will appear on your home screen.');
+      } else {
+        bodyHtml =
+          stepHtml('fa-circle-down', 'Step 1', 'Look for the install icon (a screen with a down arrow) at the right side of your browser address bar and click it.') +
+          stepHtml('fa-bars', 'Step 2', 'Or open the browser menu (three dots) and click "Install IDT Academy" or "Save and install".') +
+          stepHtml('fa-circle-check', 'Step 3', 'The IDT Academy app will be installed on your device.');
+      }
+
+      back.innerHTML =
+        '<div class="idt-pwa-modal">' +
+        '<div class="idt-pwa-modal-head">' +
+        '<img src="' + LOGO + '" alt="IDT Academy">' +
+        '<div><b>Install IDT Academy App</b><small>Add the app to your device home screen</small></div>' +
+        '</div>' +
+        '<div class="idt-pwa-modal-body">' + bodyHtml + '</div>' +
+        '<div class="idt-pwa-modal-foot"><button type="button" class="idt-pwa-close-btn">Got It</button></div>' +
+        '</div>';
+
+      back.addEventListener('click', function (e) {
+        if (e.target === back) back.classList.remove('open');
+      });
+
+      const closeBtn = back.querySelector('.idt-pwa-close-btn');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', function () {
+          back.classList.remove('open');
+        });
+      }
+
+      document.body.appendChild(back);
+      return back;
+    }
+
+    function handleInstallClick() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function (choice) {
+          if (choice && choice.outcome === 'accepted') {
+            hideButton();
+          }
+          deferredPrompt = null;
+        }).catch(function () {
+          deferredPrompt = null;
+        });
+        return;
+      }
+      if (isIos()) {
+        createModal('ios').classList.add('open');
+      } else if (isAndroid()) {
+        createModal('android').classList.add('open');
+      } else if (isDesktop()) {
+        createModal('desktop').classList.add('open');
+      }
+    }
+
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      deferredPrompt = e;
+      showButton();
+    });
+
+    window.addEventListener('appinstalled', function () {
+      deferredPrompt = null;
+      hideButton();
+      try { localStorage.setItem(HIDE_KEY, '1'); } catch (e) {}
+    });
+
+    function boot() {
+      showButton();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+    }
+  })();
+  } catch (e) {}
+})();
+
+(function () {
+  try {
+  (function(){
+      var lab=document.getElementById('skLab'); if(!lab) return;
+      var tabs=[].slice.call(lab.querySelectorAll('.sk-tab')), ps=[].slice.call(lab.querySelectorAll('.sk-panel')), cur=0, idle=0;
+      function show(i){
+        cur=(i+tabs.length)%tabs.length;
+        ps.forEach(function(p,k){p.classList.toggle('on',k===cur);});
+        tabs.forEach(function(t,k){t.classList.remove('on');t.setAttribute('aria-selected',k===cur?'true':'false');});
+        void lab.offsetWidth; tabs[cur].classList.add('on');
+      }
+      lab.classList.add('js'); show(0);
+      function hold(ms){lab.classList.add('paused');clearTimeout(idle);idle=setTimeout(function(){lab.classList.remove('paused');show(cur);},ms);}
+      tabs.forEach(function(t,k){t.addEventListener('click',function(){show(k);hold(10000);});});
+      lab.addEventListener('animationend',function(e){if(e.animationName==='skProg'&&!lab.classList.contains('paused'))show(cur+1);});
+      lab.addEventListener('mouseenter',function(){lab.classList.add('paused');clearTimeout(idle);});
+      lab.addEventListener('mouseleave',function(){hold(1200);});
+      lab.addEventListener('touchstart',function(){hold(9000);},{passive:true});
+      if('IntersectionObserver' in window){new IntersectionObserver(function(en){en.forEach(function(x){if(x.isIntersecting){if(!lab.classList.contains('live')){lab.classList.add('live');show(cur);}}else{lab.classList.remove('live');}});},{threshold:0.25}).observe(lab);}else{lab.classList.add('live');}
+    })();
+  } catch (e) {}
+})();
+
+(function () {
+  try {
+  (function () {
+    var input = document.getElementById('idtSearchInput');
+    var resultsBox = document.getElementById('idtSearchResults');
+    var clearBtn = document.getElementById('idtSearchClear');
+    var timer = null;
+    if (!input || !resultsBox) return;
+
+    function allCards() {
+      return Array.prototype.slice.call(document.querySelectorAll('.course-card'));
+    }
+
+    function cardText(card) {
+      return (card.textContent || '').toLowerCase().replace(/\s+/g, ' ');
+    }
+
+    function courseName(card) {
+      var h = card.querySelector('h4');
+      return h ? h.textContent.trim() : 'Untitled Course';
+    }
+
+    function courseImg(card) {
+      var im = card.querySelector('img');
+      return im ? im.src : '';
+    }
+
+    function coursePrice(card) {
+      var b = card.querySelector('.c-price b');
+      return b ? b.textContent.trim() : '';
+    }
+
+    function highlight(card) {
+      card.style.transition = 'box-shadow .3s ease, transform .3s ease';
+      card.style.boxShadow = '0 0 0 3px #fbbf24, 0 24px 60px rgba(245,158,11,.4)';
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(function () {
+        card.style.boxShadow = '';
+      }, 2200);
+    }
+
+    function renderResults(query) {
+      var q = (query || '').trim().toLowerCase();
+      if (!q) {
+        resultsBox.style.display = 'none';
+        resultsBox.innerHTML = '';
+        return;
+      }
+      var cards = allCards();
+      if (!cards.length) {
+        resultsBox.innerHTML = '<div class="idt-sr-empty"><i class="fa-solid fa-hourglass-half"></i>Courses are still loading. Please wait a moment and try again.</div>';
+        resultsBox.style.display = 'block';
+        return;
+      }
+      var matches = cards.filter(function (c) {
+        return cardText(c).indexOf(q) !== -1;
+      }).slice(0, 8);
+
+      if (!matches.length) {
+        resultsBox.innerHTML = '<div class="idt-sr-empty"><i class="fa-solid fa-magnifying-glass-minus"></i>No courses found for "' + query.trim() + '". Try a different course name.</div>';
+        resultsBox.style.display = 'block';
+        return;
+      }
+
+      resultsBox.innerHTML = matches.map(function (c, i) {
+        return '<div class="idt-sr-item" data-idx="' + i + '">' +
+          '<img src="' + courseImg(c) + '" alt="" loading="lazy" decoding="async">' +
+          '<div class="idt-sr-mid"><h5>' + courseName(c) + '</h5><span>Course</span></div>' +
+          '<span class="idt-sr-price">' + coursePrice(c) + '</span>' +
+          '<i class="fa-solid fa-arrow-right"></i>' +
+        '</div>';
+      }).join('');
+      resultsBox.style.display = 'block';
+
+      Array.prototype.forEach.call(resultsBox.querySelectorAll('.idt-sr-item'), function (item) {
+        item.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          resultsBox.style.display = 'none';
+          input.value = '';
+          clearBtn.style.display = 'none';
+          var card = matches[Number(item.getAttribute('data-idx'))];
+          if (card) highlight(card);
+        });
+      });
+    }
+
+    input.addEventListener('input', function () {
+      clearBtn.style.display = input.value ? 'flex' : 'none';
+      clearTimeout(timer);
+      timer = setTimeout(function () { renderResults(input.value); }, 180);
+    });
+
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        resultsBox.style.display = 'none';
+        input.blur();
+      }
+    });
+
+    clearBtn.addEventListener('click', function () {
+      input.value = '';
+      clearBtn.style.display = 'none';
+      resultsBox.style.display = 'none';
+      input.focus();
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('#idtSearchArea')) {
+        resultsBox.style.display = 'none';
+      }
+    });
+  })();
+  } catch (e) {}
+})();
+
+(function () {
+  const PROMO_VIDEO = VIDEO_LINKS.promo;
+
+  const CATS = {
+    '1': 'Technology & Computing',
+    '2': 'Vocational & Agricultural',
+    '3': 'Health & Wellness',
+    '4': '2-Year Diploma'
+  };
+
+  const FALLBACK_POSTER = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4c1d95"/><stop offset="1" stop-color="#0e7490"/></linearGradient></defs><rect width="640" height="360" fill="url(#g)"/><text x="320" y="190" fill="#fff" font-family="Arial,sans-serif" font-size="30" font-weight="bold" text-anchor="middle">IDT Academy</text></svg>'
+  );
+
+  const $ = (id) => document.getElementById(id);
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  const fmtNaira = (n) => {
+    const v = Number(n);
+    return isNaN(v) ? '0' : v.toLocaleString('en-NG');
+  };
+
+  (function setDeviceClass() {
+    try {
+      const ua = navigator.userAgent || '';
+      const mob = /android|iphone|ipad|ipod|mobile/i.test(ua) || (window.matchMedia && matchMedia('(pointer:coarse) and (max-width:900px)').matches);
+      document.documentElement.classList.add(mob ? 'idt-mob' : 'idt-desk');
+      if (/android/i.test(ua)) document.documentElement.classList.add('idt-android');
+    } catch (e) {}
+  })();
+
+  function ytId(input) {
+    const s = String(input || '').trim();
+    if (!s) return '';
+    const ok = (v) => (/^[\w-]{11}$/.test(v || '') ? v : '');
+    if (ok(s)) return s;
+    try {
+      const u = new URL(/^https?:\/\//i.test(s) ? s : 'https://' + s);
+      const h = u.hostname.replace(/^(www|m|music)\./, '');
+      if (h === 'youtu.be') return ok(u.pathname.slice(1).split('/')[0]);
+      if (h.endsWith('youtube.com') || h.endsWith('youtube-nocookie.com')) {
+        const v = ok(u.searchParams.get('v'));
+        if (v) return v;
+        const m = u.pathname.match(/\/(embed|shorts|live|v)\/([\w-]{11})/);
+        if (m) return ok(m[2]);
+      }
+    } catch (e) {}
+    return '';
+  }
+
+  const posterUrl = (id, small) => 'https://i.ytimg.com/vi/' + id + (small ? '/mqdefault.jpg' : '/hqdefault.jpg');
+
+  function imgFallback(img) {
+    if (!img || String(img.src).indexOf('data:') === 0) return;
+    const m = /\/vi\/([\w-]{11})\//.exec(img.src);
+    if (m && !img.dataset.f && img.src.indexOf('mqdefault') === -1) {
+      img.dataset.f = '1';
+      img.src = 'https://i.ytimg.com/vi/' + m[1] + '/mqdefault.jpg';
+    } else {
+      img.src = FALLBACK_POSTER;
+    }
+  }
+
+  let ytPromise = null;
+
+  function loadYT() {
+    if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+    if (ytPromise) return ytPromise;
+    ytPromise = new Promise((resolve, reject) => {
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        try { if (typeof prev === 'function') prev(); } catch (e) {}
+        resolve(window.YT);
+      };
+      const s = document.createElement('script');
+      s.src = 'https://www.youtube.com/iframe_api';
+      s.async = true;
+      s.onerror = () => { ytPromise = null; reject(new Error('yt-load')); };
+      document.head.appendChild(s);
+      setTimeout(() => {
+        if (!(window.YT && window.YT.Player)) { ytPromise = null; reject(new Error('yt-timeout')); }
+      }, 15000);
+    });
+    return ytPromise;
+  }
+
+
+  let current = null;
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const p = document.querySelector('.vp.vp-pfs');
+      if (p) {
+        p.classList.remove('vp-pfs');
+        document.body.classList.remove('vp-lock');
+      }
+    }
+  });
+
+  function createPlayer(host, id, opts) {
+    opts = opts || {};
+    const vp = document.createElement('div');
+    vp.className = 'vp';
+    vp.innerHTML =
+      '<div class="vp-stage"></div>' +
+      '<div class="vp-shield"></div>' +
+      '<div class="vp-poster"><img alt="" decoding="async"><button type="button" class="vp-play" aria-label="Play video"><i class="fa-solid fa-play"></i></button></div>' +
+      '<span class="vp-brand"><i class="fa-solid fa-graduation-cap"></i> IDT ACADEMY</span>' +
+      '<div class="vp-bar">' +
+        '<button type="button" data-a="toggle" aria-label="Pause"><i class="fa-solid fa-pause"></i></button>' +
+        '<button type="button" data-a="mute" aria-label="Mute"><i class="fa-solid fa-volume-high"></i></button>' +
+        '<span class="vp-spacer"></span>' +
+        '<button type="button" data-a="fs" aria-label="Fullscreen"><i class="fa-solid fa-expand"></i></button>' +
+      '</div>' +
+      '<div class="vp-msg" hidden></div>';
+    const stage = vp.querySelector('.vp-stage');
+    const mount = document.createElement('div');
+    stage.appendChild(mount);
+    const img = vp.querySelector('.vp-poster img');
+    img.onerror = function () { imgFallback(this); };
+    img.src = posterUrl(id);
+    host.appendChild(vp);
+
+    let player = null;
+    let ready = false;
+    let wantPlay = false;
+    let playing = false;
+    let destroyed = false;
+    const msg = vp.querySelector('.vp-msg');
+    const showMsg = (t) => { msg.textContent = t; msg.hidden = false; };
+
+    function setIcons() {
+      const t = vp.querySelector('[data-a="toggle"] i');
+      if (t) t.className = 'fa-solid ' + (playing ? 'fa-pause' : 'fa-play');
+      const m = vp.querySelector('[data-a="mute"] i');
+      if (m && player && ready) {
+        let mu = false;
+        try { mu = player.isMuted(); } catch (e) {}
+        m.className = 'fa-solid ' + (mu ? 'fa-volume-xmark' : 'fa-volume-high');
+      }
+    }
+
+    function onState(e) {
+      if (destroyed || !window.YT) return;
+      const S = window.YT.PlayerState;
+      if (e.data === S.PLAYING) {
+        playing = true;
+        vp.classList.add('playing');
+      } else if (e.data === S.PAUSED) {
+        playing = false;
+        vp.classList.remove('playing');
+      } else if (e.data === S.ENDED) {
+        playing = false;
+        vp.classList.remove('playing');
+        try { player.seekTo(0, true); player.pauseVideo(); } catch (er) {}
+      }
+      setIcons();
+    }
+
+    async function init() {
+      if (player || destroyed) return;
+      try {
+        const YT = await loadYT();
+        if (destroyed) return;
+        const vars = { controls: 0, modestbranding: 1, rel: 0, fs: 0, iv_load_policy: 3, playsinline: 1, disablekb: 1, cc_load_policy: 0 };
+        if (/^https?:$/.test(location.protocol)) vars.origin = location.origin;
+        player = new YT.Player(mount, {
+          host: 'https://www.youtube-nocookie.com',
+          videoId: id,
+          width: '100%',
+          height: '100%',
+          playerVars: vars,
+          events: {
+            onReady: () => {
+              ready = true;
+              if (wantPlay) { try { player.playVideo(); } catch (e) {} }
+            },
+            onStateChange: onState,
+            onError: () => {
+              playing = false;
+              vp.classList.remove('playing');
+              showMsg('This video is not available right now.');
+            }
+          }
+        });
+      } catch (e) {
+        if (destroyed) return;
+        const sh = vp.querySelector('.vp-shield');
+        const br = vp.querySelector('.vp-bar');
+        if (sh) sh.remove();
+        if (br) br.remove();
+        stage.innerHTML = '<div class="vp-fb"><iframe src="https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0&modestbranding=1&playsinline=1&fs=0" sandbox="allow-scripts allow-same-origin" allow="autoplay; encrypted-media" title="Video"></iframe></div>';
+        vp.classList.add('playing');
+        const ps = vp.querySelector('.vp-poster');
+        if (ps) ps.style.display = 'none';
+      }
+    }
+
+    const api = {
+      el: vp,
+      play() {
+        if (destroyed) return;
+        msg.hidden = true;
+        if (current && current !== api) current.pause();
+        current = api;
+        wantPlay = true;
+        if (!player) init();
+        else if (ready) { try { player.playVideo(); } catch (e) {} }
+      },
+      pause() {
+        wantPlay = false;
+        if (player && ready) { try { player.pauseVideo(); } catch (e) {} }
+      },
+      destroy() {
+        destroyed = true;
+        wantPlay = false;
+        if (current === api) current = null;
+        try { if (player) player.destroy(); } catch (e) {}
+        vp.classList.remove('vp-pfs');
+        document.body.classList.remove('vp-lock');
+        if (vp.parentNode) vp.parentNode.removeChild(vp);
+      }
+    };
+
+    function toggle() {
+      if (playing) api.pause();
+      else api.play();
+    }
+
+    function pfs() {
+      vp.classList.add('vp-pfs');
+      document.body.classList.add('vp-lock');
+    }
+
+    function fs() {
+      const d = document;
+      if (d.fullscreenElement || d.webkitFullscreenElement) {
+        (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+        return;
+      }
+      if (vp.classList.contains('vp-pfs')) {
+        vp.classList.remove('vp-pfs');
+        document.body.classList.remove('vp-lock');
+        return;
+      }
+      const rq = vp.requestFullscreen || vp.webkitRequestFullscreen;
+      if (rq) {
+        try {
+          const r = rq.call(vp);
+          if (r && r.catch) r.catch(pfs);
+          return;
+        } catch (e) {}
+      }
+      pfs();
+    }
+
+    vp.querySelector('.vp-poster').addEventListener('pointerdown', () => { loadYT().catch(() => {}); }, { once: true });
+    vp.querySelector('.vp-poster').addEventListener('click', () => api.play());
+    vp.querySelector('.vp-shield').addEventListener('click', toggle);
+    vp.querySelector('.vp-bar').addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      const a = b.dataset.a;
+      if (a === 'toggle') toggle();
+      else if (a === 'fs') fs();
+      else if (a === 'mute' && player && ready) {
+        try {
+          if (player.isMuted()) player.unMute();
+          else player.mute();
+        } catch (er) {}
+        setIcons();
+      }
+    });
+    if (opts.autoplay) api.play();
+    return api;
+  }
+
+  let coursesP = null;
+
+  function getCourses() {
+    if (!coursesP) {
+      coursesP = new Promise((resolve) => {
+        let n = 0;
+        const t = setInterval(() => {
+          n++;
+          if (coursesDone || n > 40) {
+            clearInterval(t);
+            resolve(allCourses.slice());
+          }
+        }, 200);
+      });
+    }
+    return coursesP;
+  }
+
+  function registerUrl(course, row) {
+    return buildRegisterUrl(course || { id: row.course_id, course_name: row.course_name, price: row.price });
+  }
+
+  function lazyPlayer(host, sec, url) {
+    const id = ytId(url);
+    if (!host || !id) {
+      if (sec) sec.hidden = true;
+      return;
+    }
+    if (sec) sec.hidden = false;
+    function go() {
+      if (host.dataset.on) return;
+      host.dataset.on = '1';
+      try { createPlayer(host, id); } catch (e) { if (sec) sec.hidden = true; }
+    }
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver((en, ob) => {
+        if (en.some((x) => x.isIntersecting)) {
+          go();
+          ob.disconnect();
+        }
+      }, { rootMargin: '400px' }).observe(sec || host);
+    } else {
+      go();
+    }
+  }
+
+  function later(fn) {
+    const run = () => {
+      if ('requestIdleCallback' in window) requestIdleCallback(fn, { timeout: 2500 });
+      else setTimeout(fn, 800);
+    };
+    if (document.readyState === 'complete') run();
+    else window.addEventListener('load', run);
+  }
+
+  async function initPreviews() {
+    const sec = $('previews');
+    const scroller = $('pvScroller');
+    if (!sec || !scroller) return;
+
+    let rows = [];
+    let courses = [];
+    try {
+      const [vr, cs] = await Promise.all([
+        supabase.from('video_previews').select('*').order('created_at', { ascending: false }).limit(200),
+        getCourses()
+      ]);
+      if (vr.error) throw vr.error;
+      rows = (vr.data || []).filter((r) => ytId(r.video_url));
+      courses = cs || [];
+    } catch (e) {
+      return;
+    }
+    if (!rows.length) return;
+
+    const byId = new Map(courses.map((c) => [String(c.id), c]));
+    rows = rows.map((r) => {
+      const c = byId.get(String(r.course_id)) || null;
+      if (courses.length && !c) return null;
+      return Object.assign({}, r, {
+        course: c,
+        course_name: (c && c.course_name) || r.course_name || '',
+        category: String((c && c.category) || r.category || '1'),
+        price: c ? Number(c.price) || 0 : Number(r.price) || 0
+      });
+    }).filter(Boolean);
+    if (!rows.length) return;
+
+    const order = new Map();
+    rows.forEach((r) => { if (!order.has(r.course_id)) order.set(r.course_id, order.size); });
+    const rank = (r) => (r.kind === 'overview' ? 0 : Number(r.slot) || 9);
+    rows.sort((a, b) => (order.get(a.course_id) - order.get(b.course_id)) || (rank(a) - rank(b)));
+    rows.forEach((r, i) => { r._i = i; });
+
+    const present = ['1', '2', '3', '4'].filter((c) => rows.some((r) => r.category === c));
+    const chips = $('pvChips');
+    if (chips) {
+      chips.innerHTML = present.length > 1
+        ? '<button type="button" class="pv-chip on" data-c="all">All</button>' + present.map((c) => '<button type="button" class="pv-chip" data-c="' + c + '">' + esc(CATS[c]) + '</button>').join('')
+        : '';
+    }
+
+    function cardHtml(r) {
+      const id = ytId(r.video_url);
+      const ov = r.kind === 'overview';
+      const title = ov ? (r.course_name || 'Course') + ' — Overview' : (r.topic_name || r.course_name || 'Lesson');
+      const price = Number(r.price) > 0 ? '<span class="pv-price">₦' + fmtNaira(r.price) + '</span>' : '';
+      return '<article class="pv-card' + (ov ? ' pv-ov' : '') + '" data-i="' + r._i + '" tabindex="0" role="button" aria-label="Play: ' + esc(title) + '">' +
+        '<div class="pv-thumb"><img src="' + posterUrl(id, true) + '" alt="" width="320" height="180" loading="lazy" decoding="async">' +
+        '<span class="pv-badge"><i class="fa-solid ' + (ov ? 'fa-bullseye' : 'fa-circle-play') + '"></i> ' + (ov ? 'What you will learn' : 'Preview ' + (Number(r.slot) || '')) + '</span>' + price +
+        '<span class="pv-pl"><i class="fa-solid fa-play"></i></span></div>' +
+        '<div class="pv-body"><h4>' + esc(title) + '</h4><p><i class="fa-solid fa-book-open"></i> ' + esc(r.course_name || '') + '</p></div></article>';
+    }
+
+    const eng = {
+      pos: 0,
+      half: 0,
+      paused: false,
+      hover: false,
+      visible: false,
+      last: 0,
+      raf: 0,
+      idle: 0,
+      reduce: !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)
+    };
+    const SPEED = 0.042;
+
+    function setup() {
+      eng.half = 0;
+      scroller.classList.remove('static');
+      scroller.scrollLeft = 0;
+      const track = scroller.querySelector('.pv-track');
+      if (!track || !track.children.length) return;
+      const n = track.children.length;
+      if (n < 2 || track.scrollWidth <= scroller.clientWidth * 1.05) {
+        scroller.classList.add('static');
+        return;
+      }
+      const orig = Array.from(track.children);
+      for (let k = 0; k < 2; k++) {
+        orig.forEach((el) => {
+          const c = el.cloneNode(true);
+          c.setAttribute('aria-hidden', 'true');
+          c.tabIndex = -1;
+          track.appendChild(c);
+        });
+      }
+      eng.half = track.children[n].offsetLeft - track.children[0].offsetLeft;
+      eng.pos = eng.half;
+      scroller.scrollLeft = eng.pos;
+    }
+
+    function render(cat) {
+      const list = cat === 'all' ? rows : rows.filter((r) => r.category === cat);
+      scroller.innerHTML = '<div class="pv-track">' + list.map(cardHtml).join('') + '</div>';
+      setup();
+    }
+
+    function step(t) {
+      eng.raf = requestAnimationFrame(step);
+      if (!eng.last) eng.last = t;
+      const dt = Math.min(t - eng.last, 64);
+      eng.last = t;
+      if (eng.paused || eng.reduce || !eng.half || document.hidden) return;
+      if (Math.abs(scroller.scrollLeft - eng.pos) > 3) eng.pos = scroller.scrollLeft;
+      eng.pos += SPEED * dt;
+      if (eng.pos >= eng.half * 2) eng.pos -= eng.half;
+      scroller.scrollLeft = eng.pos;
+    }
+
+    function startLoop() {
+      if (!eng.raf) {
+        eng.last = 0;
+        eng.raf = requestAnimationFrame(step);
+      }
+    }
+
+    function stopLoop() {
+      if (eng.raf) {
+        cancelAnimationFrame(eng.raf);
+        eng.raf = 0;
+      }
+    }
+
+    function hold(ms) {
+      eng.paused = true;
+      clearTimeout(eng.idle);
+      if (!eng.hover) eng.idle = setTimeout(() => { eng.paused = false; }, ms);
+    }
+
+    scroller.addEventListener('error', (e) => {
+      if (e.target && e.target.tagName === 'IMG') imgFallback(e.target);
+    }, true);
+
+    scroller.addEventListener('scroll', () => {
+      if (!eng.half) return;
+      const x = scroller.scrollLeft;
+      if (x >= eng.half * 2) {
+        scroller.scrollLeft = x - eng.half;
+        eng.pos = scroller.scrollLeft;
+      } else if (x < eng.half - 3) {
+        scroller.scrollLeft = x + eng.half;
+        eng.pos = scroller.scrollLeft;
+      }
+    }, { passive: true });
+
+    scroller.addEventListener('mouseenter', () => { eng.hover = true; eng.paused = true; });
+    scroller.addEventListener('mouseleave', () => { eng.hover = false; hold(700); });
+    ['touchstart', 'wheel', 'focusin'].forEach((ev) => scroller.addEventListener(ev, () => hold(2600), { passive: true }));
+
+    let drag = null;
+    let moved = false;
+    scroller.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      drag = { x: e.clientX, s: scroller.scrollLeft };
+      moved = false;
+      hold(2600);
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x;
+      if (Math.abs(dx) > 6) moved = true;
+      if (moved) scroller.scrollLeft = drag.s - dx;
+    });
+    window.addEventListener('pointerup', () => { drag = null; });
+
+    scroller.addEventListener('click', (e) => {
+      if (moved) {
+        moved = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      const card = e.target.closest('.pv-card');
+      if (!card) return;
+      const r = rows[Number(card.dataset.i)];
+      if (r) openModal(r);
+    });
+
+    scroller.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const card = e.target.closest('.pv-card');
+      if (!card) return;
+      e.preventDefault();
+      const r = rows[Number(card.dataset.i)];
+      if (r) openModal(r);
+    });
+
+    sec.querySelectorAll('.pv-arrow').forEach((b) => b.addEventListener('click', () => {
+      hold(3200);
+      scroller.scrollBy({ left: Number(b.dataset.d) * 320, behavior: 'smooth' });
+    }));
+
+    if (chips) {
+      chips.addEventListener('click', (e) => {
+        const b = e.target.closest('.pv-chip');
+        if (!b) return;
+        chips.querySelectorAll('.pv-chip').forEach((x) => x.classList.toggle('on', x === b));
+        render(b.dataset.c);
+      });
+    }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver((en) => {
+        en.forEach((x) => {
+          eng.visible = x.isIntersecting;
+          if (x.isIntersecting) startLoop();
+          else stopLoop();
+        });
+      }, { threshold: 0.1 }).observe(sec);
+    } else {
+      startLoop();
+    }
+
+    let lastW = window.innerWidth;
+    let rt = 0;
+    window.addEventListener('resize', () => {
+      clearTimeout(rt);
+      rt = setTimeout(() => {
+        if (window.innerWidth !== lastW) {
+          lastW = window.innerWidth;
+          const on = chips && chips.querySelector('.pv-chip.on');
+          render(on ? on.dataset.c : 'all');
+        }
+      }, 250);
+    });
+
+    let modal = null;
+    let mp = null;
+
+    function ensureModal() {
+      if (modal) return modal;
+      modal = document.createElement('div');
+      modal.className = 'pv-modal';
+      modal.innerHTML = '<div class="pv-sheet" role="dialog" aria-modal="true"><button type="button" class="pv-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>' +
+        '<div class="pv-player"></div><div class="pv-info"><span class="pv-tag"></span><h3></h3><p class="pv-sub"></p><div class="pv-cta"></div></div></div>';
+      document.body.appendChild(modal);
+      modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+      modal.querySelector('.pv-x').addEventListener('click', closeModal);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('open') && !document.querySelector('.vp.vp-pfs')) closeModal();
+      });
+      return modal;
+    }
+
+    function closeModal() {
+      if (!modal) return;
+      modal.classList.remove('open');
+      if (mp) {
+        mp.destroy();
+        mp = null;
+      }
+      document.body.style.overflow = '';
+    }
+
+    function openModal(r) {
+      const m = ensureModal();
+      if (mp) {
+        mp.destroy();
+        mp = null;
+      }
+      const ov = r.kind === 'overview';
+      m.querySelector('.pv-tag').textContent = ov ? 'Course Overview' : 'Lesson Preview';
+      m.querySelector('h3').textContent = ov ? (r.course_name || 'Course') : (r.topic_name || r.course_name || 'Lesson');
+      m.querySelector('.pv-sub').textContent = ov ? 'See exactly what you will learn before you pay.' : (r.course_name || '');
+      const cta = m.querySelector('.pv-cta');
+      const price = Number(r.price) || 0;
+      cta.innerHTML = (r.course || price > 0)
+        ? (price > 0 ? '<div class="pv-cprice"><small>Course price</small><b>₦' + fmtNaira(price) + '</b></div>' : '') +
+          '<a class="btn btn-primary" href="' + esc(registerUrl(r.course, r)) + '"><i class="fa-solid fa-rocket"></i> Start This Course</a>'
+        : '';
+      m.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      mp = createPlayer(m.querySelector('.pv-player'), ytId(r.video_url), { autoplay: true });
+    }
+
+    render('all');
+    sec.hidden = false;
+    requestAnimationFrame(() => {
+      const on = chips && chips.querySelector('.pv-chip.on');
+      render(on ? on.dataset.c : 'all');
+    });
+  }
+
+  function initCertZoom() {
+    let lb = null;
+    document.addEventListener('click', (e) => {
+      const im = e.target.closest('.cx-frame img');
+      if (!im) return;
+      if (!lb) {
+        lb = document.createElement('div');
+        lb.className = 'lb';
+        lb.innerHTML = '<button type="button" class="lb-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button><img alt="">';
+        document.body.appendChild(lb);
+        lb.addEventListener('click', () => {
+          lb.classList.remove('open');
+          document.body.style.overflow = '';
+        });
+      }
+      const target = lb.querySelector('img');
+      target.src = im.currentSrc || im.src;
+      target.alt = im.alt || 'Certificate';
+      lb.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && lb && lb.classList.contains('open')) {
+        lb.classList.remove('open');
+        document.body.style.overflow = '';
+      }
+    });
+  }
+
+  function boot() {
+    try { lazyPlayer($('promoVideoHost'), $('promoVideo'), PROMO_VIDEO); } catch (e) {}
+    try { lazyPlayer($('cnHost'), $('cnSec'), VIDEO_LINKS.teaching); } catch (e) {}
+    try { lazyPlayer($('bbHost'), $('bbSec'), VIDEO_LINKS.orientation); } catch (e) {}
+    try { later(initPreviews); } catch (e) {}
+    try { initCertZoom(); } catch (e) {}
+  }
+
+  boot();
+})();
