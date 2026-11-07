@@ -36,16 +36,17 @@
 <meta name="twitter:description" content="Master software development, AI engineering, and modern tech skills with practical courses, specialized AI tutoring, and expert guidance.">
 <meta name="twitter:image" content="https://i.imgur.com/6d3nVQX.jpeg">
 
-
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link rel="stylesheet" href="index.css?v=6">
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="modulepreload" href="index.js?v=8">
+<link rel="stylesheet" href="index.css?v=8">
+<script type="module" src="index.js?v=8"></script>
 <link rel="preconnect" href="https://i.imgur.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    
-    
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="dns-prefetch" href="https://i.ytimg.com">
+<noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"></noscript>
+
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#7c3aed">       
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -53,239 +54,46 @@
         
     <link rel="apple-touch-icon" href="https://i.imgur.com/mgRKw4Q.png">
     <link rel="icon" type="image/png" href="https://i.imgur.com/mgRKw4Q.png">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    
-      
 
-<script>
-        (function () {
-  const APP_ICON = 'https://i.imgur.com/mgRKw4Q.png';
-  const LOGO = 'https://i.imgur.com/oyqM5oF.png';
-  const SW_URL = '/sw.js';
-  const HIDE_KEY = 'idt_pwa_installed';
-  let deferredPrompt = null;
-  let installBtn = null;
-
-  function isStandalone() {
-    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-  }
-
-  function isIos() {
-    return /iphone|ipad|ipod/i.test(window.navigator.userAgent) ||
-      (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
-  }
-
-  function isAndroid() {
-    return /android/i.test(window.navigator.userAgent);
-  }
-
-  function isDesktop() {
-    return !isIos() && !isAndroid();
-  }
-
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register(SW_URL).catch(function () {});
-    });
-  }
-
-  function createButton() {
-    if (installBtn) return installBtn;
-    installBtn = document.createElement('button');
-    installBtn.className = 'idt-pwa-btn';
-    installBtn.type = 'button';
-    installBtn.setAttribute('aria-label', 'Install IDT Academy App');
-    installBtn.innerHTML = '<i class="fa-solid fa-mobile-screen-button"></i><span>Install App</span>';
-    installBtn.addEventListener('click', handleInstallClick);
-    var bb = document.getElementById('burgerBtn');
-    if (bb && bb.parentNode) {
-      bb.parentNode.insertBefore(installBtn, bb);
-    } else {
-      installBtn.classList.add('idt-pwa-float');
-      document.body.appendChild(installBtn);
-    }
-    return installBtn;
-  }
-
-  function showButton() {
-    if (isStandalone()) {
-      try { localStorage.setItem(HIDE_KEY, '1'); } catch (e) {}
-      return;
-    }
-    try {
-      if (localStorage.getItem(HIDE_KEY) === '1') return;
-    } catch (e) {}
-    createButton();
-    requestAnimationFrame(function () {
-      if (installBtn) installBtn.classList.remove('idt-pwa-hide');
-    });
-  }
-
-  function hideButton() {
-    if (installBtn) installBtn.classList.add('idt-pwa-hide');
-  }
-
-  function stepHtml(icon, title, text) {
-    return '<div class="idt-pwa-step"><i class="fa-solid ' + icon + '"></i><div><b>' + title + '</b><span>' + text + '</span></div></div>';
-  }
-
-  function createModal(kind) {
-    let back = document.querySelector('.idt-pwa-back');
-    if (back) back.remove();
-    back = document.createElement('div');
-    back.className = 'idt-pwa-back';
-
-    let bodyHtml = '';
-
-    if (kind === 'ios') {
-      bodyHtml =
-        stepHtml('fa-share-nodes', 'Step 1', 'Tap the Share button (the square with an arrow pointing up) at the bottom of Safari.') +
-        stepHtml('fa-plus', 'Step 2', 'Scroll down and tap "Add to Home Screen".') +
-        stepHtml('fa-circle-check', 'Step 3', 'Tap "Add". The IDT Academy app will appear on your home screen.');
-    } else if (kind === 'android') {
-      bodyHtml =
-        stepHtml('fa-bars', 'Step 1', 'Tap the three-dot menu (⋮) at the top right corner of your browser.') +
-        stepHtml('fa-mobile-screen', 'Step 2', 'Tap "Add to Home screen" or "Install app".') +
-        stepHtml('fa-circle-check', 'Step 3', 'Tap "Install". The IDT Academy app will appear on your home screen.');
-    } else {
-      bodyHtml =
-        stepHtml('fa-circle-down', 'Step 1', 'Look for the install icon (a screen with a down arrow) at the right side of your browser address bar and click it.') +
-        stepHtml('fa-bars', 'Step 2', 'Or open the browser menu (three dots) and click "Install IDT Academy" or "Save and install".') +
-        stepHtml('fa-circle-check', 'Step 3', 'The IDT Academy app will be installed on your device.');
-    }
-
-    back.innerHTML =
-      '<div class="idt-pwa-modal">' +
-      '<div class="idt-pwa-modal-head">' +
-      '<img src="' + LOGO + '" alt="IDT Academy">' +
-      '<div><b>Install IDT Academy App</b><small>Add the app to your device home screen</small></div>' +
-      '</div>' +
-      '<div class="idt-pwa-modal-body">' + bodyHtml + '</div>' +
-      '<div class="idt-pwa-modal-foot"><button type="button" class="idt-pwa-close-btn">Got It</button></div>' +
-      '</div>';
-
-    back.addEventListener('click', function (e) {
-      if (e.target === back) back.classList.remove('open');
-    });
-
-    const closeBtn = back.querySelector('.idt-pwa-close-btn');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', function () {
-        back.classList.remove('open');
-      });
-    }
-
-    document.body.appendChild(back);
-    return back;
-  }
-
-  function handleInstallClick() {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then(function (choice) {
-        if (choice && choice.outcome === 'accepted') {
-          hideButton();
-        }
-        deferredPrompt = null;
-      }).catch(function () {
-        deferredPrompt = null;
-      });
-      return;
-    }
-    if (isIos()) {
-      createModal('ios').classList.add('open');
-    } else if (isAndroid()) {
-      createModal('android').classList.add('open');
-    } else if (isDesktop()) {
-      createModal('desktop').classList.add('open');
-    }
-  }
-
-  window.addEventListener('beforeinstallprompt', function (e) {
-    e.preventDefault();
-    deferredPrompt = e;
-    showButton();
-  });
-
-  window.addEventListener('appinstalled', function () {
-    deferredPrompt = null;
-    hideButton();
-    try { localStorage.setItem(HIDE_KEY, '1'); } catch (e) {}
-  });
-
-  function boot() {
-    showButton();
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
-})();
-    </script>
-
-    
-    
-
- 
-<script>
-/* safety: if a script fails, never leave the page invisible */
-setTimeout(function(){document.documentElement.classList.add('ready')},3500);
-</script>
-<noscript><style>html{opacity:1 !important}</style></noscript>
-<style id="idt-vid">
-/* ===== Ad video : cinema screening ===== */
-.cn{position:relative;padding:84px 0 92px;overflow:hidden;color:#fff;background:radial-gradient(900px 520px at 50% -12%,rgba(251,113,133,.38),transparent 65%),linear-gradient(180deg,#1a0508,#2b0a12 55%,#12040a)}
-.cn::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 14px,rgba(0,0,0,.2) 14px 28px);pointer-events:none}
-.cn-rays{position:absolute;left:50%;top:-30px;width:980px;max-width:140vw;height:560px;transform:translateX(-50%);background:conic-gradient(from 150deg at 50% 0,transparent 0,rgba(255,236,179,.26) 30deg,transparent 60deg);-webkit-mask-image:linear-gradient(#000,transparent);mask-image:linear-gradient(#000,transparent);pointer-events:none}
-.cn-in{position:relative;z-index:2;width:min(1100px,92%);margin:0 auto;text-align:center}
-.cn-live{display:inline-flex;align-items:center;gap:9px;background:#e11d48;font:800 11px/1 'Courier New',monospace;letter-spacing:2.4px;padding:9px 15px;border-radius:6px;box-shadow:0 0 30px rgba(225,29,72,.6)}
-.cn-live::before{content:"";width:8px;height:8px;border-radius:50%;background:#fff;animation:cnBlink 1.1s steps(1) infinite}
-@keyframes cnBlink{50%{opacity:.15}}
-.cn h2{font-size:clamp(27px,4.6vw,46px);font-weight:900;line-height:1.15;margin:16px 0 10px}
-.cn h2 span{background:linear-gradient(90deg,#fde68a,#fb7185);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.cn-sub{max-width:660px;margin:0 auto;color:#f3c9d2;font-size:14.5px;line-height:1.8}
-.cn-frame{position:relative;margin:34px auto 0;padding:26px 46px;max-width:960px;background:#0a0a0a;border-radius:14px;box-shadow:0 0 0 3px #4a1220,0 46px 90px rgba(0,0,0,.65),0 0 90px rgba(251,113,133,.18)}
-.cn-frame::before,.cn-frame::after{content:"";position:absolute;top:12px;bottom:12px;width:22px;background:radial-gradient(circle,#f5e6c8 0 4.5px,transparent 5px) 50% 0/22px 30px repeat-y;opacity:.85}
-.cn-frame::before{left:10px}.cn-frame::after{right:10px}
-.cn-screen{border-radius:6px;overflow:hidden;box-shadow:0 0 0 2px #2a2a2a,0 0 70px rgba(251,113,133,.28)}
-.cn-meta{display:flex;flex-wrap:wrap;justify-content:center;gap:11px;margin-top:26px}
-.cn-meta span{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:800;padding:10px 16px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#ffe4ea}
-.cn-meta i{color:#fbbf24}
-.cn-btn{display:inline-flex;align-items:center;gap:10px;margin-top:24px;padding:15px 28px;border-radius:12px;font-size:14px;font-weight:900;color:#3b0d17;background:linear-gradient(135deg,#fde68a,#f59e0b);box-shadow:0 16px 34px rgba(245,158,11,.4);transition:transform .25s}
-.cn-btn:hover{transform:translateY(-4px)}
-@media(max-width:640px){.cn{padding:56px 0 62px}.cn-frame{padding:12px 12px 14px;border-radius:12px}.cn-frame::before,.cn-frame::after{display:none}}
-/* ===== Orientation video : classroom blackboard ===== */
-.bb{position:relative;padding:86px 0 70px;overflow:hidden;background:#e7d5b3 repeating-linear-gradient(90deg,rgba(90,55,20,.06) 0 3px,transparent 3px 11px)}
-.bb-board{position:relative;width:min(1120px,92%);margin:0 auto;border:16px solid #7a4a21;border-radius:10px;background:radial-gradient(ellipse at 28% 18%,#33664d,#1f4132 72%);box-shadow:inset 0 0 70px rgba(0,0,0,.55),0 0 0 3px #4d2d12,0 34px 60px rgba(60,30,10,.45);padding:36px;display:grid;grid-template-columns:.85fr 1.15fr;gap:36px;align-items:center;color:#f5f5dc;font-family:'Segoe Print','Bradley Hand','Comic Sans MS','Chalkboard SE',cursive}
-.bb-board::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 70% 90%,rgba(255,255,255,.09),transparent 55%),radial-gradient(ellipse at 10% 60%,rgba(255,255,255,.05),transparent 50%);pointer-events:none}
-.bb-tag{display:inline-block;font-size:13px;letter-spacing:2px;text-transform:uppercase;border:2px dashed rgba(245,245,220,.7);padding:6px 14px;border-radius:6px;transform:rotate(-2deg)}
-.bb-txt h2{font-size:clamp(27px,4vw,42px);line-height:1.15;margin:16px 0 8px;font-weight:700;color:#fff;text-shadow:0 0 1px #fff,0 0 8px rgba(255,255,255,.25)}
-.bb-txt h2 u{text-decoration:none;display:inline-block;background:linear-gradient(transparent 82%,#fde047 82% 92%,transparent 92%)}
-.bb-txt p{font-size:15px;line-height:1.75;color:#e8e8c8;margin-bottom:14px}
-.bb-list{list-style:none;display:grid;gap:9px;margin-bottom:20px}
-.bb-list li{display:flex;align-items:center;gap:12px;font-size:15px;color:#f5f5dc}
-.bb-list b{flex-shrink:0;width:30px;height:30px;border:2px solid #fde047;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fde047}
-.bb-btn{display:inline-flex;align-items:center;gap:10px;padding:13px 24px;border:2.5px solid #fde047;border-radius:10px;color:#fde047;font:700 15px/1 'Segoe Print','Comic Sans MS',cursive;transform:rotate(-1deg);transition:background .25s,color .25s,transform .25s}
-.bb-btn:hover{background:#fde047;color:#1f4132;transform:rotate(0) translateY(-3px)}
-.bb-vid{position:relative;z-index:2;background:#fff;padding:10px 10px 14px;border-radius:4px;box-shadow:0 22px 44px rgba(0,0,0,.5);transform:rotate(1.2deg)}
-.bb-vid::before,.bb-vid::after{content:"";position:absolute;top:-13px;width:84px;height:26px;background:rgba(253,224,71,.78);box-shadow:0 2px 6px rgba(0,0,0,.25)}
-.bb-vid::before{left:12px;transform:rotate(-8deg)}.bb-vid::after{right:12px;transform:rotate(7deg)}
-.bb-vid .bb-screen{border-radius:2px;overflow:hidden}
-.bb-cap{display:block;text-align:center;margin-top:9px;font:700 13px/1 'Segoe Print','Comic Sans MS',cursive;color:#3b2a14}
-.bb-tray{width:min(1120px,92%);height:16px;margin:0 auto;background:linear-gradient(#a8692f,#6e4118);border-radius:0 0 8px 8px;box-shadow:0 12px 20px rgba(60,30,10,.35);position:relative}
-.bb-tray i{position:absolute;top:-6px;height:7px;border-radius:3px;background:#fff}
-.bb-tray i:nth-child(1){left:12%;width:44px}.bb-tray i:nth-child(2){left:calc(12% + 56px);width:30px;background:#fde047}.bb-tray i:nth-child(3){right:14%;width:56px;background:#fecdd3}
-@media(max-width:860px){.bb{padding:56px 0 50px}.bb-board{grid-template-columns:1fr;padding:20px 16px;border-width:11px;gap:24px}.bb-vid{order:-1;transform:none}}
-</style>
 </head>
 <body>
+<div class="idt-loader-2" id="idt-loader-2" aria-hidden="true">
+  <div class="i2-bg">
+    <span class="i2-blob i2-b1"></span>
+    <span class="i2-blob i2-b2"></span>
+    <span class="i2-blob i2-b3"></span>
+    <span class="i2-glow"></span>
+    <span class="i2-grid"></span>
+    <span class="i2-star i2-s1"></span><span class="i2-star i2-s2"></span>
+    <span class="i2-star i2-s3"></span><span class="i2-star i2-s4"></span>
+    <span class="i2-star i2-s5"></span><span class="i2-star i2-s6"></span>
+    <span class="i2-star i2-s7"></span><span class="i2-star i2-s8"></span>
+    <span class="i2-star i2-s9"></span><span class="i2-star i2-s10"></span>
+    <span class="i2-star i2-s11"></span><span class="i2-star i2-s12"></span>
+  </div>
+  <div class="i2-wrap">
+    <div class="i2-bookwrap">
+      <span class="i2-orbit"></span>
+      <div class="i2-book">
+        <div class="i2-cover i2-cl"><img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="i2-coverlogo" fetchpriority="high"></div>
+        <div class="i2-cover i2-cr"><img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="i2-coverlogo i2-crlogo"></div>
+        <div class="i2-page i2-p1"><i></i><i></i><i></i><i></i></div>
+        <div class="i2-page i2-p2"><i></i><i></i><i></i></div>
+        <div class="i2-page i2-p3"><i></i><i></i></div>
+        <div class="i2-spine"></div>
+        <div class="i2-ribbon"></div>
+      </div>
+    </div>
+    <span class="i2-title">IDT <b>Academy</b></span>
+    <span class="i2-tagline">Learn Beyond Limits</span>
+    <div class="i2-loadbar"><span></span></div>
+    <p class="i2-status">Turning pages... <b id="i2num">0</b>%</p>
+  </div>
+</div>
+
 
 <header class="topbar" id="topbar">
-  <div class="brand" onclick="location.href='index.html'">
+  <div class="brand" role="link" tabindex="0" data-href="index.html">
     <img src="https://i.imgur.com/vLaejQ7.png" alt="">
     <div>
       <h1>IDT Academy</h1>
@@ -313,8 +121,7 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
 
 <nav class="span-menu" id="spanMenu">
   <button class="span-close" id="spanClose" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
-  
-  
+
   <div class="span-links">
     <a href="#home"><i class="fa-solid fa-house"></i> Home</a>
     <a href="#courses"><i class="fa-solid fa-graduation-cap"></i> Courses</a>
@@ -338,8 +145,6 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
   </div>
     
 </nav>
-
-
 
 <main>
 <section class="hero" id="home">
@@ -398,8 +203,6 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
   <div class="tb-i reveal reveal-d3"><span class="tb-ic"><i class="fa-solid fa-shield-halved"></i></span><div><b>No Cheating</b><small>Verified exams &amp; real certificates</small></div></div>
 </div>
 
-
-
 <section class="pr-sec" id="promoVideo" aria-label="IDT Academy video">
   <div class="container pr-grid">
     <div class="pr-text reveal">
@@ -436,7 +239,7 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
       <div class="lp-tiles">
         <a href="jamb.html" class="lp-tile lp-t1"><span class="lp-ic"><i class="fa-solid fa-graduation-cap"></i></span><span><b>JAMB Prep</b><small>Practice until you score 200+</small></span><span class="lp-ar"><i class="fa-solid fa-arrow-right"></i></span></a>
         <a href="#courses" class="lp-tile lp-t2"><span class="lp-ic"><i class="fa-solid fa-laptop-code"></i></span><span><b>Learn Skills</b><small>Tech, vocational, health &amp; diploma</small></span><span class="lp-ar"><i class="fa-solid fa-arrow-right"></i></span></a>
-        <a href="patner.html" class="lp-tile lp-t3"><span class="lp-ic"><i class="fa-solid fa-hand-holding-dollar"></i></span><span><b>Referral Bonus &#8358;1,500</b><small>Earn for every student you bring</small></span><span class="lp-ar"><i class="fa-solid fa-arrow-right"></i></span></a>
+        <a href="partner.html" class="lp-tile lp-t3"><span class="lp-ic"><i class="fa-solid fa-hand-holding-dollar"></i></span><span><b>Referral Bonus &#8358;1,500</b><small>Earn for every student you bring</small></span><span class="lp-ar"><i class="fa-solid fa-arrow-right"></i></span></a>
         <a href="patner.html" class="lp-tile lp-t4"><span class="lp-ic"><i class="fa-solid fa-handshake"></i></span><span><b>Earn &amp; Partner</b><small>Sponsor and grow with us</small></span><span class="lp-ar"><i class="fa-solid fa-arrow-right"></i></span></a>
       </div>
     </div>
@@ -503,9 +306,6 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
   </div>
 </section>
 
-
-
-
 <section class="sk" id="skills" aria-label="Skills for every path">
   <div class="sk-head reveal">
     <span class="sk-kick"><i class="fa-solid fa-microchip"></i> Skills for every path</span>
@@ -521,7 +321,7 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
       </article>
       <article class="sk-panel sk-p1" role="tabpanel">
         <div class="sk-art"><div class="sk-bp"><i class="fa-solid fa-scissors"></i><i class="fa-solid fa-hammer"></i><i class="fa-solid fa-wrench"></i><i class="fa-solid fa-bread-slice"></i></div><div class="sk-bp-dim"><b>YOUR SKILL</b></div></div>
-        <div class="sk-txt"><span class="sk-num">02 / 06</span><h3>Hand Skills </h3><p class="sk-lead">Learn a trade with your hands, guided by video and AI feedback &mdash; then sell your work online.</p><ul class="sk-learn"><li><i class="fa-solid fa-check"></i><span>Tailoring and fashion design</span></li><li><i class="fa-solid fa-check"></i><span>Baking, catering and food business</span></li><li><i class="fa-solid fa-check"></i><span>Phone and electronics repair</span></li><li><i class="fa-solid fa-check"></i><span>Pricing and selling on social media</span></li></ul><a href="#courses" class="sk-cta">View courses <i class="fa-solid fa-arrow-right"></i></a></div>
+        <div class="sk-txt"><span class="sk-num">02 / 06</span><h3>Hand Skills (Aikin Hannu)</h3><p class="sk-lead">Learn a trade with your hands, guided by video and AI feedback &mdash; then sell your work online.</p><ul class="sk-learn"><li><i class="fa-solid fa-check"></i><span>Tailoring and fashion design</span></li><li><i class="fa-solid fa-check"></i><span>Baking, catering and food business</span></li><li><i class="fa-solid fa-check"></i><span>Phone and electronics repair</span></li><li><i class="fa-solid fa-check"></i><span>Pricing and selling on social media</span></li></ul><a href="#courses" class="sk-cta">View courses <i class="fa-solid fa-arrow-right"></i></a></div>
       </article>
       <article class="sk-panel sk-p2" role="tabpanel">
         <div class="sk-art"><span class="sk-chip"><i class="fa-solid fa-arrow-trend-up"></i> SALES +240%</span><div class="sk-bars"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
@@ -541,33 +341,11 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
       </article>
     </div>
   </div>
-  <script>
-  (function(){
-    var lab=document.getElementById('skLab'); if(!lab) return;
-    var tabs=[].slice.call(lab.querySelectorAll('.sk-tab')), ps=[].slice.call(lab.querySelectorAll('.sk-panel')), cur=0, idle=0;
-    function show(i){
-      cur=(i+tabs.length)%tabs.length;
-      ps.forEach(function(p,k){p.classList.toggle('on',k===cur);});
-      tabs.forEach(function(t,k){t.classList.remove('on');t.setAttribute('aria-selected',k===cur?'true':'false');});
-      void lab.offsetWidth; tabs[cur].classList.add('on');
-    }
-    lab.classList.add('js'); show(0);
-    function hold(ms){lab.classList.add('paused');clearTimeout(idle);idle=setTimeout(function(){lab.classList.remove('paused');show(cur);},ms);}
-    tabs.forEach(function(t,k){t.addEventListener('click',function(){show(k);hold(10000);});});
-    lab.addEventListener('animationend',function(e){if(e.animationName==='skProg'&&!lab.classList.contains('paused'))show(cur+1);});
-    lab.addEventListener('mouseenter',function(){lab.classList.add('paused');clearTimeout(idle);});
-    lab.addEventListener('mouseleave',function(){hold(1200);});
-    lab.addEventListener('touchstart',function(){hold(9000);},{passive:true});
-    if('IntersectionObserver' in window){new IntersectionObserver(function(en){en.forEach(function(x){if(x.isIntersecting){if(!lab.classList.contains('live')){lab.classList.add('live');show(cur);}}else{lab.classList.remove('live');}});},{threshold:0.25}).observe(lab);}else{lab.classList.add('live');}
-  })();
-  </script>
+  
 </section>
 
 <section class="programs" id="courses">
   <div class="container">
-
-
-
 
     <div class="section-head reveal">
       <span class="eyebrow"><i class="fa-solid fa-graduation-cap"></i> Our Programs</span>
@@ -575,11 +353,6 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
       <p>All courses are arranged by category. Choose any course, see the full details, and start learning right away.</p>
     </div>
   </div>
-  
-  
-  
-  
-  
 
   <div class="program-section ps-1">
     <div class="container">
@@ -670,10 +443,6 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
   </div>
 </section>
 
-
-
-
-
 <section class="pv-sec" id="previews" hidden aria-label="Course preview videos">
   <div class="container">
     <div class="pv-head">
@@ -698,8 +467,7 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
       <h2>Certificates That <span>Open Doors</span></h2>
       <p>Every course is easy to afford — pay for yourself or your children and earn an official certificate when you finish.</p>
     </div>
-             
-    
+
     <div class="cert-grid2">
   <div class="cc2 cc2-info-card cc2-course reveal reveal-d1">
     <div class="cc2-info">
@@ -752,24 +520,22 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
   <div class="cx cx-dip reveal">
     <div class="cx-head"><span class="cx-seal"><i class="fa-solid fa-award"></i></span><div><h3>Diploma Certificate</h3><p>The official 2-Year Diploma awarded by IDT Academy &mdash; Intelligent Digital Technology Academy.</p></div></div>
     <div class="cx-pair">
-      <figure class="cx-frame cx-v"><img src="https://i.imgur.com/8xhaR6F.png" alt="IDT Academy Diploma certificate - portrait" loading="lazy" decoding="async"><figcaption><i class="fa-solid fa-magnifying-glass-plus"></i> Portrait</figcaption></figure>
-      <figure class="cx-frame cx-h"><img src="https://i.imgur.com/amZmFxM.jpeg" alt="IDT Academy Diploma certificate - landscape" loading="lazy" decoding="async"><figcaption><i class="fa-solid fa-magnifying-glass-plus"></i> Landscape</figcaption></figure>
+      <figure class="cx-frame cx-v"><img src="https://i.imgur.com/QI2vWM4.jpeg" alt="IDT Academy Diploma certificate - portrait" loading="lazy" decoding="async"><figcaption><i class="fa-solid fa-magnifying-glass-plus"></i> Portrait</figcaption></figure>
+      <figure class="cx-frame cx-h"><img src="https://i.imgur.com/Ds1JaDl.jpeg" alt="IDT Academy Diploma certificate - landscape" loading="lazy" decoding="async"><figcaption><i class="fa-solid fa-magnifying-glass-plus"></i> Landscape</figcaption></figure>
     </div>
     <div class="cx-tech"><span><i class="fa-solid fa-microchip"></i> Intelligent Digital Technology</span><span><i class="fa-solid fa-stamp"></i> Official IDT Seal</span><span><i class="fa-solid fa-user-graduate"></i> Skills-Based Qualification</span></div>
   </div>
   <div class="cx cx-crs reveal">
     <div class="cx-head"><span class="cx-seal"><i class="fa-solid fa-certificate"></i></span><div><h3>Course Certificate</h3><p>Earn it after you pass the verified final exam &mdash; proof of the real skill you gained.</p></div></div>
     <div class="cx-pair">
-      <figure class="cx-frame cx-v"><img src="https://i.imgur.com/8xhaR6F.png" alt="IDT Academy Course certificate - portrait" loading="lazy" decoding="async"><figcaption><i class="fa-solid fa-magnifying-glass-plus"></i> Portrait</figcaption></figure>
-      <figure class="cx-frame cx-h"><img src="https://i.imgur.com/amZmFxM.jpeg" alt="IDT Academy Course certificate - landscape" loading="lazy" decoding="async"><figcaption><i class="fa-solid fa-magnifying-glass-plus"></i> Landscape</figcaption></figure>
+      <figure class="cx-frame cx-v"><img src="https://i.imgur.com/gyUfvme.jpeg" alt="IDT Academy Course certificate - portrait" loading="lazy" decoding="async"><figcaption><i class="fa-solid fa-magnifying-glass-plus"></i> Portrait</figcaption></figure>
+      <figure class="cx-frame cx-h"><img src="https://i.imgur.com/BCTsvhL.jpeg" alt="IDT Academy Course certificate - landscape" loading="lazy" decoding="async"><figcaption><i class="fa-solid fa-magnifying-glass-plus"></i> Landscape</figcaption></figure>
     </div>
     <div class="cx-tech"><span><i class="fa-solid fa-code"></i> Practical Tech Skills</span><span><i class="fa-solid fa-shield-halved"></i> Verified Exam</span><span><i class="fa-solid fa-envelope-circle-check"></i> Delivered by Email</span></div>
   </div>
 </div>
 </div>
 </section>
-
-
 
 <section class="ac" id="academy">
   <div class="ac-wrap">
@@ -791,9 +557,6 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
     </div>
   </div>
 </section>
-
-
-
 
 <section class="ld" id="leaders">
   <div class="ld-head reveal">
@@ -847,15 +610,11 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
           <li><i>2</i><span>Share the link on your social media, groups, and channels.</span></li>
           <li><i>3</i><span>Each person who registers and pays for any course earns you &#8358;1,500. Withdraw anytime from &#8358;1,500.</span></li>
         </ul>
-        <a href="patner.html" class="rf-cta"><i class="fa-solid fa-user-plus"></i> Get Your Referral Link Now</a>
+        <a href="register.html" class="rf-cta"><i class="fa-solid fa-user-plus"></i> Get Your Referral Link Now</a>
       </div>
     </div>
   </div>
 </section>
-
-
-
-
 
 <section class="tc" id="technology">
   <div class="tc-win reveal">
@@ -884,8 +643,6 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
   </div>
 </section>
 
-
-
 <section class="section jamb" id="jamb">
   <div class="container jamb-grid">
     <div class="jamb-visual reveal">
@@ -907,8 +664,6 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
     </div>
   </div>
 </section>
-
-
 
 <section class="pt" id="partner">
   <div class="pt-grid">
@@ -934,9 +689,6 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
   </div>
 </section>
 
-
-
-
 <section class="sp" id="partnership">
   <div class="sp-card reveal">
     <div class="sp-txt">
@@ -956,9 +708,6 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
     </div>
   </div>
 </section>
-
-
-
 
 <section class="bb" id="bbSec" hidden aria-label="IDT Academy orientation video">
   <div class="bb-board">
@@ -988,14 +737,13 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
 </section>
 </main>
 
-
 <div class="idt-footer-scope">
   <footer class="footer" id="contact">
     <div class="idt-footer-inner">
       <div class="footer-grid">
         <div>
-          <div class="f-bra">
-            <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy">
+          <div class="f-br">
+            <img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" loading="lazy" decoding="async">
             <b>IDT Academy</b>
           </div>
           <p class="f-desc">IDT Academy is a modern online school helping Nigerians and the world learn practical skills with video lessons, an AI tutor that speaks your language, verified exams and official certificates.</p>
@@ -1048,15 +796,12 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
   </footer>
 </div>
 
-
-
-
 <div class="course-modal" id="courseModal" role="dialog" aria-modal="true">
   <div class="modal-card" id="modalCard">
     <button class="m-close" id="modalClose" aria-label="Close course details"><i class="fa-solid fa-xmark"></i></button>
     <div class="m-hero">
       <span class="m-cat" id="mCat"><i class="fa-solid fa-layer-group"></i> <span id="mCatText"></span></span>
-      <img id="mImg" src="" alt="Course image">
+      <img id="mImg" src="" alt="Course image" loading="lazy" decoding="async">
       <span class="m-num" id="mNum"></span>
     </div>
     <div class="m-body">
@@ -1090,149 +835,5 @@ setTimeout(function(){document.documentElement.classList.add('ready')},3500);
 
 <div id="toastWrap" class="toast-wrap"></div>
 
-<script>
-  
-  const currentUrl = window.location.href;
-  document.querySelector('link[rel="canonical"]').setAttribute('href', currentUrl);
-  document.querySelector('meta[property="og:url"]').setAttribute('content', currentUrl);
-  document.querySelector('meta[name="twitter:url"]').setAttribute('content', currentUrl);
-</script>
-
-
-
-<script>
-(function () {
-  var input = document.getElementById('idtSearchInput');
-  var resultsBox = document.getElementById('idtSearchResults');
-  var clearBtn = document.getElementById('idtSearchClear');
-  var timer = null;
-  if (!input || !resultsBox) return;
-
-  function allCards() {
-    return Array.prototype.slice.call(document.querySelectorAll('.course-card'));
-  }
-
-  function cardText(card) {
-    return (card.textContent || '').toLowerCase().replace(/\s+/g, ' ');
-  }
-
-  function courseName(card) {
-    var h = card.querySelector('h4');
-    return h ? h.textContent.trim() : 'Untitled Course';
-  }
-
-  function courseImg(card) {
-    var im = card.querySelector('img');
-    return im ? im.src : '';
-  }
-
-  function coursePrice(card) {
-    var b = card.querySelector('.c-price b');
-    return b ? b.textContent.trim() : '';
-  }
-
-  function highlight(card) {
-    card.style.transition = 'box-shadow .3s ease, transform .3s ease';
-    card.style.boxShadow = '0 0 0 3px #fbbf24, 0 24px 60px rgba(245,158,11,.4)';
-    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(function () {
-      card.style.boxShadow = '';
-    }, 2200);
-  }
-
-  function renderResults(query) {
-    var q = (query || '').trim().toLowerCase();
-    if (!q) {
-      resultsBox.style.display = 'none';
-      resultsBox.innerHTML = '';
-      return;
-    }
-    var cards = allCards();
-    if (!cards.length) {
-      resultsBox.innerHTML = '<div style="padding:26px 20px;text-align:center;color:#8b84a8;font-size:14px;font-weight:600"><i class="fa-solid fa-hourglass-half" style="display:block;font-size:26px;color:#c4b5fd;margin-bottom:8px"></i>Courses are still loading. Please wait a moment and try again.</div>';
-      resultsBox.style.display = 'block';
-      return;
-    }
-    var matches = cards.filter(function (c) {
-      return cardText(c).indexOf(q) !== -1;
-    }).slice(0, 8);
-
-    if (!matches.length) {
-      resultsBox.innerHTML = '<div style="padding:26px 20px;text-align:center;color:#8b84a8;font-size:14px;font-weight:600"><i class="fa-solid fa-magnifying-glass-minus" style="display:block;font-size:26px;color:#c4b5fd;margin-bottom:8px"></i>No courses found for "' + query.trim() + '". Try a different course name.</div>';
-      resultsBox.style.display = 'block';
-      return;
-    }
-
-    resultsBox.innerHTML = matches.map(function (c, i) {
-      return '<div class="idt-sr-item" data-idx="' + i + '" style="display:flex;align-items:center;gap:14px;padding:13px 18px;cursor:pointer;border-bottom:1px solid rgba(124,58,237,.07)">' +
-        '<img src="' + courseImg(c) + '" alt="" style="width:64px;height:48px;border-radius:12px;object-fit:cover;flex-shrink:0;background:#ede9fe">' +
-        '<div style="flex:1;min-width:0"><h5 style="font-size:14px;font-weight:800;color:#2d2350;margin:0 0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + courseName(c) + '</h5><span style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px">Course</span></div>' +
-        '<span style="font-size:13px;font-weight:800;color:#059669;flex-shrink:0;white-space:nowrap">' + coursePrice(c) + '</span>' +
-        '<i class="fa-solid fa-arrow-right" style="color:#c4b5fd;flex-shrink:0"></i>' +
-      '</div>';
-    }).join('');
-    resultsBox.style.display = 'block';
-
-    Array.prototype.forEach.call(resultsBox.querySelectorAll('.idt-sr-item'), function (item) {
-      item.addEventListener('mouseenter', function () { item.style.background = 'rgba(124,58,237,.06)'; });
-      item.addEventListener('mouseleave', function () { item.style.background = 'transparent'; });
-      item.addEventListener('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        resultsBox.style.display = 'none';
-        input.value = '';
-        clearBtn.style.display = 'none';
-        var card = matches[Number(item.getAttribute('data-idx'))];
-        if (card) highlight(card);
-      });
-    });
-  }
-
-  input.addEventListener('input', function () {
-    clearBtn.style.display = input.value ? 'flex' : 'none';
-    clearTimeout(timer);
-    timer = setTimeout(function () { renderResults(input.value); }, 180);
-  });
-
-  input.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      resultsBox.style.display = 'none';
-      input.blur();
-    }
-  });
-
-  clearBtn.addEventListener('click', function () {
-    input.value = '';
-    clearBtn.style.display = 'none';
-    resultsBox.style.display = 'none';
-    input.focus();
-  });
-
-  document.addEventListener('click', function (e) {
-    if (!e.target.closest('#idtSearchArea')) {
-      resultsBox.style.display = 'none';
-    }
-  });
-})();
-</script>
-
-
-
-<script type="module">
-import { createPlayer, ytId } from './videos.js';
-[['cnHost','cnSec','https://youtu.be/wMxzatqJTuU?si=FxoZnmc0ez_ZtyZt'],['bbHost','bbSec','https://youtu.be/Ywj7uTMU7k8?si=6kn-SVlrrjxvlEnz']].forEach(function (c) {
-  var host = document.getElementById(c[0]), sec = document.getElementById(c[1]), id = ytId(c[2]);
-  if (!host || !sec || !id) return;
-  sec.hidden = false;
-  function go() { if (host.dataset.on) return; host.dataset.on = '1'; try { createPlayer(host, id); } catch (e) { sec.hidden = true; } }
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver(function (en, ob) { if (en.some(function (x) { return x.isIntersecting; })) { go(); ob.disconnect(); } }, { rootMargin: '500px' }).observe(sec);
-  } else { go(); }
-});
-</script>
-
-
-<script type="module" src="index.js"></script>
-<script type="module" src="video.js"></script>
 </body>
 </html>
