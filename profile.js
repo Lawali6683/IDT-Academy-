@@ -1,75 +1,90 @@
 import { supabase } from './supabase.js';
 
 const $ = (id) => document.getElementById(id);
+const LOGO = 'https://i.imgur.com/oyqM5oF.png';
+const EMPTY = ['', 'n/a', 'na', 'null', 'undefined', 'none', '-', '—', '[object object]'];
 let currentUserId = '';
 let currentUd = {};
 let currentProfileUrl = '';
 
 function escapeHtml(str) {
-  return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  return String(str == null ? '' : str).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
 
 function has(v) {
-  return v != null && String(v).trim() !== '';
+  if (v == null) return false;
+  if (typeof v === 'object') return Object.keys(v).length > 0;
+  return !EMPTY.includes(String(v).trim().toLowerCase());
+}
+
+function pctText(p) {
+  const s = String(p).trim();
+  return s.includes('%') ? s : s + '%';
+}
+
+function valueText(v) {
+  if (!has(v)) return '';
+  if (typeof v !== 'object') return String(v).trim();
+  const grade = v.grade ?? v.letter ?? v.result ?? v.level;
+  const pct = v.pct ?? v.percentage ?? v.percent;
+  const score = v.score ?? v.total ?? v.marks;
+  const parts = [];
+  if (has(grade) && typeof grade !== 'object') parts.push(String(grade));
+  if (has(pct) && typeof pct !== 'object') parts.push(pctText(pct));
+  else if (has(score) && typeof score !== 'object') parts.push(String(score));
+  return parts.join(' • ');
 }
 
 function formatDate(iso) {
-  if (!iso) return '—';
+  if (!has(iso)) return '—';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function formatMoney(v) {
-  return '₦' + Number(v||0).toLocaleString();
+  return '₦' + Number(v || 0).toLocaleString();
+}
+
+function kv(label, valueHtml) {
+  return '<div class="kv-box"><span>' + escapeHtml(label) + '</span><b>' + valueHtml + '</b></div>';
 }
 
 function removePush(card) {
   card.classList.add('out');
-  setTimeout(()=>card.remove(),320);
+  setTimeout(() => card.remove(), 320);
 }
 
-function pushShow(type,title,message) {
-  const icons={success:'fa-circle-check',error:'fa-circle-xmark',info:'fa-circle-info'};
-  const card=document.createElement('div');
-  card.className='push-card '+type;
-  card.innerHTML='<img class="push-logo" src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy"><div class="push-body"><b><i class="fa-solid '+icons[type]+'"></i> '+escapeHtml(title)+'</b><p>'+escapeHtml(message)+'</p></div><button class="push-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>';
-  card.querySelector('.push-x').addEventListener('click',()=>removePush(card));
-  const wrap = $('pushWrap') || document.body;
-  wrap.appendChild(card);
-  if(type==='success') setTimeout(()=>removePush(card),6000);
+function pushShow(type, title, message) {
+  const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
+  const card = document.createElement('div');
+  card.className = 'push-card ' + type;
+  card.innerHTML = '<img class="push-logo" src="' + LOGO + '" alt="IDT Academy"><div class="push-body"><b><i class="fa-solid ' + icons[type] + '"></i> ' + escapeHtml(title) + '</b><p>' + escapeHtml(message) + '</p></div><button class="push-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>';
+  card.querySelector('.push-x').addEventListener('click', () => removePush(card));
+  ($('pushWrap') || document.body).appendChild(card);
+  if (type !== 'error') setTimeout(() => removePush(card), 6000);
 }
 
 async function copyText(txt) {
-  if(navigator.clipboard && navigator.clipboard.writeText){
+  if (navigator.clipboard && navigator.clipboard.writeText) {
     await navigator.clipboard.writeText(txt);
-  } else {
-    const ta=document.createElement('textarea');
-    ta.value=txt;
-    ta.style.position='fixed';
-    ta.style.opacity='0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
+    return;
   }
-}
-
-function getExamData(ud) {
-  return Array.isArray(ud.exam_data)?ud.exam_data:[];
-}
-
-function lastExam(ud) {
-  const arr=getExamData(ud);
-  return arr.length?arr[arr.length-1]:null;
+  const ta = document.createElement('textarea');
+  ta.value = txt;
+  ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  ta.remove();
 }
 
 function showLoading() {
-  let loader=document.getElementById('idt-loader-2');
-  if(loader){
+  let loader = document.getElementById('idt-loader-2');
+  if (loader) {
     loader.classList.remove('idt-hide');
   } else {
-    const loaderHTML=`
+    const loaderHTML = `
       <div class="idt-loader-2" id="idt-loader-2">
         <div class="i2-bg">
           <span class="i2-blob i2-b1"></span>
@@ -160,242 +175,307 @@ function showLoading() {
         @keyframes i2fade{0%,100%{opacity:.45}50%{opacity:1}}
       </style>
     `;
-    document.body.insertAdjacentHTML('beforeend',loaderHTML);
+    document.body.insertAdjacentHTML('beforeend', loaderHTML);
   }
-  const n=document.getElementById('i2num');
-  let c=0;
-  if(window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
-  window.idtLoaderInterval=setInterval(function(){c+=5;if(n)n.textContent=(c>=100?100:c);if(c>=100)clearInterval(window.idtLoaderInterval);},30);
+  const n = document.getElementById('i2num');
+  let c = 0;
+  if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
+  window.idtLoaderInterval = setInterval(function () {
+    c += 5;
+    if (n) n.textContent = (c >= 100 ? 100 : c);
+    if (c >= 100) clearInterval(window.idtLoaderInterval);
+  }, 30);
 }
 
 function hideLoading() {
-  const l=document.getElementById('idt-loader-2');
-  if(window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
-  if(l) l.classList.add('idt-hide');
+  const l = document.getElementById('idt-loader-2');
+  if (window.idtLoaderInterval) clearInterval(window.idtLoaderInterval);
+  if (l) l.classList.add('idt-hide');
 }
 
-function showNoSession() {
-  if($('profileView')) $('profileView').classList.add('hidden');
-  if($('noSessionView')) $('noSessionView').classList.remove('hidden');
-  if($('userBadge')) $('userBadge').classList.add('hidden');
-  if($('btnLogout')) $('btnLogout').classList.add('hidden');
-}
-
-function showProfile() {
-  if($('noSessionView')) $('noSessionView').classList.add('hidden');
-  if($('profileView')) $('profileView').classList.remove('hidden');
-  if($('userBadge')) $('userBadge').classList.remove('hidden');
-  if($('btnLogout')) $('btnLogout').classList.remove('hidden');
+function setView(signedIn) {
+  if ($('profileView')) $('profileView').classList.toggle('hidden', !signedIn);
+  if ($('noSessionView')) $('noSessionView').classList.toggle('hidden', signedIn);
+  if ($('userBadge')) $('userBadge').classList.toggle('hidden', !signedIn);
+  if ($('btnLogout')) $('btnLogout').classList.toggle('hidden', !signedIn);
 }
 
 function statusBadge(st) {
-  const s=String(st||'active').toLowerCase();
-  const map={pending:['amber','fa-clock'],active:['green','fa-circle-check'],paid:['cyan','fa-credit-card'],started:['violet','fa-play'],completed:['green','fa-check-double'],passed:['green','fa-circle-check']};
-  const m=map[s]||['green','fa-circle-check'];
-  return '<span class="badge '+m[0]+'"><i class="fa-solid '+m[1]+'"></i> '+escapeHtml(s)+'</span>';
+  const s = String(st || 'pending').toLowerCase();
+  const map = {
+    pending: ['amber', 'fa-clock', 'Awaiting Payment'],
+    active: ['green', 'fa-circle-check', 'Active'],
+    paid: ['cyan', 'fa-credit-card', 'Paid'],
+    started: ['violet', 'fa-play', 'Started'],
+    completed: ['green', 'fa-check-double', 'Completed'],
+    passed: ['green', 'fa-circle-check', 'Passed'],
+    failed: ['rose', 'fa-circle-xmark', 'Not Passed']
+  };
+  const m = map[s] || ['violet', 'fa-circle-info', s.charAt(0).toUpperCase() + s.slice(1)];
+  return '<span class="badge ' + m[0] + '"><i class="fa-solid ' + m[1] + '"></i> ' + escapeHtml(m[2]) + '</span>';
+}
+
+function getExams(ud) {
+  return Array.isArray(ud.exam_data) ? ud.exam_data : [];
+}
+
+function courseInfo(ud) {
+  const jamb = ud.course_type === 'jamb';
+  return {
+    jamb: jamb,
+    name: jamb ? ud.jambCourseName : ud.course_name,
+    id: jamb ? ud.jambCourseId : ud.course_id,
+    number: jamb ? '' : ud.course_number,
+    price: jamb ? ud.jambCoursePrice : ud.course_price,
+    subjects: jamb ? ud.jambCourseSubjects : ''
+  };
+}
+
+function isActivated(ud) {
+  const paidRef = has(ud.payment_no) && String(ud.payment_no).toLowerCase() !== 'no';
+  return String(ud.status || '').toLowerCase() === 'active' || paidRef;
 }
 
 function buildSteps(ud) {
-  const steps=[];
-  steps.push({icon:'fa-user-check',state:'done',title:'Registered',sub:has(ud.date_registered)?'Member since '+formatDate(ud.date_registered):'Account created successfully'});
-  if(has(ud.course_id)||has(ud.course_name)){steps.push({icon:'fa-book-open',state:'done',title:'Course Started',sub:has(ud.course_name)?ud.course_name:'Course enrollment active'});}
-  if(has(ud.assessment_grade)){steps.push({icon:'fa-clipboard-check',state:'done',title:'Assessment Completed',sub:'Grade: '+ud.assessment_grade});}
-  const exams=getExamData(ud);
-  if(exams.length){
-    const last=exams[exams.length-1];
-    const passed=last.passed===true;
-    steps.push({icon:'fa-file-pen',state:passed?'done':'current',title:'Final Exam',sub:passed?(has(last.pct)?'Passed • '+last.pct+'%':'Passed successfully'):(has(last.pct)?'Attempted • '+last.pct+'%':'Attempted')});
-    if(passed){steps.push({icon:'fa-award',state:'done',title:'Certificate Ready',sub:'You qualified for your IDT Academy certificate'});}
+  const c = courseInfo(ud);
+  const exams = getExams(ud);
+  const last = exams.length ? exams[exams.length - 1] : null;
+  const passed = !!(last && last.passed === true);
+  const assess = valueText(ud.assessment_grade);
+  const activated = isActivated(ud);
+  const certIssued = ud.certificate_issued === true;
+
+  const steps = [
+    { icon: 'fa-user-check', state: 'done', title: 'Registered', sub: has(ud.date_registered) ? 'Member since ' + formatDate(ud.date_registered) : 'Account created successfully' },
+    activated
+      ? { icon: 'fa-shield-check', state: 'done', title: 'Account Activated', sub: 'Your payment has been confirmed' }
+      : { icon: 'fa-credit-card', state: 'current', title: 'Account Activation', sub: 'Waiting for your payment to be confirmed' },
+    has(c.name)
+      ? { icon: 'fa-book-open', state: 'done', title: 'Course Enrolled', sub: String(c.name) }
+      : { icon: 'fa-book-open', state: 'todo', title: 'Course Enrollment', sub: 'Choose a course to begin learning' },
+    assess
+      ? { icon: 'fa-clipboard-check', state: 'done', title: 'Assessment Completed', sub: 'Result: ' + assess }
+      : { icon: 'fa-clipboard-check', state: 'todo', title: 'Assessment', sub: 'Not completed yet' },
+    passed
+      ? { icon: 'fa-file-pen', state: 'done', title: 'Final Exam Passed', sub: has(last.pct) ? 'Score: ' + pctText(last.pct) : 'Passed successfully' }
+      : last
+        ? { icon: 'fa-file-pen', state: 'current', title: 'Final Exam', sub: (has(last.pct) ? 'Last score: ' + pctText(last.pct) + '. ' : '') + 'You can try again' }
+        : { icon: 'fa-file-pen', state: 'todo', title: 'Final Exam', sub: 'Not taken yet' },
+    certIssued
+      ? { icon: 'fa-award', state: 'done', title: 'Certificate Issued', sub: 'Your IDT Academy certificate is ready' }
+      : passed
+        ? { icon: 'fa-award', state: 'current', title: 'Certificate', sub: 'Your certificate is being prepared' }
+        : { icon: 'fa-award', state: 'todo', title: 'Certificate', sub: 'Unlocked after you pass the final exam' }
+  ];
+
+  if ($('stepsWrap')) {
+    $('stepsWrap').innerHTML = steps.map((s) => {
+      const ic = s.state === 'done' ? 'fa-check' : s.state === 'current' ? 'fa-hourglass-half' : s.icon;
+      return '<div class="step"><div class="step-ic ' + s.state + '"><i class="fa-solid ' + ic + '"></i></div><div class="step-body"><b>' + escapeHtml(s.title) + '</b><span>' + escapeHtml(s.sub) + '</span></div></div>';
+    }).join('');
   }
-  if(!$('stepsWrap')) return steps;
-  if(!steps.length){$('stepsWrap').innerHTML='<div class="empty-state"><i class="fa-solid fa-seedling"></i><b>Your journey starts here</b><p>Complete your registration and enroll in a course to begin.</p></div>';return steps;}
-  $('stepsWrap').innerHTML=steps.map((s)=>{const ic=s.state==='done'?'fa-check':'fa-hourglass-half';const icCls=s.state==='done'?'done':'current';return '<div class="step"><div class="step-ic '+icCls+'"><i class="fa-solid '+ic+'"></i></div><div class="step-body"><b>'+escapeHtml(s.title)+'</b><span>'+escapeHtml(s.sub)+'</span></div></div>';}).join('');
   return steps;
 }
 
 function buildStats(ud) {
-  const exams=getExamData(ud);
-  const last=exams.length?exams[exams.length-1]:null;
-  const items=[];
-  items.push({icon:'fa-coins',cls:'gold',label:'Referral Bonus',val:formatMoney(ud.referral_bonus)});
-  if(has(ud.exam_grade)){items.push({icon:'fa-file-pen',cls:'cyan',label:'Exam Grade',val:String(ud.exam_grade)});}
-  else if(last&&has(last.pct)){items.push({icon:'fa-file-pen',cls:'cyan',label:'Exam Score',val:last.pct+'%'});}
-  if(has(ud.assessment_grade)){items.push({icon:'fa-clipboard-check',cls:'',label:'Assessment',val:String(ud.assessment_grade)});}
-  if(has(ud.level_completed)){items.push({icon:'fa-layer-group',cls:'cyan',label:'Level Completed',val:String(ud.level_completed)});}
-  if(!$('statsGrid')) return;
-  if(!items.length){$('statsGrid').innerHTML='';return;}
-  $('statsGrid').innerHTML=items.map((s)=>'<div class="stat-card '+s.cls+'"><i class="fa-solid '+s.icon+'"></i><div><b>'+escapeHtml(s.val)+'</b><span>'+escapeHtml(s.label)+'</span></div></div>').join('');
+  const exams = getExams(ud);
+  const last = exams.length ? exams[exams.length - 1] : null;
+  const items = [
+    { icon: 'fa-coins', cls: 'gold', label: 'Referral Bonus', val: formatMoney(ud.referral_bonus) },
+    { icon: 'fa-users', cls: '', label: 'Total Referrals', val: String(Number(ud.total_referrals || 0)) },
+    { icon: 'fa-user-check', cls: 'cyan', label: 'Paid Referrals', val: String(Number(ud.paid_referrals || 0)) }
+  ];
+  if (Number(ud.total_withdrawn) > 0) items.push({ icon: 'fa-money-bill-transfer', cls: 'rose', label: 'Total Withdrawn', val: formatMoney(ud.total_withdrawn) });
+  const exam = valueText(ud.exam_grade) || (last && has(last.pct) ? pctText(last.pct) : '');
+  if (exam) items.push({ icon: 'fa-file-pen', cls: 'cyan', label: 'Exam Result', val: exam });
+  const assess = valueText(ud.assessment_grade);
+  if (assess) items.push({ icon: 'fa-clipboard-check', cls: '', label: 'Assessment', val: assess });
+  if (has(ud.level_completed) && typeof ud.level_completed !== 'object') items.push({ icon: 'fa-layer-group', cls: 'cyan', label: 'Level Completed', val: String(ud.level_completed) });
+  if ($('statsGrid')) {
+    $('statsGrid').innerHTML = items.map((s) => '<div class="stat-card ' + s.cls + '"><i class="fa-solid ' + s.icon + '"></i><div><b>' + escapeHtml(s.val) + '</b><span>' + escapeHtml(s.label) + '</span></div></div>').join('');
+  }
 }
 
 function buildActions(ud) {
-  const exams=getExamData(ud);
-  const last=exams.length?exams[exams.length-1]:null;
-  const passed=!!(last&&last.passed===true);
-  const hasCourse=has(ud.course_id)||has(ud.course_name);
-  const btns=[];
-  btns.push('<a class="act-btn" href="https://www.idtacademy.com.ng/dashboard"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>');
-  btns.push('<a class="act-btn" href="https://www.idtacademy.com.ng/referral"><i class="fa-solid fa-users"></i> Referral</a>');
-  if(hasCourse&&!passed){btns.push('<a class="act-btn primary" href="https://www.idtacademy.com.ng/exam"><i class="fa-solid fa-file-pen"></i> Final Exam</a>');}
-  if(passed){btns.push('<a class="act-btn primary" href="https://www.idtacademy.com.ng/certificate"><i class="fa-solid fa-award"></i> My Certificate</a>');}
-  if($('quickActions')) $('quickActions').innerHTML=btns.join('');
+  const exams = getExams(ud);
+  const last = exams.length ? exams[exams.length - 1] : null;
+  const passed = !!(last && last.passed === true);
+  const c = courseInfo(ud);
+  const btns = [
+    '<a class="act-btn" href="https://www.idtacademy.com.ng/dashboard"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>',
+    '<a class="act-btn" href="https://www.idtacademy.com.ng/referral"><i class="fa-solid fa-users"></i> Referral</a>'
+  ];
+  if (has(c.name) && isActivated(ud) && !passed) btns.push('<a class="act-btn primary" href="https://www.idtacademy.com.ng/exam"><i class="fa-solid fa-file-pen"></i> Final Exam</a>');
+  if (passed) btns.push('<a class="act-btn primary" href="https://www.idtacademy.com.ng/certificate"><i class="fa-solid fa-award"></i> My Certificate</a>');
+  if ($('quickActions')) $('quickActions').innerHTML = btns.join('');
 }
 
 function fillCourse(ud) {
-  const hasCourse=has(ud.course_id)||has(ud.course_name);
-  const body=$('courseBody');
-  if(!body) return;
-  if(!hasCourse){body.innerHTML='<div class="empty-state"><i class="fa-solid fa-book-open"></i><b>No Course Yet</b><p>You have not enrolled in any course yet.</p><a href="https://www.idtacademy.com.ng/courses"><i class="fa-solid fa-graduation-cap"></i> Browse Courses</a></div>';return;}
-  const rows=[];
-  if(has(ud.course_name)) rows.push('<div class="kv-box"><span>Course Name</span><b>'+escapeHtml(ud.course_name)+'</b></div>');
-  if(has(ud.course_number)) rows.push('<div class="kv-box"><span>Course Number</span><b>'+escapeHtml(ud.course_number)+'</b></div>');
-  if(has(ud.course_id)) rows.push('<div class="kv-box"><span>Course ID</span><b>'+escapeHtml(ud.course_id)+'</b></div>');
-  if(has(ud.course_price)) rows.push('<div class="kv-box"><span>Course Price</span><b>'+formatMoney(ud.course_price)+'</b></div>');
-  if(has(ud.status)) rows.push('<div class="kv-box"><span>Status</span><b>'+statusBadge(ud.status)+'</b></div>');
-  body.innerHTML='<div class="kv-grid">'+rows.join('')+'</div>';
+  const body = $('courseBody');
+  if (!body) return;
+  const c = courseInfo(ud);
+  if (!has(c.name) && !has(c.id)) {
+    body.innerHTML = '<div class="empty-state"><i class="fa-solid fa-book-open"></i><b>No Course Yet</b><p>You have not enrolled in any course yet.</p><a href="https://www.idtacademy.com.ng/courses"><i class="fa-solid fa-graduation-cap"></i> Browse Courses</a></div>';
+    return;
+  }
+  const rows = [];
+  if (has(c.name)) rows.push(kv('Course Name', escapeHtml(c.name)));
+  rows.push(kv('Course Type', c.jamb ? 'JAMB Preparation' : 'Regular Course'));
+  if (has(c.number)) rows.push(kv('Course Number', escapeHtml(c.number)));
+  if (has(c.id)) rows.push(kv('Course ID', escapeHtml(c.id)));
+  if (c.jamb && has(c.subjects)) rows.push(kv('Subjects', escapeHtml(c.subjects)));
+  if (Number(c.price) > 0) rows.push(kv('Course Price', formatMoney(c.price)));
+  rows.push(kv('Payment', isActivated(ud) ? statusBadge('paid') : statusBadge('pending')));
+  rows.push(kv('Account Status', statusBadge(isActivated(ud) ? 'active' : ud.status || 'pending')));
+  body.innerHTML = '<div class="kv-grid">' + rows.join('') + '</div>';
 }
 
 function fillPersonal(ud) {
-  const rows=[];
-  if(has(ud.full_name)) rows.push('<div class="kv-box"><span>Full Name</span><b>'+escapeHtml(ud.full_name)+'</b></div>');
-  if(has(ud.email)) rows.push('<div class="kv-box"><span>Email</span><b>'+escapeHtml(ud.email)+'</b></div>');
-  if(has(ud.phone)) rows.push('<div class="kv-box"><span>Phone</span><b>'+escapeHtml(ud.phone)+'</b></div>');
-  if(has(ud.gender)) rows.push('<div class="kv-box"><span>Gender</span><b>'+escapeHtml(ud.gender)+'</b></div>');
-  const dob=ud.date_of_birth||ud.dob||'';
-  if(has(dob)) rows.push('<div class="kv-box"><span>Date of Birth</span><b>'+escapeHtml(formatDate(dob))+'</b></div>');
-  if(has(ud.date_registered)) rows.push('<div class="kv-box"><span>Date Registered</span><b>'+escapeHtml(formatDate(ud.date_registered))+'</b></div>');
-  if(!rows.length){rows.push('<div class="kv-box"><span>Email</span><b>'+escapeHtml(ud.email||'—')+'</b></div>');}
-  if($('personalGrid')) $('personalGrid').innerHTML=rows.join('');
+  const rows = [];
+  if (has(ud.academy_id)) rows.push(kv('Academy ID', escapeHtml(ud.academy_id)));
+  if (has(ud.full_name)) rows.push(kv('Full Name', escapeHtml(ud.full_name)));
+  if (has(ud.email)) rows.push(kv('Email', escapeHtml(ud.email)));
+  if (has(ud.phone)) rows.push(kv('Phone', escapeHtml(ud.phone)));
+  if (has(ud.gender)) rows.push(kv('Gender', escapeHtml(ud.gender)));
+  const dob = ud.date_of_birth || ud.dob;
+  if (has(dob)) rows.push(kv('Date of Birth', escapeHtml(formatDate(dob))));
+  if (has(ud.school_level)) rows.push(kv('School Level', escapeHtml(ud.school_level)));
+  if (has(ud.date_registered)) rows.push(kv('Date Registered', escapeHtml(formatDate(ud.date_registered))));
+  if ($('personalGrid')) $('personalGrid').innerHTML = rows.join('');
 }
 
 function buildExamHistory(ud) {
-  const exams=getExamData(ud);
-  const card=$('examCard');
-  if(!card) return;
-  if(!exams.length){card.classList.add('hidden');return;}
+  const exams = getExams(ud);
+  const card = $('examCard');
+  if (!card) return;
+  if (!exams.length) {
+    card.classList.add('hidden');
+    return;
+  }
   card.classList.remove('hidden');
-  if($('examList')) $('examList').innerHTML=exams.slice().reverse().map((h)=>{const passed=h.passed===true;const icCls=passed?'pass':'fail';const ic=passed?'fa-circle-check':'fa-circle-xmark';const course=h.course_name||ud.course_name||'Final Exam';return '<div class="exam-row"><div class="ex-ic '+icCls+'"><i class="fa-solid '+ic+'"></i></div><div class="ex-body"><b>'+escapeHtml(course)+'</b><span>'+escapeHtml(formatDate(h.date))+' • Score: '+Number(h.score||0).toFixed(1)+' • '+Number(h.pct||0)+'%</span></div>'+statusBadge(passed?'passed':'pending')+'</div>';}).join('');
+  if ($('examList')) {
+    $('examList').innerHTML = exams.slice().reverse().map((h) => {
+      const passed = h.passed === true;
+      const course = has(h.course_name) ? h.course_name : (has(ud.course_name) ? ud.course_name : 'Final Exam');
+      const bits = [formatDate(h.date)];
+      if (has(h.score)) bits.push('Score: ' + Number(h.score).toFixed(1));
+      if (has(h.pct)) bits.push(pctText(Number(h.pct)));
+      return '<div class="exam-row"><div class="ex-ic ' + (passed ? 'pass' : 'fail') + '"><i class="fa-solid ' + (passed ? 'fa-circle-check' : 'fa-circle-xmark') + '"></i></div><div class="ex-body"><b>' + escapeHtml(course) + '</b><span>' + escapeHtml(bits.join(' • ')) + '</span></div>' + statusBadge(passed ? 'passed' : 'failed') + '</div>';
+    }).join('');
+  }
 }
 
 function fillReferral(ud) {
-  const link=ud.referral_link||('https://www.idtacademy.com.ng/register?ref='+(ud.referral_code||currentUserId));
-  if($('refLink')) $('refLink').value=link;
-  const meta=[];
-  if(has(ud.referral_code)) meta.push('<div class="kv-box"><span>Referral Code</span><b>'+escapeHtml(ud.referral_code)+'</b></div>');
-  meta.push('<div class="kv-box"><span>Total Bonus</span><b>'+formatMoney(ud.referral_bonus)+'</b></div>');
-  if(has(ud.referred_by)) meta.push('<div class="kv-box"><span>Referred By</span><b>'+escapeHtml(ud.referred_by)+'</b></div>');
-  if($('refMeta')) $('refMeta').innerHTML=meta.join('');
+  const link = has(ud.referral_link) ? ud.referral_link : (has(ud.referral_code) ? 'https://www.idtacademy.com.ng/index/ref/' + ud.referral_code : '');
+  if ($('refLink')) $('refLink').value = link;
+  const meta = [];
+  if (has(ud.referral_code)) meta.push(kv('Referral Code', escapeHtml(ud.referral_code)));
+  meta.push(kv('Total Bonus', formatMoney(ud.referral_bonus)));
+  meta.push(kv('Paid Referrals', String(Number(ud.paid_referrals || 0)) + ' of ' + String(Number(ud.total_referrals || 0))));
+  if (has(ud.referred_by)) meta.push(kv('Referred By', escapeHtml(ud.referred_by)));
+  if ($('refMeta')) $('refMeta').innerHTML = meta.join('');
 }
 
-function updateRing(ud,steps) {
-  const total=steps?steps.length:0;
-  const done=steps?steps.filter((s)=>s.state==='done').length:0;
-  const pct=total?Math.round((done/total)*100):0;
-  if($('progressPct')) $('progressPct').textContent=pct+'%';
-  if($('progressRing')) $('progressRing').style.background='conic-gradient(#7c3aed '+pct+'%, rgba(124,58,237,.12) 0)';
+function updateRing(steps) {
+  const pct = Math.round((steps.filter((s) => s.state === 'done').length / steps.length) * 100);
+  if ($('progressPct')) $('progressPct').textContent = pct + '%';
+  if ($('progressRing')) $('progressRing').style.background = 'conic-gradient(#7c3aed ' + pct + '%, rgba(124,58,237,.12) 0)';
 }
 
 function renderProfile() {
-  const ud=currentUd;
-  if($('pName')) $('pName').textContent=ud.full_name||'Student';
-  if($('pEmail')) $('pEmail').textContent=ud.email||'—';
-  if($('pAvatar')) $('pAvatar').src=currentProfileUrl||'https://i.imgur.com/oyqM5oF.png';
-  if($('pMemberSince')) $('pMemberSince').innerHTML='<i class="fa-solid fa-calendar-check"></i> '+(has(ud.date_registered)?'Member since '+formatDate(ud.date_registered):'IDT Academy Student');
-  if($('statusBadge')) $('statusBadge').innerHTML=statusBadge(ud.status);
-  if($('pLevelBadge')){
-    if(has(ud.level_completed)){
-      $('pLevelBadge').style.display='';
-      if($('pLevelText')) $('pLevelText').textContent='Level '+ud.level_completed;
-    } else {
-      $('pLevelBadge').style.display='none';
-    }
+  const ud = currentUd;
+  if ($('pName')) $('pName').textContent = has(ud.full_name) ? ud.full_name : 'Student';
+  if ($('pEmail')) $('pEmail').textContent = has(ud.email) ? ud.email : '—';
+  if ($('pAvatar')) $('pAvatar').src = currentProfileUrl || LOGO;
+  if ($('pMemberSince')) $('pMemberSince').innerHTML = '<i class="fa-solid fa-calendar-check"></i> ' + (has(ud.date_registered) ? 'Member since ' + escapeHtml(formatDate(ud.date_registered)) : 'IDT Academy Student');
+  if ($('statusBadge')) $('statusBadge').outerHTML = statusBadge(isActivated(ud) ? 'active' : ud.status || 'pending').replace('class="badge', 'id="statusBadge" class="badge');
+  if ($('pLevelBadge')) {
+    const show = has(ud.level_completed) && typeof ud.level_completed !== 'object';
+    $('pLevelBadge').style.display = show ? '' : 'none';
+    if (show && $('pLevelText')) $('pLevelText').textContent = 'Level ' + ud.level_completed;
   }
-  const steps=buildSteps(ud);
+  const steps = buildSteps(ud);
   buildStats(ud);
   buildActions(ud);
   fillCourse(ud);
   fillPersonal(ud);
   buildExamHistory(ud);
   fillReferral(ud);
-  updateRing(ud,steps);
+  updateRing(steps);
 }
 
 async function loadProfile(userId) {
+  currentUserId = userId;
   try {
-    const {data,error}=await supabase.from('user_profiles').select('id, user_data').eq('id',userId).maybeSingle();
-    if(error) throw error;
-    currentUserId=userId;
-    currentUd=(data&&data.user_data)||{};
-    currentProfileUrl=currentUd.profile_url||currentUd.avatar_url||currentUd.photo_url||'';
+    const { data, error } = await supabase.from('user_profiles').select('id, user_data').eq('id', userId).maybeSingle();
+    if (error) throw error;
+    currentUd = (data && data.user_data) || {};
+    currentProfileUrl = currentUd.profile_url || currentUd.avatar_url || currentUd.photo_url || '';
     renderProfile();
-    showProfile();
-    setTimeout(hideLoading,400);
-  } catch(err) {
-    currentUserId=userId;
-    currentUd={};
-    currentProfileUrl='';
+    setView(true);
+  } catch (err) {
+    currentUd = {};
+    currentProfileUrl = '';
     renderProfile();
-    showProfile();
-    setTimeout(hideLoading,400);
-    pushShow('error','Load Failed',err.message||'Could not load your profile.');
+    setView(true);
+    pushShow('error', 'Load Failed', 'We could not load your profile. Please check your connection and refresh.');
   }
+  setTimeout(hideLoading, 400);
 }
 
-if($('btnLogout')){
-  $('btnLogout').addEventListener('click',async()=>{
+if ($('btnLogout')) {
+  $('btnLogout').addEventListener('click', async () => {
     await supabase.auth.signOut();
-    showNoSession();
-    pushShow('info','Signed Out','You have been logged out.');
+    setView(false);
+    pushShow('info', 'Signed Out', 'You have been logged out.');
   });
 }
 
-if($('copyRef')){
-  $('copyRef').addEventListener('click',async()=>{
-    const link=$('refLink')?$('refLink').value:'';
-    if(!link){
-      pushShow('error','No Link','Referral link is not available.');
+if ($('copyRef')) {
+  $('copyRef').addEventListener('click', async () => {
+    const link = $('refLink') ? $('refLink').value : '';
+    if (!link) {
+      pushShow('error', 'No Link', 'Referral link is not available.');
       return;
     }
-    try{
+    try {
       await copyText(link);
-      $('copyRef').innerHTML='<i class="fa-solid fa-check"></i> Copied!';
+      $('copyRef').innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
       $('copyRef').classList.add('done');
-      setTimeout(()=>{$('copyRef').innerHTML='<i class="fa-solid fa-copy"></i> Copy';$('copyRef').classList.remove('done');},2500);
-      pushShow('success','Copied!','Your referral link has been copied. Share it and earn ₦1500 per registration.');
-    } catch(err){
-      pushShow('error','Copy Failed',err.message||String(err));
+      setTimeout(() => {
+        $('copyRef').innerHTML = '<i class="fa-solid fa-copy"></i> Copy';
+        $('copyRef').classList.remove('done');
+      }, 2500);
+      pushShow('success', 'Copied!', 'Your referral link has been copied. Share it and earn ₦1500 per registration.');
+    } catch (err) {
+      pushShow('error', 'Copy Failed', 'Could not copy the link. Please copy it manually.');
     }
   });
 }
 
-supabase.auth.onAuthStateChange((event,session)=>{
-  if(event==='SIGNED_OUT'||!session){
-    currentUserId='';
-    currentUd={};
-    currentProfileUrl='';
-    showNoSession();
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT' || !session) {
+    currentUserId = '';
+    currentUd = {};
+    currentProfileUrl = '';
+    setView(false);
   }
 });
 
 showLoading();
-window.addEventListener('load',()=>setTimeout(hideLoading,500));
+window.addEventListener('load', () => setTimeout(hideLoading, 500));
 
-(async function init(){
-  if($('userBadge')) $('userBadge').classList.add('hidden');
-  if($('btnLogout')) $('btnLogout').classList.add('hidden');
-  try{
-    const{data}=await supabase.auth.getSession();
-    if(data&&data.session){
+(async function init() {
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data && data.session) {
       await loadProfile(data.session.user.id);
-    }else{
-      showNoSession();
-      setTimeout(hideLoading,400);
+    } else {
+      setView(false);
+      setTimeout(hideLoading, 400);
     }
-  }catch(err){
-    showNoSession();
-    setTimeout(hideLoading,400);
+  } catch (err) {
+    setView(false);
+    setTimeout(hideLoading, 400);
   }
 })();
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.documentElement.classList.add('ready');
-});
