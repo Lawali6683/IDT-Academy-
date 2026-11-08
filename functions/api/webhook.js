@@ -1,433 +1,382 @@
+const TOLERANCE = 20;
+const REFERRAL_MIN_AMOUNT = 5000;
+const REFERRAL_BONUS = 1500;
+const JAMB_BONUS = 300;
+const NOTIFY_URL = 'https://www.idtacademy.com.ng/complet';
+
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-paystack-signature'
+};
+
+class BizError extends Error {
+  constructor(code, message, extra) {
+    super(message);
+    this.code = code;
+    this.extra = extra || {};
+  }
+}
+
+function json(data, status) {
+  return new Response(JSON.stringify(data), {
+    status: status || 200,
+    headers: Object.assign({ 'Content-Type': 'application/json' }, CORS)
+  });
+}
+
 export default {
-  async fetch(request, env) {
-    const cors = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-paystack-signature'
-    };
+  async fetch(request, env, ctx) {
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
 
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: cors });
-    }
+    const url = new URL(request.url);
+    if (url.pathname.indexOf('/admin/') === 0) return handleAdmin(request, env, ctx, url);
 
-    if (request.method !== 'POST') {
-      return new Response(JSON.stringify({ success: false, message: 'Method not allowed' }), {
-        status: 405, headers: { 'Content-Type': 'application/json', ...cors }
-      });
-    }
+    if (request.method !== 'POST') return json({ success: false, message: 'Method not allowed' }, 405);
 
     try {
       const body = await request.text();
       const signature = request.headers.get('x-paystack-signature') || '';
-
-      if (!signature) {
-        return new Response(JSON.stringify({ success: false, message: 'Missing signature' }), {
-          status: 401, headers: { 'Content-Type': 'application/json', ...cors }
-        });
-      }
+      if (!signature) return json({ success: false, message: 'Missing signature' }, 401);
 
       const secret = env.PAY_SECRET_KEY || '';
-      if (!secret) {
-        return new Response(JSON.stringify({ success: false, message: 'Server not configured' }), {
-          status: 500, headers: { 'Content-Type': 'application/json', ...cors }
-        });
-      }
+      if (!secret) return json({ success: false, message: 'Server not configured' }, 500);
 
-      const isValid = await verifyPaystackSignature(body, signature, secret);
-      if (!isValid) {
-        return new Response(JSON.stringify({ success: false, message: 'Invalid signature' }), {
-          status: 401, headers: { 'Content-Type': 'application/json', ...cors }
-        });
+      if (!(await verifyPaystackSignature(body, signature, secret))) {
+        return json({ success: false, message: 'Invalid signature' }, 401);
       }
 
       const event = JSON.parse(body);
-      const eventType = event.event || '';
-      const eventData = event.data || {};
-
-      if (eventType === 'charge.success' && eventData.status === 'success') {
-        await handlePaymentSuccess(env, eventData);
+      const data = event.data || {};
+      if (event.event === 'charge.success' && data.status === 'success') {
+        await handlePaymentSuccess(env, ctx, data);
       }
-
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200, headers: { 'Content-Type': 'application/json', ...cors }
-      });
-
+      return json({ success: true });
     } catch (err) {
-      return new Response(JSON.stringify({ success: false, message: err.message }), {
-        status: 500, headers: { 'Content-Type': 'application/json', ...cors }
-      });
+      return json({ success: false, message: err.message }, 500);
     }
   }
 };
 
 async function verifyPaystackSignature(body, signature, secret) {
   try {
-    const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    const buffer = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
-    const hashArray = Array.from(new Uint8Array(buffer));
-    const computedSignature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return computedSignature.toLowerCase() === signature.toLowerCase();
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-512' }, false, ['sign']);
+    const buf = await crypto.subtle.sign('HMAC', key, enc.encode(body));
+    const hex = Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    return hex === signature.toLowerCase();
   } catch (e) {
     return false;
   }
 }
 
-function sbUrl(env) {
-  const base = env.SUPABASE_URL || 'https://orhgklhfltsfdumrrhup.supabase.co';
-  return base.endsWith('/') ? base + 'rest/v1/' : base + '/rest/v1/';
+function restBase(env) {
+  const b = env.SUPABASE_URL || 'https://orhgklhfltsfdumrrhup.supabase.co';
+  return (b.endsWith('/') ? b : b + '/') + 'rest/v1/';
 }
 
-function sbHeaders(env) {
+async function sb(env, method, path, body, prefer) {
   const key = env.SUPABASE_SERVICE_ROLE_KEY;
-  return {
-    'apikey': key,
-    'Authorization': 'Bearer ' + key,
-    'Content-Type': 'application/json',
-    'Prefer': 'return=representation'
-  };
+  const res = await fetch(restBase(env) + path, {
+    method: method,
+    headers: {
+      apikey: key,
+      Authorization: 'Bearer ' + key,
+      'Content-Type': 'application/json',
+      Prefer: prefer || 'return=representation'
+    },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error('Supabase ' + res.status + ': ' + text.slice(0, 300));
+  try { return text ? JSON.parse(text) : []; } catch (e) { return []; }
 }
 
-async function kvIdempotent(env, reference) {
-  if (!env.PAYMENTS_KV) return false;
-  const key = 'paywebhook:' + reference;
-  const exists = await env.PAYMENTS_KV.get(key);
-  if (exists) return true;
-  await env.PAYMENTS_KV.put(key, '1', { expirationTtl: 259200 });
-  return false;
+function bg(ctx, promise) {
+  const p = promise.catch(function () {});
+  if (ctx && ctx.waitUntil) ctx.waitUntil(p);
 }
 
-async function fetchSupabase(url, options) {
-  const res = await fetch(url, options);
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error('Supabase HTTP ' + res.status + ': ' + text);
+function notify(ctx, payload) {
+  bg(ctx, fetch(NOTIFY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }));
+}
+
+const enc = encodeURIComponent;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function logPending(env, rec) {
+  try {
+    await sb(env, 'POST', 'pending_payments?on_conflict=reference', rec, 'resolution=ignore-duplicates,return=minimal');
+  } catch (e) {
+    console.error('pending log failed: ' + e.message);
   }
-  return res.json().catch(() => []);
 }
 
-async function handlePaymentSuccess(env, data) {
+async function findAccount(env, emails, userId) {
+  const tables = [
+    { table: 'user_profiles', col: 'user_data', partner: false },
+    { table: 'partner_profiles', col: 'partner_data', partner: true }
+  ];
+
+  if (userId && UUID_RE.test(userId)) {
+    for (let i = 0; i < tables.length; i++) {
+      try {
+        const r = await sb(env, 'GET', tables[i].table + '?select=*&id=eq.' + enc(userId));
+        if (r[0]) return { row: r[0], partner: tables[i].partner };
+      } catch (e) {}
+    }
+  }
+
+  for (let i = 0; i < emails.length; i++) {
+    if (!emails[i]) continue;
+    for (let j = 0; j < tables.length; j++) {
+      const t = tables[j];
+      const r = await sb(env, 'GET', t.table + '?select=*&' + t.col + '->>email=eq.' + enc(emails[i]));
+      if (r[0]) return { row: r[0], partner: t.partner };
+    }
+  }
+  return null;
+}
+
+async function handlePaymentSuccess(env, ctx, data) {
   const reference = String(data.reference || '').trim();
-  const email = String((data.customer && data.customer.email) || '').trim().toLowerCase();
-  const amountPaid = Math.round(Number(data.amount || 0) / 100);
+  if (!reference) return;
 
-  if (!reference || !email) return;
+  const meta = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
+  const payEmail = String((data.customer && data.customer.email) || '').trim().toLowerCase();
+  const metaEmail = String(meta.email || '').trim().toLowerCase();
+  const emails = [payEmail, metaEmail].filter(function (e, i, a) { return e && a.indexOf(e) === i; });
 
-  const isProcessed = await kvIdempotent(env, reference);
-  if (isProcessed) return;
+  const p = {
+    reference: reference,
+    emails: emails,
+    userId: String(meta.user_id || '').trim(),
+    amountPaid: Math.round(Number(data.amount || 0) / 100)
+  };
 
-  const restUrl = sbUrl(env);
-  const headers = sbHeaders(env);
+  const kv = env.PAYMENTS_KV;
+  if (kv) {
+    if (await kv.get('paydone:' + reference)) return;
+    if (await kv.get('paylock:' + reference)) return;
+    await kv.put('paylock:' + reference, '1', { expirationTtl: 120 });
+  }
 
-  const checkComplete = await fetchSupabase(
-    restUrl + 'completepay?select=*&complete_pay->>reference=eq.' + encodeURIComponent(reference),
-    { headers }
-  );
+  try {
+    const done = await sb(env, 'GET', 'completepay?select=id&complete_pay->>reference=eq.' + enc(reference));
+    if (done.length === 0) {
+      await processPayment(env, ctx, p, {});
+    }
+    if (kv) await kv.put('paydone:' + reference, '1', { expirationTtl: 259200 });
+  } catch (err) {
+    if (kv) await kv.delete('paylock:' + reference);
 
-  if (Array.isArray(checkComplete) && checkComplete.length > 0) {
+    const biz = err instanceof BizError;
+    await logPending(env, {
+      reference: reference,
+      base_reference: reference,
+      email: payEmail || metaEmail || null,
+      user_id: p.userId || null,
+      amount_paid: p.amountPaid,
+      expected_price: biz && err.extra.expected ? err.extra.expected : 0,
+      issue_code: biz ? err.code : 'SYSTEM_ERROR',
+      issue_message: err.message,
+      paystack_data: {
+        channel: data.channel || null,
+        paid_at: data.paid_at || null,
+        currency: data.currency || null,
+        metadata: meta
+      },
+      status: 'pending'
+    });
+
+    if (biz) return;
+    throw err;
+  }
+}
+
+async function processPayment(env, ctx, p, opts) {
+  const force = !!opts.force;
+  const acc = await findAccount(env, p.emails, p.userId);
+  if (!acc) {
+    throw new BizError('USER_NOT_FOUND', 'Babu user ko partner mai wannan email a database: ' + (p.emails.join(', ') || '(babu email)'));
+  }
+
+  const row = acc.row;
+
+  if (acc.partner) {
+    if (opts.referralOnly) return;
+    const pd = Object.assign({}, row.partner_data || {});
+    pd.status = 'active';
+    await sb(env, 'PATCH', 'partner_profiles?id=eq.' + enc(row.id), { partner_data: pd });
+    await recordPayment(env, p, row.id, {
+      partner_id: row.id, full_name: pd.full_name || '', email: pd.email || p.emails[0] || '',
+      account_type: 'partner'
+    });
     return;
   }
 
-  let userRecord = null;
-  let isPartner = false;
+  const ud = Object.assign({}, row.user_data || {});
+  const email = String(ud.email || p.emails[0] || '').toLowerCase();
+  const isJamb = ud.course_type === 'jamb';
+  const expected = Number(isJamb ? ud.jambCoursePrice : ud.course_price) || 0;
+  const paidEnough = expected > 0 && p.amountPaid >= expected - TOLERANCE;
 
-  const users = await fetchSupabase(
-    restUrl + 'user_profiles?select=*&user_data->>email=eq.' + encodeURIComponent(email),
-    { headers }
-  );
+  if (!opts.referralOnly) {
+    if (!force) {
+      if (expected <= 0) {
+        throw new BizError('NO_PRICE', 'Babu farashin course a profile din user (course_price / jambCoursePrice = 0)');
+      }
+      if (!paidEnough) {
+        throw new BizError('AMOUNT_SHORT',
+          'Ya biya N' + p.amountPaid + ' amma farashin course N' + expected + ' (an yarda da gibin N' + TOLERANCE + ' kawai)',
+          { expected: expected });
+      }
+    }
 
-  if (Array.isArray(users) && users.length > 0) {
-    userRecord = users[0];
-  } else {
-    const partners = await fetchSupabase(
-      restUrl + 'partner_profiles?select=*&partner_data->>email=eq.' + encodeURIComponent(email),
-      { headers }
-    );
+    if (isJamb) {
+      ud.payment_no = 'yes';
+    } else {
+      ud.status = 'active';
+      ud.payment_no = p.reference;
+    }
+    await sb(env, 'PATCH', 'user_profiles?id=eq.' + enc(row.id), { user_data: ud });
 
-    if (Array.isArray(partners) && partners.length > 0) {
-      userRecord = partners[0];
-      isPartner = true;
+    const created = await recordPayment(env, p, row.id, {
+      user_id: row.id, full_name: ud.full_name || '', email: email,
+      course_id: ud.course_id || '', course_name: ud.course_name || '',
+      course_price: expected || p.amountPaid
+    });
+    if (created) {
+      notify(ctx, {
+        type: 'payment', full_name: ud.full_name || 'Student', email: email,
+        course_name: ud.course_name || 'Course', course_price: expected || p.amountPaid,
+        amount_paid: p.amountPaid, reference: p.reference
+      });
     }
   }
 
-  if (!userRecord) return;
-
-  const userId = userRecord.id;
-  const now = new Date().toISOString();
-
-  if (!isPartner) {
-    let userData = Object.assign({}, userRecord.user_data || {});
-    const coursePrice = Number(userData.course_price || 0);
-
-    let isJambOrSmallPayment = false;
-    let isCoursePaymentValid = false;
-
-    if (amountPaid <= 3500) {
-      isJambOrSmallPayment = true;
-      userData.payment_no = 'yes';
-    } else {
-      if (coursePrice > 0 && amountPaid >= coursePrice) {
-        isCoursePaymentValid = true;
-        userData.status = 'active';
-        userData.payment_no = reference;
-      } else if (amountPaid < coursePrice) {
-        const currentReferralBonus = Number(userData.referral_bonus || 0);
-        userData.referral_bonus = currentReferralBonus + amountPaid;
-        userData.payment_no = reference;
-      } else {
-        isCoursePaymentValid = true;
-        userData.status = 'active';
-        userData.payment_no = reference;
-      }
-    }
-
-    const referredBy = String(userData.referred_by || '').trim().toUpperCase();
-
-    if (referredBy && (isJambOrSmallPayment || isCoursePaymentValid)) {
-      const bonusAmount = isJambOrSmallPayment ? 300 : 1500;
-      let referrerPartner = null;
-      let referrerUser = null;
-
-      const partnerSearch = await fetchSupabase(
-        restUrl + 'partner_profiles?select=*&partner_data->>referral_code=eq.' + encodeURIComponent(referredBy),
-        { headers }
-      );
-
-      if (Array.isArray(partnerSearch) && partnerSearch.length > 0) {
-        referrerPartner = partnerSearch[0];
-      }
-
-      if (referrerPartner) {
-        const pd = Object.assign({}, referrerPartner.partner_data || {});
-        const currentBonus = Number(pd.referral_bonus || 0);
-
-        let activity = Array.isArray(pd.referral_activity) ? JSON.parse(JSON.stringify(pd.referral_activity)) : [];
-        let actFound = false;
-
-        for (let i = 0; i < activity.length; i++) {
-          if (activity[i].referred_email === email) {
-            if (activity[i].status !== 'completed') {
-              activity[i].status = 'completed';
-              activity[i].bonus = bonusAmount;
-              activity[i].date_paid = now;
-              pd.referral_bonus = currentBonus + bonusAmount;
-              pd.paid_referrals = Number(pd.paid_referrals || 0) + 1;
-            }
-            actFound = true;
-            break;
-          }
-        }
-
-        if (!actFound) {
-          activity.push({
-            referred_name: userData.full_name || 'Student',
-            referred_email: email,
-            course_name: userData.course_name || 'Selected Course',
-            course_price: coursePrice || amountPaid,
-            bonus: bonusAmount,
-            status: 'completed',
-            date: now,
-            date_paid: now
-          });
-          pd.referral_bonus = currentBonus + bonusAmount;
-          pd.paid_referrals = Number(pd.paid_referrals || 0) + 1;
-        }
-
-        pd.referral_activity = activity;
-
-        await fetchSupabase(
-          restUrl + 'partner_profiles?id=eq.' + encodeURIComponent(referrerPartner.id),
-          {
-            method: 'PATCH',
-            headers,
-            body: JSON.stringify({ partner_data: pd })
-          }
-        );
-
-        try {
-          await fetch('https://www.idtacademy.com.ng/complet', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'referral_bonus',
-              full_name: pd.full_name || 'Partner',
-              email: pd.email || '',
-              referral_bonus: bonusAmount,
-              referred_name: userData.full_name || 'Student',
-              referred_course: userData.course_name || 'Selected Course',
-              referral_link: pd.referral_link || ''
-            })
-          });
-        } catch (e) {}
-
-      } else {
-        const userSearch = await fetchSupabase(
-          restUrl + 'user_profiles?select=*&user_data->>referral_code=eq.' + encodeURIComponent(referredBy),
-          { headers }
-        );
-
-        if (Array.isArray(userSearch) && userSearch.length > 0) {
-          referrerUser = userSearch[0];
-        }
-
-        if (referrerUser) {
-          const rud = Object.assign({}, referrerUser.user_data || {});
-          const currentBonus = Number(rud.referral_bonus || 0);
-
-          let activity = Array.isArray(rud.referral_activity) ? JSON.parse(JSON.stringify(rud.referral_activity)) : [];
-          let actFound = false;
-
-          for (let i = 0; i < activity.length; i++) {
-            if (activity[i].referred_email === email) {
-              if (activity[i].status !== 'completed') {
-                activity[i].status = 'completed';
-                activity[i].bonus = bonusAmount;
-                activity[i].date_paid = now;
-                rud.referral_bonus = currentBonus + bonusAmount;
-                rud.paid_referrals = Number(rud.paid_referrals || 0) + 1;
-              }
-              actFound = true;
-              break;
-            }
-          }
-
-          if (!actFound) {
-            activity.push({
-              referred_name: userData.full_name || 'Student',
-              referred_email: email,
-              course_name: userData.course_name || 'Selected Course',
-              course_price: coursePrice || amountPaid,
-              bonus: bonusAmount,
-              status: 'completed',
-              date: now,
-              date_paid: now
-            });
-            rud.referral_bonus = currentBonus + bonusAmount;
-            rud.paid_referrals = Number(rud.paid_referrals || 0) + 1;
-          }
-
-          rud.referral_activity = activity;
-
-          await fetchSupabase(
-            restUrl + 'user_profiles?id=eq.' + encodeURIComponent(referrerUser.id),
-            {
-              method: 'PATCH',
-              headers,
-              body: JSON.stringify({ user_data: rud })
-            }
-          );
-
-          try {
-            await fetch('https://www.idtacademy.com.ng/complet', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'referral_bonus',
-                full_name: rud.full_name || 'Referrer',
-                email: rud.email || '',
-                referral_bonus: bonusAmount,
-                referred_name: userData.full_name || 'Student',
-                referred_course: userData.course_name || 'Selected Course',
-                referral_link: rud.referral_link || ''
-              })
-            });
-          } catch (e) {}
-        }
-      }
-    }
-
-    await fetchSupabase(
-      restUrl + 'user_profiles?id=eq.' + encodeURIComponent(userId),
-      {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ user_data: userData })
-      }
-    );
-
-    const payData = {
-      user_id: userId,
-      full_name: userData.full_name || '',
-      email: email,
-      course_id: userData.course_id || '',
-      course_name: userData.course_name || '',
-      course_price: coursePrice || amountPaid,
-      amount_paid: amountPaid,
-      reference: reference,
-      status: 'success',
-      paid_at: now
-    };
-
-    await fetchSupabase(
-      restUrl + 'completepay',
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          id: userId,
-          complete_pay: payData,
-          date_complet: now
-        })
-      }
-    );
-
+  const refCode = String(ud.referred_by || '').trim().toUpperCase();
+  const bonus = isJamb ? JAMB_BONUS : (p.amountPaid >= REFERRAL_MIN_AMOUNT ? REFERRAL_BONUS : 0);
+  if (refCode && refCode !== 'N/A' && bonus > 0 && (paidEnough || force)) {
     try {
-      await fetch('https://www.idtacademy.com.ng/complet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'payment',
-          full_name: userData.full_name || 'Student',
-          email: email,
-          course_name: userData.course_name || 'Course',
-          course_price: coursePrice || amountPaid,
-          amount_paid: amountPaid,
-          reference: reference
-        })
+      await payReferral(env, ctx, ud, email, p.amountPaid, refCode, bonus, expected);
+    } catch (err) {
+      await logPending(env, {
+        reference: p.reference + ':ref',
+        base_reference: p.reference,
+        email: email,
+        user_id: row.id,
+        amount_paid: p.amountPaid,
+        expected_price: expected,
+        issue_code: err instanceof BizError ? err.code : 'REFERRAL_FAILED',
+        issue_message: 'An kunna user amma referral bonus (N' + bonus + ', code ' + refCode + ') bai shiga ba: ' + err.message,
+        status: 'pending'
       });
-    } catch (e) {}
+      if (opts.referralOnly) throw err;
+    }
+  }
+}
 
-  } else {
-    let partnerData = Object.assign({}, userRecord.partner_data || {});
-    partnerData.status = 'active';
+async function payReferral(env, ctx, ud, email, amountPaid, code, bonus, price) {
+  const kinds = ['partner', 'user'];
+  for (let i = 0; i < kinds.length; i++) {
+    const r = await sb(env, 'POST', 'rpc/credit_referral', {
+      p_kind: kinds[i],
+      p_code: code,
+      p_referred_email: email,
+      p_referred_name: ud.full_name || 'Student',
+      p_course_name: ud.course_name || 'Selected Course',
+      p_course_price: price || amountPaid,
+      p_bonus: bonus
+    });
+    if (r && r.credited) {
+      notify(ctx, {
+        type: 'referral_bonus',
+        full_name: r.full_name || 'Partner',
+        email: r.email || '',
+        referral_bonus: bonus,
+        referred_name: ud.full_name || 'Student',
+        referred_course: ud.course_name || 'Selected Course',
+        referral_link: r.referral_link || ''
+      });
+      return;
+    }
+    if (r && r.reason === 'already_completed') return;
+  }
+  throw new BizError('REFERRER_NOT_FOUND', 'Ba a sami wanda ke da referral code "' + code + '" ba');
+}
 
-    await fetchSupabase(
-      restUrl + 'partner_profiles?id=eq.' + encodeURIComponent(userId),
-      {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ partner_data: partnerData })
-      }
-    );
+async function recordPayment(env, p, ownerId, extra) {
+  const exists = await sb(env, 'GET', 'completepay?select=id&complete_pay->>reference=eq.' + enc(p.reference));
+  if (exists.length) return false;
 
-    const payData = {
-      partner_id: userId,
-      full_name: partnerData.full_name || '',
-      email: email,
-      amount_paid: amountPaid,
-      reference: reference,
-      account_type: 'partner',
-      status: 'success',
-      paid_at: now
-    };
+  const now = new Date().toISOString();
+  const complete_pay = Object.assign({
+    amount_paid: p.amountPaid, reference: p.reference, status: 'success', paid_at: now
+  }, extra);
 
-    await fetchSupabase(
-      restUrl + 'completepay',
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          id: userId,
-          complete_pay: payData,
-          date_complet: now
-        })
-      }
-    );
+  try {
+    await sb(env, 'POST', 'completepay', { id: ownerId, complete_pay: complete_pay, date_complet: now });
+  } catch (e) {
+    await sb(env, 'POST', 'completepay', { id: crypto.randomUUID(), complete_pay: complete_pay, date_complet: now });
+  }
+  return true;
+}
+
+async function handleAdmin(request, env, ctx, url) {
+  const auth = request.headers.get('Authorization') || '';
+  if (!env.ADMIN_TOKEN || auth !== 'Bearer ' + env.ADMIN_TOKEN) return json({ error: 'Unauthorized' }, 401);
+
+  try {
+    if (url.pathname === '/admin/list' && request.method === 'GET') {
+      const status = url.searchParams.get('status') || 'pending';
+      const rows = await sb(env, 'GET',
+        'pending_payments?select=*&status=eq.' + enc(status) + '&order=created_at.desc&limit=200');
+      return json({ rows: rows });
+    }
+
+    if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+    const body = await request.json().catch(function () { return {}; });
+    const id = String(body.id || '');
+    if (!UUID_RE.test(id)) return json({ error: 'Invalid id' }, 400);
+
+    const rows = await sb(env, 'GET', 'pending_payments?select=*&id=eq.' + enc(id));
+    const row = rows[0];
+    if (!row) return json({ error: 'Ba a sami record ba' }, 404);
+    if (row.status !== 'pending') return json({ error: 'An riga an warware wannan (' + row.status + ')' }, 409);
+
+    const now = new Date().toISOString();
+
+    if (url.pathname === '/admin/reject') {
+      await sb(env, 'PATCH', 'pending_payments?id=eq.' + enc(id), {
+        status: 'rejected', resolved_at: now, resolved_by: 'admin', admin_note: String(body.note || '')
+      });
+      return json({ success: true });
+    }
+
+    if (url.pathname === '/admin/confirm') {
+      const fixEmail = String(body.email || '').trim().toLowerCase();
+      const isRefOnly = row.issue_code === 'REFERRAL_FAILED' || row.issue_code === 'REFERRER_NOT_FOUND';
+      const p = {
+        reference: row.base_reference || row.reference,
+        emails: [fixEmail, String(row.email || '').toLowerCase()].filter(Boolean),
+        userId: row.user_id || '',
+        amountPaid: Number(row.amount_paid) || 0
+      };
+      await processPayment(env, ctx, p, { force: true, referralOnly: isRefOnly });
+      await sb(env, 'PATCH', 'pending_payments?id=eq.' + enc(id), {
+        status: 'resolved', resolved_at: now, resolved_by: 'admin',
+        email: fixEmail || row.email, admin_note: String(body.note || '')
+      });
+      return json({ success: true });
+    }
+
+    return json({ error: 'Not found' }, 404);
+  } catch (err) {
+    return json({ error: err.message }, 500);
   }
 }
