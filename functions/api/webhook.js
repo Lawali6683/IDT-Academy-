@@ -7,7 +7,7 @@ const NOTIFY_URL = 'https://www.idtacademy.com.ng/complet';
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-paystack-signature'
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-paystack-signature, x-admin-code'
 };
 
 class BizError extends Error {
@@ -328,8 +328,17 @@ async function recordPayment(env, p, ownerId, extra) {
 }
 
 async function handleAdmin(request, env, ctx, url) {
-  const auth = request.headers.get('Authorization') || '';
-  if (!env.ADMIN_TOKEN || auth !== 'Bearer ' + env.ADMIN_TOKEN) return json({ error: 'Unauthorized' }, 401);
+  const adminCode = request.headers.get('x-admin-code') || '';
+  if (!/^[0-9]{6}$/.test(adminCode)) return json({ error: 'Incorrect code. Access denied.' }, 401);
+
+  let verdict;
+  try {
+    verdict = await sb(env, 'POST', 'rpc/verify_admin_code', { p_code: adminCode });
+  } catch (e) {
+    return json({ error: e.message }, 500);
+  }
+  if (verdict === 'locked') return json({ error: 'Too many wrong attempts. Try again in 15 minutes.' }, 429);
+  if (verdict !== 'ok') return json({ error: 'Incorrect code. Access denied.' }, 401);
 
   try {
     if (url.pathname === '/admin/list' && request.method === 'GET') {
