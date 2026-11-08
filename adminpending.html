@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex">
+<title>Pending Payments - IDT Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+--violet:#7c3aed;
+--violet-d:#6d28d9;
+--cyan:#06b6d4;
+--amber:#f59e0b;
+--rose:#f43f5e;
+--green:#10b981;
+--ink:#1e1b4b;
+--muted:#6d6a8a;
+--line:#e7e3f7;
+--bg:#f6f4ff;
+--card:#ffffff;
+}
+body{font-family:'Poppins',system-ui,-apple-system,sans-serif;color:var(--ink);min-height:100vh;background:var(--bg);overflow-x:hidden}
+button{font-family:inherit;cursor:pointer;border:none}
+input{font-family:inherit;outline:none}
+.hidden{display:none!important}
+.page-gate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:var(--bg);transition:opacity .3s ease,visibility .3s ease}
+.page-gate.hidden{display:flex!important;opacity:0;visibility:hidden;pointer-events:none}
+.gate-card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:32px 24px;width:100%;max-width:420px;margin:20px;text-align:center;box-shadow:0 12px 32px rgba(80,40,160,.12);border-top:5px solid var(--violet)}
+.gate-card .logo{width:70%;max-width:240px;object-fit:contain;margin:0 auto 14px;display:block}
+.gate-card h2{font-size:20px;font-weight:800;margin-bottom:4px}
+.gate-card p{font-size:12.5px;color:var(--muted);margin-bottom:22px}
+.code-boxes{display:flex;gap:10px;justify-content:center;margin-bottom:16px;flex-wrap:wrap}
+.code-boxes input{width:50px;height:58px;background:#fff;border:2px solid var(--line);border-radius:12px;text-align:center;font-size:22px;font-weight:700;color:var(--ink);transition:border-color .15s ease;caret-color:var(--violet)}
+.code-boxes input:focus{border-color:var(--violet)}
+.code-boxes input.filled{border-color:var(--violet);background:#faf8ff}
+.gate-card .gate-error{font-size:12.5px;color:var(--rose);margin:6px 0 0;display:none}
+.page-dash{display:none}
+.page-dash.active{display:block;padding:24px 16px 40px;max-width:1100px;margin:0 auto}
+.dash-header{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-top:4px solid var(--violet);border-radius:18px;padding:16px;margin-bottom:22px;gap:14px;flex-wrap:wrap}
+.dash-header-left{display:flex;align-items:center;gap:14px}
+.dash-header-left .logo-sm{width:120px;max-width:40vw;object-fit:contain}
+.dash-header-left h1{font-size:16px;font-weight:800}
+.dash-header-left h1 .accent{color:var(--violet)}
+.dash-header-left h1 .role{font-size:13px;font-weight:400;color:var(--muted)}
+.dash-header-left .sub{font-size:11px;color:var(--muted);font-weight:600;margin-top:2px}
+.header-actions{display:flex;gap:10px;flex-wrap:wrap}
+.back-btn{background:#f3edff;color:var(--violet-d);padding:10px 18px;border-radius:12px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;transition:background .15s ease,color .15s ease}
+.back-btn:hover{background:var(--violet);color:#fff}
+.lock-btn{background:#fff1f3;color:var(--rose);padding:10px 18px;border-radius:12px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;transition:background .15s ease,color .15s ease}
+.lock-btn:hover{background:var(--rose);color:#fff}
+.back-btn:focus-visible,.lock-btn:focus-visible,.tab-btn:focus-visible,.act-btn:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+.section-title{font-size:16px;font-weight:800;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.section-title i{color:var(--violet)}
+.section-title .hint{font-size:12px;font-weight:400;color:var(--muted)}
+.count-pill{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;padding:0 10px;border-radius:20px;font-size:12px;font-weight:700;background:var(--violet);color:#fff}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.tab-btn{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:9px 18px;border-radius:12px;font-size:13px;font-weight:600;transition:background .15s ease,color .15s ease}
+.tab-btn.on{background:var(--violet);color:#fff;border-color:var(--violet)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.pcard{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--c,var(--violet));border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:6px}
+.pcard .issue{display:inline-flex;align-items:center;gap:7px;align-self:flex-start;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;background:var(--t,#f3edff);color:var(--c,var(--violet-d));margin-bottom:6px}
+.prow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px}
+.prow span:first-child{color:var(--muted)}
+.prow span:last-child{font-weight:600;text-align:right;word-break:break-all}
+.pmsg{background:var(--bg);border-radius:12px;padding:10px 12px;font-size:12px;line-height:1.55;color:var(--muted);margin:8px 0;word-break:break-word}
+.pcard input{width:100%;background:#fff;border:2px solid var(--line);border-radius:12px;padding:10px 12px;font-size:12.5px;color:var(--ink);margin-bottom:8px;transition:border-color .15s ease}
+.pcard input:focus{border-color:var(--violet)}
+.pbtns{display:flex;gap:10px;margin-top:4px}
+.act-btn{flex:1;padding:11px;border-radius:12px;font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .15s ease,opacity .15s ease}
+.act-btn:active{transform:scale(.97)}
+.act-btn:disabled{opacity:.5}
+.act-btn.ok{background:var(--green)}
+.act-btn.no{background:var(--rose)}
+.perr{font-size:12px;color:var(--rose);margin-top:6px}
+.empty{text-align:center;color:var(--muted);font-size:13px;padding:50px 0;grid-column:1/-1}
+.empty i{display:block;font-size:34px;color:var(--line);margin-bottom:10px}
+.toast-container{position:fixed;top:16px;right:16px;z-index:100000;display:flex;flex-direction:column;gap:10px;max-width:min(92vw,400px);pointer-events:none}
+.toast{display:flex;align-items:flex-start;gap:11px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px 14px;box-shadow:0 10px 26px rgba(30,27,75,.16);font-size:13px;color:var(--ink);animation:toastIn .25s ease both;pointer-events:auto}
+.toast.out{animation:toastOut .2s ease both}
+@keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateX(30px)}}
+.toast>i{font-size:18px;margin-top:2px;flex-shrink:0}
+.toast.success>i{color:var(--green)}
+.toast.error>i{color:var(--rose)}
+.toast.info>i{color:var(--violet)}
+.toast.warning>i{color:var(--amber)}
+.toast-body{flex:1;min-width:0}
+.toast-body b{display:block;font-size:13.5px;margin-bottom:2px}
+.toast-body p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.5}
+.toast-close{background:#fff1f3;color:var(--rose);width:28px;height:28px;border-radius:9px;font-size:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.toast-container:empty{display:none}
+@media(max-width:600px){
+.gate-card{padding:26px 18px}
+.code-boxes input{width:44px;height:52px;font-size:20px}
+.dash-header{flex-direction:column;align-items:flex-start}
+.grid{grid-template-columns:1fr}
+.toast-container{top:10px;right:10px;max-width:calc(100vw - 20px)}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="page-gate" id="pageGate">
+<div class="gate-card">
+<img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="logo">
+<h2>Admin Access</h2>
+<p>Enter the security code to view pending payments</p>
+<div class="code-boxes" id="codeBoxes">
+<input type="text" maxlength="1" class="code-input" data-index="0" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+<input type="text" maxlength="1" class="code-input" data-index="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+<input type="text" maxlength="1" class="code-input" data-index="2" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+<input type="text" maxlength="1" class="code-input" data-index="3" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+<input type="text" maxlength="1" class="code-input" data-index="4" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+<input type="text" maxlength="1" class="code-input" data-index="5" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+</div>
+<p class="gate-error" id="gateError">Incorrect code. Access denied.</p>
+</div>
+</div>
+<div class="page-dash" id="pageDash">
+<div class="dash-header">
+<div class="dash-header-left">
+<img src="https://i.imgur.com/oyqM5oF.png" alt="IDT Academy" class="logo-sm">
+<div>
+<h1>IDT <span class="accent">Academy</span> <span class="role">| Admin</span></h1>
+<div class="sub">Pending Payments</div>
+</div>
+</div>
+<div class="header-actions">
+<button class="back-btn" id="backBtn" type="button"><i class="fa-solid fa-arrow-left"></i> Back</button>
+<button class="lock-btn" id="lockBtn" type="button"><i class="fa-solid fa-lock"></i> Lock</button>
+</div>
+</div>
+<div class="section-title">
+<i class="fa-solid fa-hourglass-half"></i> Payment Issues
+<span class="hint">| Confirm or reject each one</span>
+<span class="count-pill" id="countPill">0</span>
+</div>
+<div class="tabs" id="tabs"></div>
+<div class="grid" id="list"></div>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+<script>
+(function(){
+var API_BASE='https://YOUR-WORKER-URL';
+var ISSUES={
+USER_NOT_FOUND:{label:'User not found',icon:'fa-user-slash',c:'#f43f5e',t:'#ffe9ed'},
+AMOUNT_SHORT:{label:'Amount not complete',icon:'fa-scale-unbalanced',c:'#f59e0b',t:'#fff5e0'},
+NO_PRICE:{label:'No course price',icon:'fa-tag',c:'#f59e0b',t:'#fff5e0'},
+REFERRAL_FAILED:{label:'Referral not paid',icon:'fa-share-nodes',c:'#7c3aed',t:'#f3edff'},
+REFERRER_NOT_FOUND:{label:'Referrer not found',icon:'fa-user-question',c:'#7c3aed',t:'#f3edff'},
+SYSTEM_ERROR:{label:'System error',icon:'fa-triangle-exclamation',c:'#f43f5e',t:'#ffe9ed'}
+};
+var TABS=[['pending','Pending'],['resolved','Confirmed'],['rejected','Rejected']];
+var inputs=document.querySelectorAll('.code-input');
+var gate=document.getElementById('pageGate');
+var dash=document.getElementById('pageDash');
+var gateErr=document.getElementById('gateError');
+var toastC=document.getElementById('toastContainer');
+var listEl=document.getElementById('list');
+var tabsEl=document.getElementById('tabs');
+var pill=document.getElementById('countPill');
+var code='';
+var cur='pending';
+
+function mk(tag,cls,text){
+var e=document.createElement(tag);
+if(cls)e.className=cls;
+if(text!==undefined)e.textContent=text;
+return e;
+}
+
+function showToast(type,title,msg){
+var icons={success:'fa-circle-check',error:'fa-circle-xmark',info:'fa-circle-info',warning:'fa-triangle-exclamation'};
+var t=mk('div','toast '+type);
+var ic=mk('i','fa-solid '+(icons[type]||icons.info));
+var body=mk('div','toast-body');
+body.appendChild(mk('b','',title));
+body.appendChild(mk('p','',msg));
+var x=mk('button','toast-close');
+x.type='button';
+x.appendChild(mk('i','fa-solid fa-xmark'));
+function close(){t.classList.add('out');setTimeout(function(){t.remove()},200)}
+x.onclick=close;
+t.appendChild(ic);t.appendChild(body);t.appendChild(x);
+toastC.appendChild(t);
+setTimeout(function(){if(t.parentNode)close()},4000);
+}
+
+async function call(path,method,body){
+var res=await fetch(API_BASE.replace(/\/$/,'')+path,{
+method:method,
+headers:{'x-admin-code':code,'Content-Type':'application/json'},
+body:body?JSON.stringify(body):undefined
+});
+var data=await res.json().catch(function(){return {}});
+if(!res.ok){
+var err=new Error(data.error||('Error '+res.status));
+err.status=res.status;
+throw err;
+}
+return data;
+}
+
+function openDash(){
+gate.classList.add('hidden');
+dash.classList.add('active');
+sessionStorage.setItem('_pc',code);
+renderTabs();
+load();
+}
+
+function clearInputs(){
+for(var i=0;i<inputs.length;i++){
+inputs[i].value='';
+inputs[i].classList.remove('filled');
+}
+inputs[0].focus();
+}
+
+async function checkCode(){
+var val='';
+for(var i=0;i<inputs.length;i++)val+=inputs[i].value;
+if(val.length!==6)return;
+code=val;
+try{
+await call('/admin/list?status=pending','GET');
+gateErr.style.display='none';
+openDash();
+showToast('success','Access Granted','Pending payments loaded.');
+}catch(e){
+code='';
+gateErr.textContent=e.status===429?e.message:(e.status===401?'Incorrect code. Access denied.':'Could not reach the server.');
+gateErr.style.display='block';
+showToast('error','Access Denied',e.status===401||e.status===429?e.message:'Could not reach the server.');
+clearInputs();
+}
+}
+
+for(var k=0;k<inputs.length;k++){
+inputs[k].oninput=function(){
+var idx=parseInt(this.getAttribute('data-index'));
+this.value=this.value.replace(/[^0-9]/g,'');
+if(this.value.length>0){
+this.classList.add('filled');
+if(idx<5){inputs[idx+1].focus()}else{inputs[idx].blur();checkCode()}
+}else{
+this.classList.remove('filled');
+}
+};
+inputs[k].onkeydown=function(e){
+var idx=parseInt(this.getAttribute('data-index'));
+if(e.key==='Backspace'&&this.value.length===0&&idx>0){
+inputs[idx-1].value='';
+inputs[idx-1].classList.remove('filled');
+inputs[idx-1].focus();
+e.preventDefault();
+}
+if(e.key==='Enter')checkCode();
+};
+inputs[k].onfocus=function(){this.select()};
+inputs[k].onpaste=function(e){
+e.preventDefault();
+var paste=(e.clipboardData||window.clipboardData).getData('text').replace(/[^0-9]/g,'').substring(0,6);
+if(paste.length===6){
+for(var p=0;p<6;p++){
+inputs[p].value=paste[p];
+inputs[p].classList.add('filled');
+}
+checkCode();
+}
+};
+}
+
+document.getElementById('lockBtn').onclick=function(){
+sessionStorage.removeItem('_pc');
+code='';
+dash.classList.remove('active');
+gate.classList.remove('hidden');
+clearInputs();
+gateErr.style.display='none';
+showToast('info','Locked','Page has been locked.');
+};
+
+document.getElementById('backBtn').onclick=function(){
+if(history.length>1){history.back()}else{window.location.href='/'}
+};
+
+function renderTabs(){
+tabsEl.textContent='';
+TABS.forEach(function(t){
+var b=mk('button','tab-btn'+(t[0]===cur?' on':''),t[1]);
+b.type='button';
+b.onclick=function(){cur=t[0];renderTabs();load()};
+tabsEl.appendChild(b);
+});
+}
+
+async function load(){
+listEl.textContent='';
+try{
+var d=await call('/admin/list?status='+cur,'GET');
+pill.textContent=d.rows.length;
+if(!d.rows.length){
+var em=mk('div','empty');
+em.appendChild(mk('i','fa-solid fa-circle-check'));
+em.appendChild(mk('span','','Nothing here'));
+listEl.appendChild(em);
+return;
+}
+d.rows.forEach(function(r){listEl.appendChild(card(r))});
+}catch(e){
+showToast('error','Error',e.message);
+if(e.status===401||e.status===429){
+sessionStorage.removeItem('_pc');
+dash.classList.remove('active');
+gate.classList.remove('hidden');
+clearInputs();
+}
+}
+}
+
+function prow(k,v){
+var r=mk('div','prow');
+r.appendChild(mk('span','',k));
+r.appendChild(mk('span','',(v===null||v===undefined||v==='')?'-':String(v)));
+return r;
+}
+
+function money(n){return 'N'+Number(n||0).toLocaleString()}
+
+function card(r){
+var meta=ISSUES[r.issue_code]||{label:r.issue_code||'Issue',icon:'fa-circle-info',c:'#7c3aed',t:'#f3edff'};
+var c=mk('div','pcard');
+c.style.setProperty('--c',meta.c);
+c.style.setProperty('--t',meta.t);
+var badge=mk('span','issue');
+badge.appendChild(mk('i','fa-solid '+meta.icon));
+badge.appendChild(document.createTextNode(meta.label));
+c.appendChild(badge);
+c.appendChild(prow('Email',r.email));
+c.appendChild(prow('Amount paid',money(r.amount_paid)));
+if(Number(r.expected_price)>0)c.appendChild(prow('Course price',money(r.expected_price)));
+c.appendChild(prow('Reference',r.reference));
+c.appendChild(prow('Date',new Date(r.created_at).toLocaleString()));
+c.appendChild(mk('div','pmsg',r.issue_message||''));
+if(r.admin_note)c.appendChild(prow('Admin note',r.admin_note));
+
+if(r.status!=='pending')return c;
+
+var emailIn=null;
+if(r.issue_code==='USER_NOT_FOUND'){
+emailIn=mk('input');
+emailIn.type='email';
+emailIn.placeholder='Correct user email (if different)';
+c.appendChild(emailIn);
+}
+var note=mk('input');
+note.placeholder='Note (optional)';
+c.appendChild(note);
+
+var btns=mk('div','pbtns');
+var ok=mk('button','act-btn ok');
+ok.type='button';
+ok.appendChild(mk('i','fa-solid fa-check'));
+ok.appendChild(document.createTextNode('Confirm'));
+var no=mk('button','act-btn no');
+no.type='button';
+no.appendChild(mk('i','fa-solid fa-xmark'));
+no.appendChild(document.createTextNode('Reject'));
+var err=mk('div','perr');
+
+function lock(v){ok.disabled=v;no.disabled=v}
+
+ok.onclick=async function(){
+var q=r.issue_code==='AMOUNT_SHORT'?'The amount is not complete. Check Paystack first. Continue?':'Confirm this record?';
+if(!confirm(q))return;
+lock(true);err.textContent='';
+try{
+await call('/admin/confirm','POST',{id:r.id,email:emailIn?emailIn.value:'',note:note.value});
+showToast('success','Confirmed','User has been processed.');
+load();
+}catch(e){err.textContent=e.message;lock(false)}
+};
+no.onclick=async function(){
+if(!confirm('Reject this record?'))return;
+lock(true);err.textContent='';
+try{
+await call('/admin/reject','POST',{id:r.id,note:note.value});
+showToast('warning','Rejected','Record has been rejected.');
+load();
+}catch(e){err.textContent=e.message;lock(false)}
+};
+btns.appendChild(ok);btns.appendChild(no);
+c.appendChild(btns);c.appendChild(err);
+return c;
+}
+
+inputs[0].focus();
+
+var saved=sessionStorage.getItem('_pc');
+if(saved&&/^[0-9]{6}$/.test(saved)){
+code=saved;
+call('/admin/list?status=pending','GET').then(openDash).catch(function(){
+code='';
+sessionStorage.removeItem('_pc');
+});
+}
+})();
+</script>
+</body>
+</html>
