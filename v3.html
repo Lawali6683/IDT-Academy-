@@ -52,9 +52,9 @@ border-top:5px solid var(--violet);
 .gate-card .logo{width:70%;max-width:240px;object-fit:contain;margin:0 auto 14px;display:block}
 .gate-card h2{font-size:20px;font-weight:800;margin-bottom:4px}
 .gate-card p{font-size:12.5px;color:var(--muted);margin-bottom:22px}
-.code-boxes{display:flex;gap:10px;justify-content:center;margin-bottom:16px;flex-wrap:wrap}
+.code-boxes{display:flex;gap:8px;justify-content:center;margin-bottom:16px;flex-wrap:nowrap}
 .code-boxes input{
-width:50px;height:58px;
+flex:1 1 0;min-width:0;max-width:50px;width:100%;height:58px;
 background:#fff;border:2px solid var(--line);
 border-radius:12px;text-align:center;
 font-size:22px;font-weight:700;color:var(--ink);
@@ -197,7 +197,8 @@ display:flex;align-items:center;justify-content:center;
 .toast-container:empty{display:none}
 @media(max-width:600px){
 .gate-card{padding:26px 18px}
-.code-boxes input{width:44px;height:52px;font-size:20px}
+.code-boxes{gap:6px}
+.code-boxes input{height:50px;font-size:20px}
 .dash-header{flex-direction:column;align-items:flex-start}
 .menu-grid{grid-template-columns:1fr}
 .toast-container{top:10px;right:10px;max-width:calc(100vw - 20px)}
@@ -304,6 +305,7 @@ var menus=[
 {page:'adminChek.html',icon:'fa-headset',color:'green',title:'Customer Care',desc:'Handle student complaints, issues, and provide support resolutions.',badge:'Admin',badgeClass:'admin',badgeIcon:'fa-user-shield'},
 {page:'adminCert.html',icon:'fa-certificate',color:'amber',title:'Certificates',desc:'Manage graduate certificates and issue official completion documents.',badge:'CEO',badgeClass:'ceo',badgeIcon:'fa-crown'},
 {page:'adminPay.html',icon:'fa-coins',color:'green',title:'Payments',desc:'Manage referral bonuses, withdrawals, and payment approvals.',badge:'CEO',badgeClass:'ceo',badgeIcon:'fa-crown'},
+{page:'adminPending.html',icon:'fa-hourglass-half',color:'amber',title:'Pending Payments',desc:'Review paid users not activated and unpaid referral bonuses.',badge:'CEO',badgeClass:'ceo',badgeIcon:'fa-crown'},
 {page:'analysis.html',icon:'fa-chart-line',color:'violet',title:'Analysis',desc:'View company growth metrics, revenue data, and performance reports.',badge:'CEO',badgeClass:'ceo',badgeIcon:'fa-crown'},
 {page:'changeCourse.html',icon:'fa-pen-to-square',color:'cyan',title:'Course Editor',desc:'Search, edit, and update all course information and content.',badge:'CEO',badgeClass:'ceo',badgeIcon:'fa-crown'},
 {page:'getPost.html',icon:'fa-share-nodes',color:'rose',title:'Post Verification',desc:'Verify social media posts and approve referral bonuses.',badge:'CEO',badgeClass:'ceo',badgeIcon:'fa-crown'},
