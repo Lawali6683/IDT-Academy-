@@ -25,38 +25,41 @@ function json(data, status) {
   });
 }
 
-export default {
-  async fetch(request, env, ctx) {
-    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+export async function onRequest(context) {
+  const request = context.request;
+  const env = context.env;
+  const ctx = context;
 
-    const url = new URL(request.url);
-    if (url.pathname.indexOf('/admin/') === 0) return handleAdmin(request, env, ctx, url);
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
 
-    if (request.method !== 'POST') return json({ success: false, message: 'Method not allowed' }, 405);
+  const url = new URL(request.url);
+  const adminAction = url.searchParams.get('admin');
+  if (adminAction) return handleAdmin(request, env, ctx, url, adminAction);
 
-    try {
-      const body = await request.text();
-      const signature = request.headers.get('x-paystack-signature') || '';
-      if (!signature) return json({ success: false, message: 'Missing signature' }, 401);
+  if (request.method !== 'POST') return json({ success: false, message: 'Method not allowed' }, 405);
 
-      const secret = env.PAY_SECRET_KEY || '';
-      if (!secret) return json({ success: false, message: 'Server not configured' }, 500);
+  try {
+    const body = await request.text();
+    const signature = request.headers.get('x-paystack-signature') || '';
+    if (!signature) return json({ success: false, message: 'Missing signature' }, 401);
 
-      if (!(await verifyPaystackSignature(body, signature, secret))) {
-        return json({ success: false, message: 'Invalid signature' }, 401);
-      }
+    const secret = env.PAY_SECRET_KEY || '';
+    if (!secret) return json({ success: false, message: 'Server not configured' }, 500);
 
-      const event = JSON.parse(body);
-      const data = event.data || {};
-      if (event.event === 'charge.success' && data.status === 'success') {
-        await handlePaymentSuccess(env, ctx, data);
-      }
-      return json({ success: true });
-    } catch (err) {
-      return json({ success: false, message: err.message }, 500);
+    if (!(await verifyPaystackSignature(body, signature, secret))) {
+      return json({ success: false, message: 'Invalid signature' }, 401);
     }
+
+    const event = JSON.parse(body);
+    const data = event.data || {};
+    if (event.event === 'charge.success' && data.status === 'success') {
+      await handlePaymentSuccess(env, ctx, data);
+    }
+    return json({ success: true });
+  } catch (err) {
+    return json({ success: false, message: err.message }, 500);
   }
-};
+}
 
 async function verifyPaystackSignature(body, signature, secret) {
   try {
@@ -108,6 +111,14 @@ function notify(ctx, payload) {
 const enc = encodeURIComponent;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+function norm(s) {
+  return String(s || '').trim().toLowerCase();
+}
+
+function likeEscape(s) {
+  return s.replace(/[\\%_]/g, '\\$&');
+}
+
 async function logPending(env, rec) {
   try {
     await sb(env, 'POST', 'pending_payments?on_conflict=reference', rec, 'resolution=ignore-duplicates,return=minimal');
@@ -132,11 +143,17 @@ async function findAccount(env, emails, userId) {
   }
 
   for (let i = 0; i < emails.length; i++) {
-    if (!emails[i]) continue;
+    const wanted = norm(emails[i]);
+    if (!wanted) continue;
     for (let j = 0; j < tables.length; j++) {
       const t = tables[j];
-      const r = await sb(env, 'GET', t.table + '?select=*&' + t.col + '->>email=eq.' + enc(emails[i]));
-      if (r[0]) return { row: r[0], partner: t.partner };
+      const pattern = '*' + likeEscape(wanted) + '*';
+      const r = await sb(env, 'GET',
+        t.table + '?select=*&' + t.col + '->>email=ilike.' + enc(pattern) + '&limit=25');
+      for (let k = 0; k < r.length; k++) {
+        const stored = norm((r[k][t.col] || {}).email);
+        if (stored === wanted) return { row: r[k], partner: t.partner };
+      }
     }
   }
   return null;
@@ -147,8 +164,8 @@ async function handlePaymentSuccess(env, ctx, data) {
   if (!reference) return;
 
   const meta = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
-  const payEmail = String((data.customer && data.customer.email) || '').trim().toLowerCase();
-  const metaEmail = String(meta.email || '').trim().toLowerCase();
+  const payEmail = norm(data.customer && data.customer.email);
+  const metaEmail = norm(meta.email);
   const emails = [payEmail, metaEmail].filter(function (e, i, a) { return e && a.indexOf(e) === i; });
 
   const p = {
@@ -158,22 +175,12 @@ async function handlePaymentSuccess(env, ctx, data) {
     amountPaid: Math.round(Number(data.amount || 0) / 100)
   };
 
-  const kv = env.PAYMENTS_KV;
-  if (kv) {
-    if (await kv.get('paydone:' + reference)) return;
-    if (await kv.get('paylock:' + reference)) return;
-    await kv.put('paylock:' + reference, '1', { expirationTtl: 120 });
-  }
-
   try {
     const done = await sb(env, 'GET', 'completepay?select=id&complete_pay->>reference=eq.' + enc(reference));
     if (done.length === 0) {
       await processPayment(env, ctx, p, {});
     }
-    if (kv) await kv.put('paydone:' + reference, '1', { expirationTtl: 259200 });
   } catch (err) {
-    if (kv) await kv.delete('paylock:' + reference);
-
     const biz = err instanceof BizError;
     await logPending(env, {
       reference: reference,
@@ -213,14 +220,14 @@ async function processPayment(env, ctx, p, opts) {
     pd.status = 'active';
     await sb(env, 'PATCH', 'partner_profiles?id=eq.' + enc(row.id), { partner_data: pd });
     await recordPayment(env, p, row.id, {
-      partner_id: row.id, full_name: pd.full_name || '', email: pd.email || p.emails[0] || '',
+      partner_id: row.id, full_name: pd.full_name || '', email: norm(pd.email) || p.emails[0] || '',
       account_type: 'partner'
     });
     return;
   }
 
   const ud = Object.assign({}, row.user_data || {});
-  const email = String(ud.email || p.emails[0] || '').toLowerCase();
+  const email = norm(ud.email) || p.emails[0] || '';
   const isJamb = ud.course_type === 'jamb';
   const expected = Number(isJamb ? ud.jambCoursePrice : ud.course_price) || 0;
   const paidEnough = expected > 0 && p.amountPaid >= expected - TOLERANCE;
@@ -310,9 +317,13 @@ async function payReferral(env, ctx, ud, email, amountPaid, code, bonus, price) 
   throw new BizError('REFERRER_NOT_FOUND', 'Ba a sami wanda ke da referral code "' + code + '" ba');
 }
 
+async function paymentExists(env, reference) {
+  const r = await sb(env, 'GET', 'completepay?select=id&complete_pay->>reference=eq.' + enc(reference));
+  return r.length > 0;
+}
+
 async function recordPayment(env, p, ownerId, extra) {
-  const exists = await sb(env, 'GET', 'completepay?select=id&complete_pay->>reference=eq.' + enc(p.reference));
-  if (exists.length) return false;
+  if (await paymentExists(env, p.reference)) return false;
 
   const now = new Date().toISOString();
   const complete_pay = Object.assign({
@@ -322,12 +333,13 @@ async function recordPayment(env, p, ownerId, extra) {
   try {
     await sb(env, 'POST', 'completepay', { id: ownerId, complete_pay: complete_pay, date_complet: now });
   } catch (e) {
+    if (await paymentExists(env, p.reference)) return false;
     await sb(env, 'POST', 'completepay', { id: crypto.randomUUID(), complete_pay: complete_pay, date_complet: now });
   }
   return true;
 }
 
-async function handleAdmin(request, env, ctx, url) {
+async function handleAdmin(request, env, ctx, url, action) {
   const adminCode = request.headers.get('x-admin-code') || '';
   if (!/^[0-9]{6}$/.test(adminCode)) return json({ error: 'Incorrect code. Access denied.' }, 401);
 
@@ -341,7 +353,7 @@ async function handleAdmin(request, env, ctx, url) {
   if (verdict !== 'ok') return json({ error: 'Incorrect code. Access denied.' }, 401);
 
   try {
-    if (url.pathname === '/admin/list' && request.method === 'GET') {
+    if (action === 'list' && request.method === 'GET') {
       const status = url.searchParams.get('status') || 'pending';
       const rows = await sb(env, 'GET',
         'pending_payments?select=*&status=eq.' + enc(status) + '&order=created_at.desc&limit=200');
@@ -360,20 +372,20 @@ async function handleAdmin(request, env, ctx, url) {
 
     const now = new Date().toISOString();
 
-    if (url.pathname === '/admin/reject') {
+    if (action === 'reject') {
       await sb(env, 'PATCH', 'pending_payments?id=eq.' + enc(id), {
         status: 'rejected', resolved_at: now, resolved_by: 'admin', admin_note: String(body.note || '')
       });
       return json({ success: true });
     }
 
-    if (url.pathname === '/admin/confirm') {
-      const fixEmail = String(body.email || '').trim().toLowerCase();
+    if (action === 'confirm') {
+      const fixEmail = norm(body.email);
       const isRefOnly = row.issue_code === 'REFERRAL_FAILED' || row.issue_code === 'REFERRER_NOT_FOUND';
       const p = {
         reference: row.base_reference || row.reference,
-        emails: [fixEmail, String(row.email || '').toLowerCase()].filter(Boolean),
-        userId: row.user_id || '',
+        emails: [fixEmail, norm(row.email)].filter(function (e, i, a) { return e && a.indexOf(e) === i; }),
+        userId: fixEmail ? '' : (row.user_id || ''),
         amountPaid: Number(row.amount_paid) || 0
       };
       await processPayment(env, ctx, p, { force: true, referralOnly: isRefOnly });
