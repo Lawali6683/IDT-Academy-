@@ -146,7 +146,8 @@ input{font-family:inherit;outline:none}
 <div class="toast-container" id="toastContainer"></div>
 <script>
 (function(){
-var API_BASE='https://YOUR-WORKER-URL';
+var BASES=['/api','/api/payments',''];
+var base=null;
 var ISSUES={
 USER_NOT_FOUND:{label:'User not found',icon:'fa-user-slash',c:'#f43f5e',t:'#ffe9ed'},
 AMOUNT_SHORT:{label:'Amount not complete',icon:'fa-scale-unbalanced',c:'#f59e0b',t:'#fff5e0'},
@@ -192,18 +193,39 @@ setTimeout(function(){if(t.parentNode)close()},4000);
 }
 
 async function call(path,method,body){
-var res=await fetch(API_BASE.replace(/\/$/,'')+path,{
+var list=base!==null?[base]:BASES;
+var last=null;
+for(var i=0;i<list.length;i++){
+var res;
+try{
+res=await fetch(list[i]+path,{
 method:method,
 headers:{'x-admin-code':code,'Content-Type':'application/json'},
 body:body?JSON.stringify(body):undefined
 });
-var data=await res.json().catch(function(){return {}});
+}catch(e){
+last=new Error('Could not reach the server.');
+continue;
+}
+var ct=res.headers.get('content-type')||'';
+var data=null;
+if(ct.indexOf('json')!==-1){
+data=await res.json().catch(function(){return null});
+}
+if(data===null){
+last=new Error('API route not found: '+list[i]+path);
+last.status=res.status||404;
+continue;
+}
+base=list[i];
 if(!res.ok){
 var err=new Error(data.error||('Error '+res.status));
 err.status=res.status;
 throw err;
 }
 return data;
+}
+throw last||new Error('Could not reach the server.');
 }
 
 function openDash(){
@@ -234,9 +256,10 @@ openDash();
 showToast('success','Access Granted','Pending payments loaded.');
 }catch(e){
 code='';
-gateErr.textContent=e.status===429?e.message:(e.status===401?'Incorrect code. Access denied.':'Could not reach the server.');
+var m=e.status===401?'Incorrect code. Access denied.':(e.message||'Could not reach the server.');
+gateErr.textContent=m;
 gateErr.style.display='block';
-showToast('error','Access Denied',e.status===401||e.status===429?e.message:'Could not reach the server.');
+showToast('error','Access Denied',m);
 clearInputs();
 }
 }
