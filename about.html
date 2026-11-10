@@ -1,299 +1,233 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IDT Academy - About Us</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    :root {
-        --violet: #7c3aed;
-        --violet-d: #6d28d9;
-        --violet-l: #a78bfa;
-        --cyan: #06b6d4;
-        --amber: #f59e0b;
-        --rose: #f43f5e;
-        --green: #10b981;
-        --ink: #1e1b4b;
-        --muted: #6d6a8a;
-        --line: rgba(124,58,237,.15);
-        --shadow: 0 24px 60px rgba(80,40,160,.16);
-    }
-    html { scroll-behavior: smooth; }
-    body {
-        font-family: 'Poppins', system-ui, -apple-system, sans-serif;
-        color: var(--ink);
-        min-height: 100vh;
-        background: 
-            radial-gradient(820px 480px at 6% -6%, rgba(167,139,250,.30), transparent 60%),
-            radial-gradient(740px 480px at 98% 4%, rgba(34,211,238,.22), transparent 58%),
-            radial-gradient(820px 540px at 50% 112%, rgba(251,191,36,.16), transparent 60%),
-            linear-gradient(160deg, #f8f6ff 0%, #ffffff 50%, #eefbff 100%);
-        background-attachment: fixed;
-        overflow-x: hidden;
-        position: relative;
-    }
-    body::before { content: ""; position: fixed; inset: 0; z-index: -2; background: url('https://i.imgur.com/CQgjfNJ.png') center/cover no-repeat fixed; opacity: .08; pointer-events: none; }
-    body::after { content: ""; position: fixed; inset: 0; z-index: -1; background: url('https://i.imgur.com/oyqM5oF.png') center/contain no-repeat fixed; opacity: .05; pointer-events: none; }
-    ::selection { background: rgba(124,58,237,.22); }
-    img { max-width: 100%; display: block; }
-    a { text-decoration: none; color: inherit; }
-    button { font-family: inherit; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About IDT Academy | Practical Online Tech Education in Nigeria and Beyond</title>
+<meta name="description" content="IDT Academy is an online school launched on 9 November 2026 by Intelligent Digital Technology. Learn practical skills from zero to expert with video lessons, an AI tutor, verified assessments and project-based certification.">
+<meta name="keywords" content="IDT Academy, online school Nigeria, learn tech skills, AI tutor, online courses, scholarships, Intelligent Digital Technology">
+<link rel="canonical" href="https://idtacademy.com.ng/about.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="About IDT Academy | Learn Beyond Limits">
+<meta property="og:description" content="Practical video lessons, a bilingual AI tutor, verified assessments and real projects. Open to learners, sponsors and partners worldwide.">
+<meta property="og:url" content="https://idtacademy.com.ng/about.html">
+<meta property="og:image" content="https://i.imgur.com/oyqM5oF.png">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"EducationalOrganization","name":"IDT Academy","alternateName":"Intelligent Digital Technology Academy","url":"https://idtacademy.com.ng","logo":"https://i.imgur.com/oyqM5oF.png","foundingDate":"2026-11-09","slogan":"Learn Beyond Limits","parentOrganization":{"@type":"Organization","name":"Intelligent Digital Technology (IDT)","url":"https://www.idt.com.ng"},"founder":{"@type":"Person","name":"Haruna Lawali"},"email":"idtacademy3@gmail.com","telephone":"+2349131264928","areaServed":"Worldwide"}</script>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Fraunces:ital,wght@0,600;1,600&family=JetBrains+Mono:wght@500&family=Poppins:wght@400;600&family=Space+Grotesk:wght@500;700&family=Syne:wght@800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--v:#7c3aed;--c:#06b6d4;--a:#f59e0b;--r:#f43f5e;--g:#10b981;--ink:#1e1b4b}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{font-family:Poppins,system-ui,sans-serif;color:var(--ink);background:#0b0820;overflow-x:hidden;line-height:1.7}
+a{color:inherit;text-decoration:none}img{max-width:100%;display:block}
+section{padding:70px 18px}.w{max-width:1040px;margin:0 auto}
+.tag{font:500 11px 'JetBrains Mono',monospace;letter-spacing:2px;text-transform:uppercase;opacity:.75;margin-bottom:10px}
+#bar{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--v),var(--c),var(--a));z-index:200}
+nav{position:sticky;top:0;z-index:100;background:rgba(11,8,32,.82);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.1)}
+.nb{display:flex;align-items:center;gap:10px;padding:10px 16px;max-width:1040px;margin:auto}
+.nb img{width:42px;height:42px;background:#fff;border-radius:50%;padding:4px}
+.nb b{font:700 16px 'Space Grotesk',sans-serif;color:#fff;flex:1}.nb b i{font-style:normal;color:#a78bfa}
+.home{background:#fff;color:var(--ink);padding:7px 14px;border-radius:99px;font-size:12px;font-weight:600}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:0 16px 10px;max-width:1040px;margin:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chips a{flex:none;color:#cfcaf5;font:500 11px 'JetBrains Mono',monospace;padding:5px 12px;border:1px solid rgba(255,255,255,.18);border-radius:99px}
+.hero{position:relative;color:#fff;text-align:center;padding:90px 18px 80px;overflow:hidden;background:radial-gradient(600px 400px at 15% 10%,#7c3aed88,transparent),radial-gradient(560px 380px at 90% 30%,#06b6d466,transparent),radial-gradient(500px 360px at 50% 110%,#f59e0b44,transparent),#0b0820}
+.hero::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:44px 44px;-webkit-mask-image:radial-gradient(circle at 50% 40%,#000,transparent 70%);mask-image:radial-gradient(circle at 50% 40%,#000,transparent 70%)}
+.hero>*{position:relative}
+.ring{width:150px;height:150px;margin:0 auto 22px;border-radius:50%;padding:6px;background:conic-gradient(#7c3aed,#06b6d4,#f59e0b,#7c3aed);animation:sp 8s linear infinite}
+.ring span{display:block;width:100%;height:100%;border-radius:50%;background:#fff url(https://i.imgur.com/oyqM5oF.png) center/70% no-repeat;animation:sp 8s linear infinite reverse}
+@keyframes sp{to{transform:rotate(360deg)}}
+.pill{display:inline-block;font:500 11px 'JetBrains Mono',monospace;padding:6px 14px;border-radius:99px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);margin-bottom:18px}
+.hero h1{font:800 clamp(38px,9vw,78px)/1.02 Syne,sans-serif;letter-spacing:-1.5px}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,#c4b5fd,#67e8f9,#fcd34d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{max-width:640px;margin:18px auto 26px;color:#cfd3f5;font-size:15px}
+.btn{display:inline-block;padding:13px 24px;border-radius:14px;font-weight:600;font-size:14px;margin:5px}
+.b1{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;box-shadow:0 10px 30px #7c3aed66}
+.b2{border:1.5px solid rgba(255,255,255,.4);color:#fff}
+.tick{background:#000;color:#67e8f9;overflow:hidden;white-space:nowrap;padding:12px 0;font:500 12px 'JetBrains Mono',monospace;letter-spacing:2px}
+.tick div{display:inline-block;animation:mq 30s linear infinite}.tick span{margin:0 22px}.tick span::before{content:"◆ ";color:#f59e0b}
+@keyframes mq{to{transform:translateX(-50%)}}
+#story{background:#fbf6ea;color:#2b2118}
+#story h2{font:600 clamp(30px,6vw,48px)/1.1 Fraunces,serif;margin-bottom:22px}#story h2 i{color:#b45309}
+.cols{columns:2 280px;column-gap:34px;font-size:15px}
+.cols p:first-child::first-letter{float:left;font:600 64px/0.8 Fraunces,serif;padding:6px 10px 0 0;color:#b45309}
+.cols p{margin-bottom:14px}
+.quote{margin:26px 0;padding:18px 22px;border-left:5px solid #b45309;font:italic 600 22px/1.4 Fraunces,serif;color:#7c2d12;background:#f6e9cf;border-radius:0 14px 14px 0}
+.tl{list-style:none;border-left:2px dashed #b45309;margin-left:8px;padding-left:22px}
+.tl li{position:relative;margin-bottom:16px;font-size:14px}.tl li::before{content:"";position:absolute;left:-30px;top:6px;width:14px;height:14px;border-radius:50%;background:#b45309;box-shadow:0 0 0 5px #fbf6ea}
+.tl b{font-family:'JetBrains Mono',monospace;font-size:12px;color:#b45309;display:block}
+#team{background:linear-gradient(160deg,#1e1b4b,#0f0a2e);color:#fff}
+h2.t{font:800 clamp(28px,6vw,44px)/1.1 Syne,sans-serif;margin-bottom:26px}
+.lead{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:22px}
+.L{border-radius:24px;padding:16px 16px 26px;text-align:center;transition:transform .35s,box-shadow .35s}.L:hover{transform:translateY(-8px)}
+.L img,.ini{width:100%;aspect-ratio:4/5;object-fit:cover;object-position:center 18%;margin:0 0 18px;display:block}
+.L h3{font-size:22px;line-height:1.2}.L .ro{font-size:12.5px;margin:2px 0 12px}.L p{font-size:13.5px;padding:0 6px}.L a{display:block;font-size:12.5px;font-weight:600;margin-top:4px;word-break:break-all}
+.l1{border:3px solid transparent;background:linear-gradient(#0f0a2e,#0f0a2e) padding-box,linear-gradient(135deg,#7c3aed,#06b6d4,#f59e0b,#7c3aed) border-box;background-size:100% 100%,300% 300%;box-shadow:0 0 50px #7c3aed66;animation:bd 6s ease-in-out infinite}@keyframes bd{0%,100%{background-position:0 0,0% 50%}50%{background-position:0 0,100% 50%}}
+.l1 img{border-radius:18px;box-shadow:0 16px 36px #7c3aed88}.l1 .ro{color:#67e8f9}
+.l2{background:#fff;color:#2b2118;transform:rotate(-2deg);position:relative;box-shadow:0 24px 50px #0009;padding-top:30px}.l2:hover{transform:rotate(0) translateY(-8px)}
+.l2::before{content:"";position:absolute;top:-10px;left:50%;width:90px;height:24px;margin-left:-45px;background:#fcd34d99;transform:rotate(3deg)}
+.l2 img{border-radius:3px;border:10px solid #f3f0ff;border-bottom-width:30px;aspect-ratio:1/1.1;box-shadow:0 6px 18px #0003}.l2 .ro{font:700 26px Caveat,cursive;color:#7c3aed}
+.l3 img{border-radius:10px;border:1px solid #10b981;box-shadow:0 0 0 6px #064e3b,0 16px 34px #0008;filter:saturate(1.05) contrast(1.05)}.l3{background:#02130f;color:#86efac;border:1px dashed #10b981;text-align:left;font-family:'JetBrains Mono',monospace;border-radius:6px}
+.ini{background:repeating-linear-gradient(45deg,#064e3b 0 10px,#065f46 10px 20px);color:#6ee7b7;border-radius:10px;display:flex;align-items:center;justify-content:center;font:800 90px Syne;border:1px solid #10b981}
+.l3 .ro::before{content:"// "}
+#learn{background:#fff;color:var(--ink)}
+#learn h2{font:700 clamp(28px,6vw,44px)/1.1 'Space Grotesk',sans-serif;margin-bottom:8px}
+.sub{color:#6d6a8a;margin-bottom:28px;max-width:620px}
+.bento{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+.B{border-radius:20px;padding:22px;font-size:13.5px;grid-column:span 6}
+@media(min-width:760px){.B:nth-child(1){grid-column:span 4}.B:nth-child(2){grid-column:span 2}.B:nth-child(3){grid-column:span 2}.B:nth-child(4){grid-column:span 2}.B:nth-child(5){grid-column:span 2}.B:nth-child(6){grid-column:span 6}}
+.B{transition:transform .3s,box-shadow .3s}.B:hover{transform:translateY(-6px);box-shadow:0 18px 34px #0002}.B i{font-size:30px;margin-bottom:10px;display:block}.B h3{font-size:17px;margin-bottom:6px}
+.B:nth-child(1){background:linear-gradient(135deg,#7c3aed,#4c1d95);color:#fff}
+.B:nth-child(2){background:#fde047;border:3px solid #111;box-shadow:6px 6px 0 #111;font-family:'Space Grotesk',sans-serif}
+.B:nth-child(3){background:rgba(6,182,212,.12);border:1px solid #06b6d4;backdrop-filter:blur(6px);color:#0e7490}
+.B:nth-child(4){background:#111;color:#f9a8d4;font-family:'JetBrains Mono',monospace;border-radius:4px 28px 4px 28px}
+.B:nth-child(5){background:#fff1f2;color:#9f1239;border:2px dashed #f43f5e;border-radius:40px 8px 40px 8px}
+.B:nth-child(6){background:radial-gradient(circle at 90% 10%,#10b98166,transparent 50%),#022c22;color:#d1fae5}
+.steps{list-style:none;counter-reset:s;margin-top:34px;display:grid;gap:12px}
+.steps li{counter-increment:s;display:flex;gap:16px;align-items:flex-start;padding:14px 0;border-bottom:1px solid #e7e3f7;font-size:14px}
+.steps li::before{content:counter(s,decimal-leading-zero);font:800 34px/1 Syne,sans-serif;color:transparent;-webkit-text-stroke:1.5px #7c3aed;min-width:60px;background:linear-gradient(135deg,#7c3aed33,#06b6d433);-webkit-background-clip:text;background-clip:text}
+.steps b{display:block;font-size:15px}
+#rewards{background:linear-gradient(180deg,#ecfeff,#fdf4ff);color:var(--ink)}
+.rw{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}
+.R{padding:26px;font-size:14px;transition:transform .3s}.R:hover{transform:translateY(-8px) scale(1.02)}.R h3{font-size:17px;margin-bottom:6px}.R big{display:block;font:800 40px Syne,sans-serif;margin:6px 0}
+.r1{background:#fff;border-radius:20px;border-top:8px solid #f59e0b;box-shadow:0 18px 40px #f59e0b33}.r1 big{color:#f59e0b}
+.r2{background:#1e1b4b;color:#fff;clip-path:polygon(0 0,100% 0,100% 85%,92% 100%,0 100%);border-radius:20px 20px 0 20px}.r2 big{color:#67e8f9}
+.r3{background:linear-gradient(135deg,#f43f5e,#f59e0b);color:#fff;border-radius:60px 20px 60px 20px}
+#partners{background:#0b0820;color:#fff}
+.tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:18px;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:none;border:1px solid rgba(255,255,255,.25);background:none;color:#fff;padding:9px 16px;border-radius:99px;font:600 12.5px Poppins;cursor:pointer}
+.tabs button.on{background:#fff;color:#0b0820}
+.pn{display:none;padding:26px;border-radius:24px;font-size:14px;animation:fd .4s}.pn.on{display:block}
+.pn h3{font:700 22px 'Space Grotesk',sans-serif;margin-bottom:8px}.pn li{margin:6px 0 0 18px}
+@keyframes fd{from{opacity:0;transform:translateY(10px)}}
+.p0{background:linear-gradient(135deg,#7c3aed,#06b6d4)}.p1{background:linear-gradient(135deg,#047857,#065f46)}.p2{background:linear-gradient(135deg,#b45309,#78350f)}.p3{background:linear-gradient(135deg,#be123c,#4c0519)}.p4{background:linear-gradient(135deg,#1d4ed8,#312e81)}
+.rep{margin-top:26px;background:#fff;color:var(--ink);border-radius:18px;padding:20px;max-width:520px}
+.rep h4{font:500 12px 'JetBrains Mono',monospace;color:#7c3aed;margin-bottom:12px}
+.rep div{margin:8px 0;font-size:12.5px}.rep span{display:block;height:8px;border-radius:9px;background:linear-gradient(90deg,#7c3aed,#06b6d4);margin-top:4px}
+.rep div:nth-child(2) span{width:80%}.rep div:nth-child(3) span{width:60%}.rep div:nth-child(4) span{width:70%}.rep div:nth-child(5) span{width:45%}
+#trust{background:#f3edff;color:var(--ink)}
+#trust h2{font:600 clamp(28px,6vw,42px)/1.1 Fraunces,serif;margin-bottom:22px}
+details{background:#fff;border-radius:14px;margin-bottom:10px;padding:14px 18px;font-size:14px;border:1px solid #ddd1fb}
+summary{cursor:pointer;font-weight:600;list-style:none}summary::after{content:"+";float:right;color:#7c3aed;font-size:20px}
+details[open] summary::after{content:"−"}details p{margin-top:8px;color:#6d6a8a}
+#contact{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-align:center}
+#contact h2{font:800 clamp(28px,6vw,44px)/1.1 Syne,sans-serif;margin-bottom:10px}
+.cc{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:26px;text-align:left}
+.C{padding:22px;font-size:13.5px}.C b{display:block;font-size:17px}.C a{display:block;font-weight:600;margin-top:6px}
 
-    #toastWrap{position:fixed;top:20px;right:20px;z-index:100000;display:flex;flex-direction:column;gap:10px;max-width:380px;width:100%}
-    .toast{background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:14px 18px;display:flex;align-items:flex-start;gap:12px;box-shadow:var(--shadow);animation:slideIn .3s ease forwards;position:relative;overflow:hidden}
-    .toast.success{border-color:var(--green)}
-    .toast.error{border-color:var(--rose)}
-    .toast i.fa-solid{font-size:18px;margin-top:2px}
-    .toast.success i{color:var(--green)}
-    .toast.error i{color:var(--rose)}
-    .toast-body{flex:1}
-    .toast-body b{display:block;font-size:14px;margin-bottom:2px;color:var(--ink)}
-    .toast-body p{font-size:13px;color:var(--muted);line-height:1.4}
-    .toast-x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px}
-    .toast.out{animation:slideOut .3s ease forwards}
-    @keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
-    @keyframes slideOut{from{transform:translateX(0);opacity:1}to{transform:translateX(120%);opacity:0}}
+.c1{background:#fff;color:var(--ink);border-radius:22px}.c2{background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.35);border-radius:22px 4px 22px 4px}
 
-    .page-wrapper { display: flex; flex-direction: column; min-height: 100vh; }
-    
-    header {
-        background: rgba(255,255,255,0.85);
-        backdrop-filter: blur(12px);
-        border-bottom: 1px solid var(--line);
-        padding: 15px 30px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-    }
-    .brand { display: flex; align-items: center; gap: 12px; }
-    .brand img { width: 42px; height: 42px; object-fit: contain; background: #fff; border-radius: 50%; padding: 6px; box-shadow: 0 4px 12px rgba(124,58,237,0.2); }
-    .brand span { font-size: 18px; font-weight: 800; color: var(--ink); }
-    .brand span b { color: var(--violet); }
-    
-    .btn-home {
-        background: #fff;
-        border: 1.5px solid var(--line);
-        color: var(--ink);
-        padding: 9px 18px;
-        border-radius: 10px;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: .2s;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-    }
-    .btn-home:hover { background: var(--violet); border-color: var(--violet); color: #fff; }
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}}
 
-    main {
-        flex: 1;
-        max-width: 1000px;
-        width: 100%;
-        margin: 0 auto;
-        padding: 40px 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 30px;
-    }
 
-    .hero-section {
-        text-align: center;
-        padding: 30px 20px;
-        background: rgba(255,255,255,0.85);
-        backdrop-filter: blur(16px);
-        border: 1px solid rgba(255,255,255,0.8);
-        border-radius: 24px;
-        box-shadow: var(--shadow);
-    }
-    .hero-section h1 { font-size: 28px; font-weight: 900; color: var(--ink); margin-bottom: 12px; }
-    .hero-section h1 span { color: var(--violet); }
-    .hero-section p { font-size: 14.5px; color: var(--muted); line-height: 1.6; max-width: 800px; margin: 0 auto; }
-
-    .content-card {
-        background: rgba(255,255,255,0.85);
-        backdrop-filter: blur(16px);
-        border: 1px solid rgba(255,255,255,0.8);
-        border-radius: 24px;
-        padding: 35px;
-        box-shadow: var(--shadow);
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-    .content-card h2 {
-        font-size: 20px;
-        font-weight: 800;
-        color: var(--ink);
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        border-bottom: 1.5px solid var(--line);
-        padding-bottom: 12px;
-    }
-    .content-card h2 i { color: var(--violet); }
-    .content-card p { font-size: 14px; color: var(--muted); line-height: 1.7; }
-
-    .team-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-    }
-    @media(max-width: 768px) { .team-grid { grid-template-columns: 1fr; } }
-
-    .team-card {
-        background: #fff;
-        border: 1.5px solid var(--line);
-        border-radius: 20px;
-        padding: 25px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.02);
-    }
-    .team-avatar {
-        width: 110px;
-        height: 110px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 3px solid var(--violet-l);
-        box-shadow: 0 8px 20px rgba(124,58,237,0.2);
-    }
-    .team-info h3 { font-size: 18px; font-weight: 800; color: var(--ink); margin-bottom: 2px; }
-    .team-info .role { font-size: 13px; font-weight: 700; color: var(--violet); margin-bottom: 10px; display: block; }
-    .team-contacts {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        font-size: 12.5px;
-        color: var(--muted);
-    }
-    .team-contacts a { color: var(--ink); font-weight: 600; transition: color .2s; }
-    .team-contacts a:hover { color: var(--violet); }
-
-    .features-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 20px;
-    }
-    .feature-item {
-        background: #fff;
-        border: 1.5px solid var(--line);
-        border-radius: 18px;
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    .feature-item i { font-size: 24px; color: var(--cyan); margin-bottom: 4px; }
-    .feature-item b { font-size: 15px; color: var(--ink); }
-    .feature-item p { font-size: 13px; color: var(--muted); line-height: 1.5; }
-  </style>
+</style>
 </head>
 <body>
+<div id="bar"></div>
+<nav>
+<div class="nb"><img src="https://i.imgur.com/vLaejQ7.png" alt="IDT Academy logo"><b>IDT <i>Academy</i></b><a class="home" href="index.html"><i class="fa-solid fa-house"></i> Home</a></div>
+<div class="chips"><a href="#story">Story</a><a href="#team">Leadership</a><a href="#learn">How it works</a><a href="#rewards">Rewards</a><a href="#partners">Partners</a><a href="#trust">Trust</a><a href="#contact">Contact</a></div>
+</nav>
 
-  <div id="toastWrap"></div>
+<header class="hero">
+<div class="ring"><span></span></div>
+<div class="pill">LAUNCHED MONDAY, 9 NOVEMBER 2026</div>
+<h1>Learn Beyond <em>Limits</em></h1>
+<p>IDT Academy is an online school that takes you from zero to real, job-ready skill. Pay once, learn without limits, and prove what you know with verified assessments and original projects.</p>
+<a class="btn b1" href="register.html">Start Learning</a><a class="btn b2" href="#partners">Partner With Us</a>
+</header>
 
-  <div class="page-wrapper">
-    <header>
-      <div class="brand">
-        <img src="https://i.imgur.com/vLaejQ7.png" alt="IDT Academy">
-        <span>IDT <b>Academy</b></span>
-      </div>
-      <a href="index.html" class="btn-home"><i class="fa-solid fa-house"></i> Home</a>
-    </header>
+<div class="tick"><div><span>PRACTICAL VIDEO LESSONS</span><span>AI TUTOR IN YOUR LANGUAGE</span><span>VERIFIED ASSESSMENTS</span><span>ORIGINAL PROJECTS</span><span>PAY ONCE, LEARN WITHOUT LIMITS</span><span>PRACTICAL VIDEO LESSONS</span><span>AI TUTOR IN YOUR LANGUAGE</span><span>VERIFIED ASSESSMENTS</span><span>ORIGINAL PROJECTS</span><span>PAY ONCE, LEARN WITHOUT LIMITS</span></div></div>
 
-    <main>
-      <div class="hero-section">
-        <h1>About <span>IDT Academy</span></h1>
-        <p>In today's fast-paced digital world, accessing quality and life-changing education is crucial, especially in modern technology. IDT Academy bridges this gap, providing a wonderful learning environment that leads every student to success.</p>
-      </div>
+<section id="story"><div class="w rv">
+<div class="tag">Our story</div>
+<h2>Built carefully, for <i>everyone</i> who wants to learn.</h2>
+<div class="cols">
+<p>IDT Academy was created to make real education simple for people who want genuine skill and want to use it to reach a goal. It grew out of IDT (Intelligent Digital Technology), a company that builds software, websites, apps, AI and other digital solutions.</p>
+<p>The academy was designed and founded by Comrd. Haruna Lawali, CEO of IDT. Ibrahim Abdulhakim, General Manager of IDT, leads quality assurance and security, and guided the testing team to make sure the platform is reliable and comfortable for every learner. Leadership of the academy has been entrusted to Ubaida Aliyu.</p>
+<p>After a long period of careful building, the academy officially launched on Monday, 9 November 2026, open to learners everywhere in the world.</p>
+</div>
+<div class="quote">“Education should meet you at level zero and walk with you to mastery.”</div>
+<ul class="tl">
+<li><b>THE ROOTS</b>IDT builds software, websites, apps and AI for real clients.</li>
+<li><b>THE IDEA</b>Haruna Lawali designs a learning system around clarity, practice and proof.</li>
+<li><b>THE BUILD</b>Quality, testing and security are tested under Ibrahim Abdulhakim.</li>
+<li><b>9 NOV 2026</b>IDT Academy opens its doors to the world.</li>
+</ul>
+</div></section>
 
-      <div class="content-card">
-        <h2><i class="fa-solid fa-book-open"></i> Our Story & Vision</h2>
-        <p>IDT Academy is more than just a school; it is a dedicated hub for building practical, specialized skills. The academy was established with a great vision and strong dedication to empower individuals with modern technological expertise.</p>
-      </div>
+<section id="team"><div class="w rv">
+<div class="tag">Leadership</div>
+<h2 class="t">The people behind the academy</h2>
+<div class="lead">
+<div class="L l1"><img src="https://i.imgur.com/5bcmx17.png" alt="Comrd. Haruna Lawali"><h3>Comrd. Haruna Lawali</h3><div class="ro">Founder · Chairman, Board of Trustees · CEO, IDT</div><p>Expert in software development, AI engineering and machine learning, largely self-taught online. He built IDT Academy’s learning framework to remove the common obstacles of online learning.</p><a href="mailto:harunalawali5522@gmail.com">harunalawali5522@gmail.com</a><a href="tel:+2348166836059">+234 816 683 6059</a></div>
+<div class="L l2"><img src="https://i.imgur.com/VX93McR.png" alt="Ubaida Aliyu"><h3>Ubaida Aliyu</h3><div class="ro">CEO, IDT Academy</div><p>Leads academy operations, partnerships and learner success, bringing expert instructors to deliver practical education from zero to expert.</p><a href="mailto:ubaidaaliyu2023@gmail.com">ubaidaaliyu2023@gmail.com</a><a href="tel:+2349131264928">+234 913 126 4928</a></div>
+<div class="L l3"><img src="https://i.imgur.com/PHSLT8U.jpeg" alt="Ibrahim Abdulhakim"><h3>Ibrahim Abdulhakim</h3><div class="ro">General Manager, IDT · Quality &amp; Security</div><p>Ensures quality assurance, platform security and learner comfort, and led the technology testing team before launch.</p></div>
+</div></div></section>
 
-      <div class="content-card">
-        <h2><i class="fa-solid fa-users"></i> Leadership & Management</h2>
-        <div class="team-grid">
-          <div class="team-card">
-            <img src="https://i.imgur.com/5bcmx17.png" alt="Comrd. Haruna Lawali" class="team-avatar">
-            <div class="team-info">
-              <h3>Comrd. Haruna Lawali</h3>
-              <span class="role">Founder & CEO (IDT Nigeria)</span>
-              <div class="team-contacts">
-                <span><i class="fa-solid fa-envelope"></i> <a href="mailto:harunalawali5522@gmail.com">harunalawali5522@gmail.com</a></span>
-                <span><i class="fa-solid fa-phone"></i> <a href="tel:+2348166836059">+234 816 683 6059</a></span>
-              </div>
-            </div>
-          </div>
+<section id="learn"><div class="w rv">
+<div class="tag" style="color:#7c3aed">What makes us different</div>
+<h2>Learning that proves itself</h2>
+<p class="sub">One payment. No time limit. Every step is designed so you actually understand, not just watch.</p>
+<div class="bento">
+<div class="B"><i class="fa-solid fa-video"></i><h3>Practical video lessons</h3>Watch exactly how it is done, from the very first step of each skill, then practise it yourself.</div>
+<div class="B"><i class="fa-solid fa-robot"></i><h3>AI tutor</h3>Ask questions, get corrections, or send a photo of an error and get step-by-step help.</div>
+<div class="B"><i class="fa-solid fa-language"></i><h3>Two languages</h3>Explanations combine your mother tongue with the language you are learning.</div>
+<div class="B"><i class="fa-solid fa-camera"></i><h3>Honest assessments</h3>Camera and screen checks keep every result trustworthy.</div>
+<div class="B"><i class="fa-solid fa-infinity"></i><h3>Pay once</h3>No subscriptions. Start at level zero and keep going.</div>
+<div class="B"><i class="fa-solid fa-file-pdf"></i><h3>Proof you can download</h3>Every assessment gives you a PDF record of your result, and you can retake it with new questions after a short wait.</div>
+</div>
+<ol class="steps">
+<li><div><b>Watch and learn</b>Short practical videos, one step at a time.</div></li>
+<li><div><b>Get unstuck</b>Ask the AI tutor in your own language, anytime.</div></li>
+<li><div><b>Prove it</b>After every three lessons, pass a short assessment to move forward.</div></li>
+<li><div><b>Prepare for the exam</b>Guide videos show you how the final exam and the project work.</div></li>
+<li><div><b>Build an original project</b>Choose your own idea. Copied work is not accepted.</div></li>
+<li><div><b>Be seen</b>Selected projects are showcased in many places to raise your profile and the academy’s.</div></li>
+</ol>
+</div></section>
 
-          <div class="team-card">
-            <img src="https://i.imgur.com/VX93McR.png" alt="Ubaida Aliyu" class="team-avatar">
-            <div class="team-info">
-              <h3>Ubaida Aliyu</h3>
-              <span class="role">Managing Director (CEO - IDT Academy)</span>
-              <div class="team-contacts">
-                <span><i class="fa-solid fa-envelope"></i> <a href="mailto:ubaidaaliyu2023@gmail.com">ubaidaaliyu2023@gmail.com</a></span>
-                <span><i class="fa-solid fa-phone"></i> <a href="tel:+2349131264928">+234 913 126 4928</a></span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <p style="margin-top: 10px;">Comrd. Haruna Lawali is an expert in software development, AI engineering, machine learning, and advanced technologies. He acquired his deep expertise completely through online self-learning. By understanding common online learning challenges, he designed IDT Academy's smooth learning framework, ensuring every student can easily understand their lessons. He also serves as the CEO of Intelligent Digital Technology (IDT) at <a href="https://www.idt.com.ng" target="_blank" style="color: var(--violet); font-weight: 600;">www.idt.com.ng</a>, building modern softwares, websites, apps, and community tech solutions. Ubaida Aliyu manages academy operations, bringing expert instructors to deliver practical education from zero to expert level.</p>
-      </div>
+<section id="rewards"><div class="w rv">
+<div class="tag" style="color:#0e7490">Community and rewards</div>
+<h2 class="t" style="color:var(--ink)">Learn. Show. Earn.</h2>
+<div class="rw">
+<div class="R r1"><h3>Competitions</h3><big>🏆</big>Regular tech competitions with prizes. Winners are celebrated and promoted worldwide.</div>
+<div class="R r2"><h3>Weekly Knowledge Showcase</h3><big>7 days</big>Each week learners thank their sponsors, share what they learned, their current situation and their challenges.</div>
+<div class="R r3"><h3>Refer and earn</h3><big>₦1,500</big>Earn ₦1,500 for each learner who joins through your personal referral link.</div>
+</div></div></section>
 
-      <div class="content-card">
-        <h2><i class="fa-solid fa-star"></i> Why Choose IDT Academy?</h2>
-        <div class="features-grid">
-          <div class="feature-item">
-            <i class="fa-solid fa-briefcase"></i>
-            <b>Practical Learning</b>
-            <p>We teach skills that are actively in demand within the real-world job market.</p>
-          </div>
-          <div class="feature-item">
-            <i class="fa-solid fa-seedling"></i>
-            <b>From Zero to Expert</b>
-            <p>No prior experience is required; we start right from the absolute basics up to professional mastery.</p>
-          </div>
-          <div class="feature-item">
-            <i class="fa-solid fa-robot"></i>
-            <b>Specialized AI Tutor</b>
-            <p>An intelligent AI assistant built by Comrd. Haruna accompanies you throughout your study journey with bilingual support and detailed visual explanations.</p>
-          </div>
-          <div class="feature-item">
-            <i class="fa-solid fa-trophy"></i>
-            <b>Competitions & Rewards</b>
-            <p>We organize engaging tech competitions with exciting prizes to showcase student talents globally.</p>
-          </div>
-        </div>
-      </div>
+<section id="partners"><div class="w rv">
+<div class="tag">For sponsors and partners</div>
+<h2 class="t">Open to organisations that want impact</h2>
+<div class="tabs" id="tabs"><button class="on">Sponsors</button><button>Government</button><button>Companies</button><button>Investors</button><button>Ambassadors</button></div>
+<div class="pn p0 on"><h3>Sponsor a learner</h3>NGOs, foundations and individuals can pay for others to learn for free and join Knowledge Showcases, so sponsors see the impact they create.<ul><li>Competitions can be built around your sponsorship</li><li>Sponsored learners thank you publicly</li></ul></div>
+<div class="pn p1"><h3>Government programmes</h3>Fund large groups of citizens to learn practical digital skills, with clear records of who is learning and what they achieve.<ul><li>Progress and completion reports</li><li>10% for anyone who connects the academy to an organisation or government that pays for many learners</li></ul></div>
+<div class="pn p2"><h3>Hire or collaborate</h3>Looking for skilled people to grow your company? Our portfolio features high-performing learners who are ready to deliver. We also welcome contracts and joint projects.</div>
+<div class="pn p3"><h3>Investors</h3>A modern education platform built by a working technology company, with strong security, a scalable AI tutor and a clear path from learning to employment.</div>
+<div class="pn p4"><h3>Brand ambassadors and advertisers</h3>Want to advertise, promote your skills through our teaching, or partner with genuine businesses? You are welcome. We keep partnerships simple and honest.</div>
+<div class="rep"><h4>SAMPLE REPORT LAYOUT (ILLUSTRATIVE)</h4><div>Learner progress<span></span></div><div>Lesson completion<span></span></div><div>Assessment performance<span></span></div><div>Projects completed<span></span></div></div>
+</div></section>
 
-      <div class="content-card">
-        <h2><i class="fa-solid fa-robot"></i> Specialized AI Technology for Enhanced Learning</h2>
-        <p>Beyond traditional lessons from expert instructors, IDT Academy brings you an amazing educational innovation. Comrd. Haruna Lawali has created a special AI assistant designed to stay with you at every step of your learning journey. This AI features incredible capabilities including tracking your study progress, bilingual support combining English and your native language, deep explanations with visual illustrations, automated assessments and exams, and secure proctoring to ensure academic integrity.</p>
-      </div>
+<section id="trust"><div class="w rv">
+<h2>Trust, security and fair rules</h2>
+<details open><summary>Is my data safe?</summary><p>Yes. Our servers and learner information are protected carefully, and our platform is built to resist tampering and hacking.</p></details>
+<details><summary>How do you keep assessments fair?</summary><p>Assessments are timed and monitored, and they use fresh questions so each result reflects what you really know.</p></details>
+<details><summary>Do you accept copied projects?</summary><p>No. Every project must be original, because your work is promoted publicly under your name.</p></details>
+<details><summary>Can others use our technology?</summary><p>Not without written permission. All IDT Academy technology and content are protected.</p></details>
+<details><summary>Who can join?</summary><p>Anyone in the world who wants to learn, from complete beginners to experienced practitioners.</p></details>
+</div></section>
 
-      <div class="content-card">
-        <h2><i class="fa-solid fa-award"></i> Competitions & Skill Showcases</h2>
-        <p>IDT Academy goes beyond teaching by organizing special competitions for learners. In these events, students get the opportunity to showcase modern technical skills, especially in building community problem-solving tools. The academy rewards winners generously, allowing them to display their brilliance to the entire world.</p>
-      </div>
-    </main>
-  </div>
-
-
-
+<section id="contact"><div class="w rv">
+<h2>Let’s build something together</h2>
+<p>Students, sponsors, partners and press are all welcome.</p>
+<div class="cc">
+<div class="C c1"><b>Ubaida Aliyu, CEO</b>Partnerships, sponsorship and general enquiries<a href="tel:+2349131264928"><i class="fa-solid fa-phone"></i> +234 913 126 4928</a><a href="https://wa.me/2349131264928" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a></div>
+<div class="C c2"><b>Customer Care: Surajo Habibu Ibrahim</b>Payment issues and course support<a href="tel:+2347068818760"><i class="fa-solid fa-phone"></i> +234 706 881 8760</a><a href="https://wa.me/2347068818760" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a><a href="mailto:idtacademy3@gmail.com"><i class="fa-solid fa-envelope"></i> idtacademy3@gmail.com</a></div>
+</div>
+<a class="btn b2" style="margin-top:26px" href="register.html">Join IDT Academy</a>
+</div></section>
 
 <style>
 .idt-footer-scope {
@@ -576,5 +510,16 @@
       </div>
     </div>
   </footer>
+
+<script>
+(function(){
+var bar=document.getElementById('bar');
+window.addEventListener('scroll',function(){var h=document.documentElement;bar.style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%'},{passive:true});
+var tb=document.querySelectorAll('#tabs button'),pn=document.querySelectorAll('.pn');
+tb.forEach(function(b,i){b.onclick=function(){tb.forEach(function(x){x.classList.remove('on')});pn.forEach(function(x){x.classList.remove('on')});b.classList.add('on');pn[i].classList.add('on')}});
+var els=document.querySelectorAll('.rv');
+if('IntersectionObserver' in window){var io=new IntersectionObserver(function(e){e.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}})},{threshold:.08});els.forEach(function(e){io.observe(e)})}else{els.forEach(function(e){e.classList.add('in')})}
+})();
+</script>
 </body>
 </html>
