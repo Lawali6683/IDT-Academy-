@@ -32,6 +32,70 @@
 <link rel="stylesheet" href="lubuna.css">
 <link rel="preload" as="image" href="https://i.imgur.com/5qDIyoK.png" fetchpriority="high">
 <noscript><style>.rv{opacity:1;transform:none;clip-path:none}</style></noscript>
+<style>
+.ks{position:relative;padding:68px 18px 72px;background:linear-gradient(180deg,#33081f 0%,#4a0f2e 55%,#33081f 100%);color:#fff;overflow:hidden;font-family:'Nunito Sans',system-ui,sans-serif}
+.ks *{box-sizing:border-box}
+.ks .ks-dec{position:absolute;width:220px;height:220px;fill:#ffd166;opacity:.07;pointer-events:none}
+.ks .ks-dec.a{top:-60px;left:-70px}
+.ks .ks-dec.b{bottom:-70px;right:-60px}
+.ks h2{font-family:'Fraunces',Georgia,serif;font-weight:800;font-size:clamp(26px,6.4vw,42px);line-height:1.15;text-align:center;margin:0 0 10px;position:relative}
+.ks h3{font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:20px;margin:0 0 10px;color:#ffd166}
+.ks .ks-sub{text-align:center;max-width:640px;margin:0 auto 32px;font-size:16px;line-height:1.55;opacity:.92;position:relative}
+.ks .ks-tag{display:block;text-align:center;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#ffd166;font-weight:800;margin-bottom:8px}
+.ks-wrap{max-width:1000px;margin:0 auto;display:grid;gap:30px;grid-template-columns:minmax(0,1fr);position:relative}
+@media(min-width:840px){.ks-wrap{grid-template-columns:340px minmax(0,1fr);align-items:start}}
+.ks-left{display:flex;flex-direction:column;align-items:center;gap:12px}
+.ks-player{position:relative;width:100%;max-width:340px;aspect-ratio:9/16;background:#000;border-radius:24px;overflow:hidden;border:2px solid #ffd166;box-shadow:0 18px 50px rgba(0,0,0,.5);display:flex;justify-content:center;align-items:center;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.ks-box{position:relative;height:100%;aspect-ratio:9/16;max-width:100%;max-height:100%;background:#000;overflow:hidden}
+.ks-box iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
+.ks-shield{position:absolute;inset:0;z-index:3;background:transparent;cursor:pointer}
+.ks-mt{position:absolute;left:0;right:0;top:0;height:13%;z-index:6;background:linear-gradient(#33081f 62%,rgba(51,8,31,0));display:flex;align-items:flex-start;justify-content:center;padding-top:10px;pointer-events:none}
+.ks-mt span{font-size:12px;font-weight:800;letter-spacing:.08em;color:#ffd166;text-transform:uppercase}
+.ks-mb{position:absolute;left:0;right:0;bottom:0;height:15%;z-index:6;background:linear-gradient(rgba(51,8,31,0),#33081f 45%);pointer-events:none}
+.ks-cover{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;background:linear-gradient(rgba(51,8,31,.55),rgba(51,8,31,.85)),url('https://i.imgur.com/5qDIyoK.png') center/cover no-repeat;cursor:pointer;transition:opacity .25s}
+.ks-cover.off{opacity:0;pointer-events:none}
+.ks-play{width:76px;height:76px;border-radius:50%;background:#ffd166;color:#33081f;display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 0 0 10px rgba(255,209,102,.25)}
+.ks-play i{margin-left:5px}
+.ks-bar{position:absolute;left:0;right:0;bottom:0;z-index:8;display:flex;align-items:center;gap:6px;padding:6px 10px calc(8px + env(safe-area-inset-bottom,0px))}
+.ks-bar button{background:none;border:0;color:#fff;width:36px;height:36px;font-size:16px;cursor:pointer;flex:none;border-radius:50%}
+.ks-bar button:active{background:rgba(255,255,255,.18)}
+.ks-pr{flex:1;height:26px;display:flex;align-items:center;cursor:pointer}
+.ks-pr span{display:block;width:100%;height:5px;background:rgba(255,255,255,.3);border-radius:5px;overflow:hidden}
+.ks-pr i{display:block;height:100%;width:0;background:#ffd166}
+.ks-player.ks-pfs{position:fixed;inset:0;z-index:99999;max-width:none;width:100%;height:100%;aspect-ratio:auto;border-radius:0;border:0}
+.ks-player:fullscreen{max-width:none;width:100vw;height:100vh;aspect-ratio:auto;border-radius:0;border:0}
+.ks-player:-webkit-full-screen{max-width:none;width:100vw;height:100vh;aspect-ratio:auto;border-radius:0;border:0}
+.ks-cap{font-size:13px;opacity:.85;text-align:center;max-width:320px;line-height:1.45}
+.ks-right{display:grid;gap:18px;min-width:0}
+.ks-card{background:rgba(255,255,255,.07);border:1px solid rgba(255,209,102,.28);border-radius:20px;padding:20px;backdrop-filter:blur(4px)}
+.ks-card p{margin:0 0 10px;line-height:1.6;font-size:15px}
+.ks-card p:last-child{margin-bottom:0}
+.ks-steps{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:s}
+.ks-steps li{counter-increment:s;display:flex;gap:12px;align-items:flex-start;font-size:15px;line-height:1.5}
+.ks-steps li::before{content:counter(s);flex:none;width:30px;height:30px;border-radius:50%;background:#ffd166;color:#33081f;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px}
+.ks-steps b{display:block;color:#fff}
+.ks-steps span{opacity:.88}
+.ks-say{background:rgba(0,0,0,.25);border-left:4px solid #ffd166;border-radius:12px;padding:14px 16px;font-style:italic;line-height:1.65;font-size:15px}
+.ks-grid2{display:grid;gap:18px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:700px){.ks-grid2{grid-template-columns:1fr 1fr}}
+.ks-list{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+.ks-list li{display:flex;gap:10px;align-items:flex-start;font-size:15px;line-height:1.5}
+.ks-list i{color:#ffd166;margin-top:4px;flex:none}
+.ks-prize{background:linear-gradient(135deg,#ffd166,#f4a63a);color:#33081f;border-radius:20px;padding:20px;display:flex;gap:16px;align-items:center}
+.ks-prize i{font-size:34px;flex:none}
+.ks-prize b{font-family:'Fraunces',Georgia,serif;font-size:20px;display:block;margin-bottom:4px}
+.ks-prize p{margin:0;font-size:15px;line-height:1.5;font-weight:700}
+.ks-gen{max-width:1000px;margin:30px auto 0;position:relative}
+.ks-gen label{display:block;font-weight:800;font-size:14px;margin-bottom:8px}
+.ks-row{display:flex;gap:10px;flex-wrap:wrap}
+.ks-row input{flex:1;min-width:200px;padding:14px 16px;border-radius:14px;border:2px solid rgba(255,209,102,.5);background:rgba(255,255,255,.95);color:#33081f;font-size:16px;font-family:inherit;font-weight:700}
+.ks-row input:focus{outline:none;border-color:#ffd166}
+.ks-out{margin-top:16px;display:grid;gap:12px}
+.ks-hash{font-family:'Fraunces',Georgia,serif;font-size:clamp(22px,6vw,32px);font-weight:800;color:#ffd166;word-break:break-all}
+.ks-caption{width:100%;min-height:150px;padding:14px 16px;border-radius:14px;border:2px solid rgba(255,209,102,.35);background:rgba(0,0,0,.28);color:#fff;font-size:15px;line-height:1.6;font-family:inherit;resize:vertical}
+.ks-copied{font-size:13px;color:#ffd166;font-weight:800;min-height:18px}
+.ks-note{max-width:1000px;margin:26px auto 0;text-align:center;font-size:14px;opacity:.85;line-height:1.55}
+</style>
 </head>
 <body>
 <div id="siteConfig" data-deadline="2026-12-31T23:59:59+01:00" hidden></div>
@@ -39,7 +103,7 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><g id="fl"><ellipse cx="50" cy="22" rx="11" ry="20"/><ellipse cx="50" cy="22" rx="11" ry="20" transform="rotate(45 50 50)"/><ellipse cx="50" cy="22" rx="11" ry="20" transform="rotate(90 50 50)"/><ellipse cx="50" cy="22" rx="11" ry="20" transform="rotate(135 50 50)"/><ellipse cx="50" cy="22" rx="11" ry="20" transform="rotate(180 50 50)"/><ellipse cx="50" cy="22" rx="11" ry="20" transform="rotate(225 50 50)"/><ellipse cx="50" cy="22" rx="11" ry="20" transform="rotate(270 50 50)"/><ellipse cx="50" cy="22" rx="11" ry="20" transform="rotate(315 50 50)"/><circle cx="50" cy="50" r="10" fill="#ffd166"/></g></defs></svg>
 <header class="top">
   <a class="logo" href="#home"><svg class="flo" viewBox="0 0 100 100"><use href="#fl"/></svg><span>Sarauniyar Kasar Hausa</span></a>
-  <nav id="nav"><a href="#home" class="cur"><i class="fa-solid fa-house"></i><span>Home</span></a><a href="#learn"><i class="fa-solid fa-graduation-cap"></i><span>Learn</span></a><a href="#story"><i class="fa-solid fa-book-open"></i><span>Story</span></a><a href="#gallery"><i class="fa-solid fa-images"></i><span>Gallery</span></a><a href="#courses"><i class="fa-solid fa-seedling"></i><span>Courses</span></a><a href="about.html"><i class="fa-solid fa-circle-info"></i><span>About</span></a><a href="contact.html"><i class="fa-solid fa-envelope"></i><span>Contact</span></a></nav>
+  <nav id="nav"><a href="#home" class="cur"><i class="fa-solid fa-house"></i><span>Home</span></a><a href="#learn"><i class="fa-solid fa-graduation-cap"></i><span>Learn</span></a><a href="#story"><i class="fa-solid fa-book-open"></i><span>Story</span></a><a href="#gallery"><i class="fa-solid fa-images"></i><span>Gallery</span></a><a href="#showcase"><i class="fa-solid fa-video"></i><span>Showcase</span></a><a href="#courses"><i class="fa-solid fa-seedling"></i><span>Courses</span></a><a href="about.html"><i class="fa-solid fa-circle-info"></i><span>About</span></a><a href="contact.html"><i class="fa-solid fa-envelope"></i><span>Contact</span></a></nav>
   <button class="apply-top" type="button" data-apply>Apply free</button>
   <button class="burger" id="burger" type="button" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
 </header>
@@ -198,6 +262,94 @@
   <div class="dots" id="dots"></div>
 </section>
 
+<section class="ks" id="showcase">
+  <svg class="flo ks-dec a" viewBox="0 0 100 100"><use href="#fl"/></svg>
+  <svg class="flo ks-dec b" viewBox="0 0 100 100"><use href="#fl"/></svg>
+  <span class="ks-tag">Every week</span>
+  <h2>Knowledge Showcase</h2>
+  <p class="ks-sub">Every sponsored learner records a short selfie video, shows what they learned this week and says thank you to the person who paid for their learning. The most outstanding learners win free data.</p>
+
+  <div class="ks-wrap">
+    <div class="ks-left">
+      <div class="ks-player" id="ksPlayer">
+        <div class="ks-box" id="ksBox">
+          <div id="ksYt"></div>
+          <div class="ks-shield" id="ksShield"></div>
+          <div class="ks-mt"><span>Example showcase</span></div>
+          <div class="ks-mb"></div>
+          <div class="ks-cover" id="ksCover"><div class="ks-play"><i class="fa-solid fa-play"></i></div></div>
+          <div class="ks-bar">
+            <button type="button" id="ksPP" aria-label="Play or pause"><i class="fa-solid fa-play"></i></button>
+            <div class="ks-pr" id="ksPr"><span><i id="ksPf"></i></span></div>
+            <button type="button" id="ksMu" aria-label="Mute"><i class="fa-solid fa-volume-high"></i></button>
+            <button type="button" id="ksFs" aria-label="Full screen"><i class="fa-solid fa-expand"></i></button>
+          </div>
+        </div>
+      </div>
+      <p class="ks-cap">Watch this example to see exactly how to record your own showcase.</p>
+    </div>
+
+    <div class="ks-right">
+      <div class="ks-card">
+        <h3>How to record your showcase</h3>
+        <ol class="ks-steps">
+          <li><div><b>Use your front camera</b><span>Hold your phone upright and record yourself, like a selfie video.</span></div></li>
+          <li><div><b>Introduce yourself</b><span>Say your name and the course you are learning.</span></div></li>
+          <li><div><b>Explain what you learned this week</b><span>Use your own words. Show something if you can. Keep it between 30 and 60 seconds.</span></div></li>
+          <li><div><b>Thank your sponsor by name</b><span>Tell them how their support is changing your life.</span></div></li>
+          <li><div><b>Post it on your social media</b><span>Add your sponsor’s hashtag so everyone can see who made it possible.</span></div></li>
+        </ol>
+      </div>
+
+      <div class="ks-card">
+        <h3>What to say</h3>
+        <div class="ks-say">“Hello, my name is ____. I am learning ____ with Sarauniyar Kasar Hausa Young Foundation Skills and IDT Academy. This week I learned ____. Thank you to ____ for sponsoring my learning. I am grateful.”</div>
+      </div>
+
+      <div class="ks-grid2">
+        <div class="ks-card">
+          <h3>Good video tips</h3>
+          <ul class="ks-list">
+            <li><i class="fa-solid fa-check"></i><span>Face the light so your face is clear</span></li>
+            <li><i class="fa-solid fa-check"></i><span>Find a quiet place</span></li>
+            <li><i class="fa-solid fa-check"></i><span>Speak slowly and smile</span></li>
+            <li><i class="fa-solid fa-check"></i><span>Be honest and use your own words</span></li>
+          </ul>
+        </div>
+        <div class="ks-card">
+          <h3>Why sponsors love it</h3>
+          <ul class="ks-list">
+            <li><i class="fa-solid fa-star"></i><span>Their name is spoken and written publicly by real learners</span></li>
+            <li><i class="fa-solid fa-star"></i><span>Every post reaches the learner’s friends, family and followers</span></li>
+            <li><i class="fa-solid fa-star"></i><span>One hashtag gathers all the posts in one place</span></li>
+            <li><i class="fa-solid fa-star"></i><span>Clear proof that their support changed a life</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="ks-prize">
+        <i class="fa-solid fa-gift"></i>
+        <div><b>Win free data</b><p>The most outstanding learners are rewarded with free data so they can keep learning.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ks-gen">
+    <div class="ks-card">
+      <h3>Make your sponsor hashtag</h3>
+      <label for="ksSponsor">Type your sponsor’s name</label>
+      <div class="ks-row"><input id="ksSponsor" type="text" maxlength="60" placeholder="Example: Aisha Bello" autocomplete="off"></div>
+      <div class="ks-out">
+        <div class="ks-hash" id="ksHash">#SponsorName</div>
+        <textarea class="ks-caption" id="ksCaption" readonly></textarea>
+        <div class="ks-row"><button class="btn rose" type="button" id="ksCopy"><i class="fa-solid fa-copy"></i> Copy caption</button></div>
+        <div class="ks-copied" id="ksCopied" role="status"></div>
+      </div>
+    </div>
+  </div>
+  <p class="ks-note">When you finish recording, post your video on Facebook, Instagram, TikTok, WhatsApp Status or X with your sponsor’s hashtag. This is how your sponsor sees the good their support is doing.</p>
+</section>
+
 <section class="courses" id="courses">
   <span class="bgimg" style="--u:url('https://i.imgur.com/kRXdhXhl.jpeg')"></span>
   <h2 class="rv up">Free courses</h2>
@@ -262,5 +414,193 @@
 <div class="toasts" id="toasts"></div>
 <script src="site.js" defer></script>
 <script type="module" src="lubuna.js"></script>
+<script>
+(function(){
+  var VIDEO_ID='jHw1Iw3tI4c';
+  var player=document.getElementById('ksPlayer');
+  var box=document.getElementById('ksBox');
+  var shield=document.getElementById('ksShield');
+  var cover=document.getElementById('ksCover');
+  var pp=document.getElementById('ksPP');
+  var mu=document.getElementById('ksMu');
+  var fs=document.getElementById('ksFs');
+  var pr=document.getElementById('ksPr');
+  var pf=document.getElementById('ksPf');
+  var yt=null;
+  var ready=false;
+  var pending=false;
+  var playing=false;
+  var timer=null;
+
+  function setIcon(btn,cls){btn.firstElementChild.className='fa-solid '+cls}
+
+  function showCover(on){cover.classList.toggle('off',!on)}
+
+  function playNow(){
+    if(ready){yt.playVideo()}else{pending=true}
+  }
+
+  function toggle(){
+    if(!ready){pending=true;return}
+    if(playing){yt.pauseVideo()}else{yt.playVideo()}
+  }
+
+  function tick(){
+    if(!ready)return;
+    var d=yt.getDuration();
+    if(d>0){pf.style.width=Math.min(100,(yt.getCurrentTime()/d)*100)+'%'}
+  }
+
+  function onState(e){
+    var s=e.data;
+    if(s===1){
+      playing=true;
+      showCover(false);
+      setIcon(pp,'fa-pause');
+      if(!timer){timer=setInterval(tick,250)}
+    }else if(s===2){
+      playing=false;
+      showCover(true);
+      setIcon(pp,'fa-play');
+    }else if(s===0){
+      playing=false;
+      yt.seekTo(0,true);
+      yt.pauseVideo();
+      pf.style.width='0%';
+      showCover(true);
+      setIcon(pp,'fa-play');
+    }
+  }
+
+  function onReady(){
+    ready=true;
+    if(pending){pending=false;yt.playVideo()}
+  }
+
+  function build(){
+    var vars={controls:0,modestbranding:1,rel:0,fs:0,disablekb:1,iv_load_policy:3,playsinline:1,cc_load_policy:0,showinfo:0};
+    if(location.protocol==='http:'||location.protocol==='https:'){vars.origin=location.origin}
+    yt=new YT.Player('ksYt',{
+      host:'https://www.youtube-nocookie.com',
+      videoId:VIDEO_ID,
+      playerVars:vars,
+      events:{onReady:onReady,onStateChange:onState}
+    });
+  }
+
+  var prev=window.onYouTubeIframeAPIReady;
+  window.onYouTubeIframeAPIReady=function(){
+    if(typeof prev==='function'){prev()}
+    build();
+  };
+  if(window.YT&&window.YT.Player){build()}else{
+    var s=document.createElement('script');
+    s.src='https://www.youtube.com/iframe_api';
+    document.head.appendChild(s);
+  }
+
+  cover.addEventListener('click',function(){playNow()});
+  shield.addEventListener('click',toggle);
+  pp.addEventListener('click',toggle);
+
+  mu.addEventListener('click',function(){
+    if(!ready)return;
+    if(yt.isMuted()){yt.unMute();setIcon(mu,'fa-volume-high')}else{yt.mute();setIcon(mu,'fa-volume-xmark')}
+  });
+
+  pr.addEventListener('click',function(e){
+    if(!ready)return;
+    var r=pr.getBoundingClientRect();
+    var ratio=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+    yt.seekTo(ratio*yt.getDuration(),true);
+    pf.style.width=(ratio*100)+'%';
+  });
+
+  function inNativeFs(){
+    return document.fullscreenElement===player||document.webkitFullscreenElement===player;
+  }
+
+  function endPseudo(){
+    player.classList.remove('ks-pfs');
+    document.documentElement.style.overflow='';
+    setIcon(fs,'fa-expand');
+  }
+
+  function startPseudo(){
+    player.classList.add('ks-pfs');
+    document.documentElement.style.overflow='hidden';
+    setIcon(fs,'fa-compress');
+  }
+
+  fs.addEventListener('click',function(){
+    if(player.classList.contains('ks-pfs')){endPseudo();return}
+    if(inNativeFs()){
+      if(document.exitFullscreen){document.exitFullscreen()}else if(document.webkitExitFullscreen){document.webkitExitFullscreen()}
+      return;
+    }
+    if(player.requestFullscreen){
+      player.requestFullscreen().catch(startPseudo);
+    }else if(player.webkitRequestFullscreen){
+      try{player.webkitRequestFullscreen()}catch(err){startPseudo()}
+    }else{
+      startPseudo();
+    }
+  });
+
+  function fsChange(){setIcon(fs,inNativeFs()?'fa-compress':'fa-expand')}
+  document.addEventListener('fullscreenchange',fsChange);
+  document.addEventListener('webkitfullscreenchange',fsChange);
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&player.classList.contains('ks-pfs')){endPseudo()}
+  });
+
+  player.addEventListener('contextmenu',function(e){e.preventDefault()});
+
+  var sponsor=document.getElementById('ksSponsor');
+  var hash=document.getElementById('ksHash');
+  var caption=document.getElementById('ksCaption');
+  var copyBtn=document.getElementById('ksCopy');
+  var copied=document.getElementById('ksCopied');
+
+  function tagOf(v){
+    var t=v.replace(/[^\p{L}\p{N}]/gu,'');
+    return t?'#'+t:'#SponsorName';
+  }
+
+  function render(){
+    var v=sponsor.value.trim();
+    var tag=tagOf(v);
+    var name=v||'my sponsor';
+    hash.textContent=tag;
+    caption.value='This week I learned ____ with Sarauniyar Kasar Hausa Young Foundation Skills and IDT Academy.\n\nThank you '+name+' for sponsoring my learning. I am grateful.\n\n'+tag+' #SarauniyarKasarHausa #YoungFoundationSkills #IDTAcademy #KnowledgeShowcase';
+  }
+
+  sponsor.addEventListener('input',render);
+  render();
+
+  copyBtn.addEventListener('click',function(){
+    var txt=caption.value;
+    function done(){
+      copied.textContent='Copied. Now paste it with your video.';
+      setTimeout(function(){copied.textContent=''},3000);
+    }
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done).catch(function(){
+        caption.removeAttribute('readonly');
+        caption.select();
+        document.execCommand('copy');
+        caption.setAttribute('readonly','');
+        done();
+      });
+    }else{
+      caption.removeAttribute('readonly');
+      caption.select();
+      document.execCommand('copy');
+      caption.setAttribute('readonly','');
+      done();
+    }
+  });
+})();
+</script>
 </body>
 </html>
