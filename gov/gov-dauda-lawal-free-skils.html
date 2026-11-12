@@ -839,6 +839,45 @@ body.vp-fsb{overflow:hidden}
   html{scroll-behavior:auto}
   .rv{opacity:1;transform:none}
 }
+
+.stshow{background:radial-gradient(60% 50% at 85% 0,rgba(251,191,36,.22),transparent 70%),radial-gradient(50% 50% at 0 100%,rgba(34,211,238,.2),transparent 70%),linear-gradient(170deg,#0a1230,#0b2a3f 60%,#064e3b);color:#fff}
+.stshow .shead h2{color:#fff}
+.stshow .shead p{color:#bcd3f0}
+.stshow .eyebrow{background:rgba(251,191,36,.16);color:#fcd34d}
+.stshow .shead h2 em{background:linear-gradient(110deg,#fde68a,#34d399);-webkit-background-clip:text;background-clip:text}
+.st-grid{position:relative;z-index:1;display:grid;grid-template-columns:auto 1fr;gap:44px;align-items:start;max-width:980px;margin:0 auto}
+.st-phone{position:relative;width:min(300px,78vw);margin:0 auto;padding:9px;border-radius:38px;background:linear-gradient(135deg,var(--cy),var(--g),var(--gold));box-shadow:0 30px 80px rgba(16,185,129,.35)}
+.st-phone .vp-stage{border-radius:29px}
+.vp-stage.vp-v{aspect-ratio:9/16}
+.vp-stage.vp-v:fullscreen,.vp-stage.vp-v.vp-fake{aspect-ratio:auto;border-radius:0}
+.vp-stage.vp-v:-webkit-full-screen{aspect-ratio:auto;border-radius:0}
+.vp-v .vp-t{display:none}
+.vp-v .vp-mark{width:56px}
+.vp-v .vp-bar{right:56px}
+.st-badge{position:absolute;z-index:7;left:14px;top:14px;display:inline-flex;align-items:center;gap:8px;font:800 10.5px/1 Consolas,monospace;letter-spacing:2px;color:#67e8f9;background:rgba(5,6,15,.78);border:1px solid rgba(34,211,238,.45);border-radius:99px;padding:8px 12px}
+.st-steps{display:grid;gap:12px;margin-bottom:18px}
+.st-step{display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:18px;padding:14px 16px}
+.st-step .n{flex-shrink:0;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:900;color:#04201a;background:linear-gradient(135deg,var(--cy),var(--g))}
+.st-step h3{font-size:15.5px;font-weight:900;margin-bottom:2px}
+.st-step p{font-size:13.5px;color:#bcd3f0}
+.st-tagbox{background:rgba(251,191,36,.1);border:2px dashed rgba(251,191,36,.6);border-radius:18px;padding:14px 16px;margin-bottom:18px}
+.st-tagbox small{display:block;font-size:11px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:#fcd34d;margin-bottom:8px}
+.st-tagbox p{font-size:14px;font-weight:600;color:#fff;margin-bottom:12px}
+.st-tagbox p b{color:var(--cy)}
+.st-copy{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:99px;font-weight:800;font-size:13px;color:#3a2600;background:linear-gradient(135deg,#fde68a,#f59e0b)}
+.st-win{display:flex;gap:14px;align-items:center;background:linear-gradient(135deg,rgba(251,191,36,.25),rgba(16,185,129,.2));border:1px solid rgba(251,191,36,.6);border-radius:18px;padding:14px 16px;font-size:14px;font-weight:700;color:#fff8e1}
+.st-win i{font-size:26px;color:var(--gold)}
+.st-why{position:relative;z-index:1;max-width:980px;margin:46px auto 0}
+.st-why h3{text-align:center;font-size:clamp(20px,3.4vw,28px);font-weight:900;margin-bottom:6px}
+.st-why>p{text-align:center;color:#bcd3f0;font-size:14.5px;margin-bottom:22px}
+.st-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.st-card{background:linear-gradient(160deg,rgba(255,255,255,.1),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.16);border-radius:20px;padding:18px}
+.st-card i{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:19px;color:#04201a;background:linear-gradient(135deg,#fde68a,#34d399);margin-bottom:10px}
+.st-card b{display:block;font-size:15px;margin-bottom:4px}
+.st-card span{font-size:13px;color:#bcd3f0}
+@media(max-width:860px){.st-grid{grid-template-columns:1fr;gap:34px}}
+
+
 </style>
 <noscript><style>.rv{opacity:1;transform:none}.apply-page{display:none}</style></noscript>
 </head>
@@ -1280,6 +1319,64 @@ body.vp-fsb{overflow:hidden}
   </div>
 </section>
 
+
+<section class="sec stshow dark" id="myshow">
+  <div class="wrap">
+    <div class="shead rv">
+      <span class="eyebrow"><i class="fa-solid fa-video"></i> Student Knowledge Showcase</span>
+      <h2>Your turn to <em>shine on camera</em></h2>
+      <p>Every week, show the world what you learned. Say thank you to the person who sponsored your training. The most active learners win free data.</p>
+    </div>
+    <div class="st-grid">
+      <div class="st-phone rv">
+        <div class="vp-stage vp-v" data-vid="bgYXpPI-qlI" id="vp3">
+          <div class="vp-frame"><div class="vp-yt"></div></div>
+          <img class="vp-poster" src="https://i.ytimg.com/vi/bgYXpPI-qlI/maxresdefault.jpg" alt="Example showcase video" loading="lazy" decoding="async">
+          <div class="vp-dim"></div>
+          <button type="button" class="vp-shield" aria-label="Play or pause"></button>
+          <button type="button" class="vp-big" aria-label="Play video"><span><i class="fa-solid fa-play"></i></span></button>
+          <span class="vp-mark"><img src="https://i.imgur.com/hakHfjI.png" alt=""></span>
+          <div class="vp-bar">
+            <button type="button" class="vp-b vp-pp" aria-label="Play or pause"><i class="fa-solid fa-play"></i></button>
+            <span class="vp-t vp-cur">0:00</span>
+            <input class="vp-seek" type="range" min="0" max="1000" value="0" aria-label="Seek">
+            <span class="vp-t vp-dur">0:00</span>
+            <button type="button" class="vp-b vp-mu" aria-label="Mute"><i class="fa-solid fa-volume-high"></i></button>
+            <button type="button" class="vp-b vp-fs" aria-label="Full screen"><i class="fa-solid fa-expand"></i></button>
+          </div>
+          <div class="vp-err"><div><i class="fa-solid fa-clapperboard"></i>This video cannot play now. Please try again later.</div></div>
+          <span class="st-badge"><i class="fa-solid fa-circle-play"></i> EXAMPLE</span>
+        </div>
+      </div>
+      <div class="rv d1">
+        <div class="st-steps">
+          <div class="st-step"><span class="n">1</span><div><h3>Record yourself</h3><p>Use your phone and the front camera, so you can see your face. Hold the phone upright. Stand in good light.</p></div></div>
+          <div class="st-step"><span class="n">2</span><div><h3>Talk about your week</h3><p>Say your name and tell us what you learned this week. Keep it short and clear, about one minute.</p></div></div>
+          <div class="st-step"><span class="n">3</span><div><h3>Say thank you</h3><p>Thank Gov. Dauda Lawal for sponsoring your free training. Say how the skill will help you and your family.</p></div></div>
+          <div class="st-step"><span class="n">4</span><div><h3>Post it online</h3><p>When you finish, post the video on your own social media page with the hashtags below.</p></div></div>
+        </div>
+        <div class="st-tagbox">
+          <small>Copy and use this caption</small>
+          <p id="stTags">This week I learned ___ with the Zamfara State Free Learning Skill programme. Thank you Gov. Dauda Lawal for sponsoring my training. <b>#DaudaLawal #ZamfaraFreeLearning</b></p>
+          <button type="button" class="st-copy" id="stCopy"><i class="fa-solid fa-copy"></i> Copy</button>
+        </div>
+        <div class="st-win"><i class="fa-solid fa-gift"></i><span>The most active learners win free data. Post every week and use the hashtags, so we can find your video.</span></div>
+      </div>
+    </div>
+    <div class="st-why rv">
+      <h3>Why do we use the sponsor's hashtag?</h3>
+      <p>Sponsors want to see that their kindness is working. Your post shows them.</p>
+      <div class="st-cards">
+        <div class="st-card"><i class="fa-solid fa-heart"></i><b>Real proof</b><span>They see real learners using the skills they paid for.</span></div>
+        <div class="st-card"><i class="fa-solid fa-bullhorn"></i><b>More people know</b><span>Your friends and family see the programme and want to join.</span></div>
+        <div class="st-card"><i class="fa-solid fa-hands-holding-circle"></i><b>Thanks reach them</b><span>The sponsor can find your thank you message with the hashtag.</span></div>
+        <div class="st-card"><i class="fa-solid fa-seedling"></i><b>More support</b><span>Happy sponsors help more young people in the future.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
 <!-- AVAILABLE -->
 <section class="sec avail dark hidden" id="available">
   <div class="wrap">
@@ -1400,6 +1497,8 @@ body.vp-fsb{overflow:hidden}
 <div class="span-backdrop" id="spanBackdrop"></div>
 <aside class="span-menu" id="spanMenu" aria-label="Menu">
   <div class="span-top"><img src="https://i.imgur.com/hakHfjI.png" alt=""><button type="button" id="spanClose" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button></div>
+  
+  <button type="button" class="sm-go" data-go="myshow"><i class="fa-solid fa-video"></i> Your Showcase</button>
   <button type="button" class="sm-go" data-go="home"><i class="fa-solid fa-house"></i> Home</button>
   <button type="button" class="sm-go" data-go="partners"><i class="fa-solid fa-handshake"></i> Partnership</button>
   <button type="button" class="sm-go" data-go="governor"><i class="fa-solid fa-user-tie"></i> The Governor</button>
@@ -1793,6 +1892,26 @@ body.vp-fsb{overflow:hidden}
     if('IntersectionObserver' in window){new IntersectionObserver(function(e){on=e[0].isIntersecting&&!document.hidden;if(!reduce)start()}).observe(c.parentNode)}
     document.addEventListener('visibilitychange',function(){on=!document.hidden;if(!reduce)start()});
   }catch(e){if(window.console)console.error(e)}
+})();
+</script>
+<script>
+(function(){
+  try{
+    var b=document.getElementById('stCopy'),t=document.getElementById('stTags');
+    if(!b||!t)return;
+    var label='<i class="fa-solid fa-copy"></i> Copy';
+    function done(){b.innerHTML='<i class="fa-solid fa-check"></i> Copied';setTimeout(function(){b.innerHTML=label},2000)}
+    b.addEventListener('click',function(){
+      var v=t.textContent.trim();
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(v).then(done,function(){});
+      }else{
+        var r=document.createRange();r.selectNodeContents(t);
+        var s=window.getSelection();s.removeAllRanges();s.addRange(r);
+        try{document.execCommand('copy');done()}catch(e){}
+      }
+    });
+  }catch(e){}
 })();
 </script>
 <script type="module" src="zamfara.js"></script>
