@@ -3,11 +3,14 @@ const IMGUR_API = 'https://api.imgur.com/3/image';
 const IMGUR_CLIENT = 'Client-ID 5acf7eff9c91660';
 const SUBMIT_TIMEOUT_MS = 25000;
 const UPLOAD_TIMEOUT_MS = 45000;
-const IMAGE_MAX_SIDE = 1600;
-const IMAGE_QUALITY = 0.85;
+const IMAGE_MAX_SIDE = 1280;
+const IMAGE_QUALITY = 0.8;
 const PAGE_SIZE = 12;
 const PICK_LIMIT = 60;
 const PROGRAM = 'Hon. Kabiru Amadu Digital Skills Foundations for Youths';
+const YT_HOSTS = ['https://www.youtube-nocookie.com', 'https://www.youtube.com'];
+const YT_LOAD_TIMEOUT_MS = 15000;
+const YT_TAP_TIMEOUT_MS = 4500;
 
 const PLACEHOLDER_IMG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="420"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#056b3a"/><stop offset="1" stop-color="#f5b301"/></linearGradient></defs><rect width="600" height="420" fill="url(#g)"/><circle cx="300" cy="170" r="60" fill="rgba(255,255,255,.22)"/><text x="300" y="290" fill="#ffffff" font-family="Arial, sans-serif" font-size="30" font-weight="bold" text-anchor="middle">Free Course</text></svg>');
 
@@ -98,7 +101,7 @@ function toast(type, title, message) {
 }
 
 function copyText(text) {
-  const done = () => toast('success', 'Copied', 'Your hashtags are copied. Paste them in your post.');
+  const done = () => toast('success', 'Copied', text + ' is copied. Paste it in your post.');
   const fallback = () => {
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -107,16 +110,17 @@ function copyText(text) {
     ta.style.opacity = '0';
     document.body.appendChild(ta);
     ta.select();
-    try {
-      document.execCommand('copy');
-      done();
-    } catch (e) {
-      toast('error', 'Not copied', 'Please copy the hashtags by hand.');
-    }
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
     ta.remove();
+    if (ok) done();
+    else toast('info', 'Hashtag', text);
   };
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
-  else fallback();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(fallback);
+  } else {
+    fallback();
+  }
 }
 
 function scrollToSel(sel) {
@@ -577,47 +581,37 @@ function closeMenu() {
   if (!applyOpen && !modalCourse) document.body.style.overflow = '';
 }
 
-const YT_HOSTS = ['https://www.youtube-nocookie.com', 'https://www.youtube.com'];
-const YT_API_WAIT_MS = 12000;
-const YT_START_WAIT_MS = 16000;
-
 let ytQueue = [];
 let ytLoading = false;
 const players = [];
 
-function loadYT(ok, bad) {
+function loadYT(cb, fail) {
   if (window.YT && window.YT.Player) {
-    ok();
+    cb();
     return;
   }
-  ytQueue.push({ ok: ok, bad: bad });
+  ytQueue.push({ cb: cb, fail: fail });
   if (ytLoading) return;
   ytLoading = true;
-  const previous = window.onYouTubeIframeAPIReady;
-  let finished = false;
-  const flush = (good) => {
-    if (finished) return;
-    finished = true;
+  const prev = window.onYouTubeIframeAPIReady;
+  window.onYouTubeIframeAPIReady = () => {
     ytLoading = false;
     const q = ytQueue;
     ytQueue = [];
-    q.forEach((f) => safe(good ? f.ok : f.bad));
-  };
-  window.onYouTubeIframeAPIReady = () => {
-    try { if (typeof previous === 'function') previous(); } catch (_) {}
-    flush(true);
+    q.forEach((o) => safe(o.cb));
+    if (typeof prev === 'function') safe(prev);
   };
   const s = document.createElement('script');
   s.src = 'https://www.youtube.com/iframe_api';
   s.async = true;
   s.onerror = () => {
+    ytLoading = false;
+    const q = ytQueue;
+    ytQueue = [];
+    q.forEach((o) => { if (o.fail) safe(o.fail); });
     s.remove();
-    flush(false);
   };
   document.head.appendChild(s);
-  setTimeout(() => {
-    if (!(window.YT && window.YT.Player)) flush(false);
-  }, YT_API_WAIT_MS);
 }
 
 function fmt(t) {
@@ -632,58 +626,63 @@ function buildPlayer(root) {
   if (!vid) return;
   const title = root.dataset.title || 'Video';
   const isTv = root.classList.contains('tv-vp');
-  const posterHq = 'https://i.ytimg.com/vi/' + vid + '/hqdefault.jpg';
   root.innerHTML =
     '<div class="vp-stage">' +
       '<div class="vp-mount"></div>' +
+      '<div class="vp-mask"></div>' +
       '<div class="vp-shield"></div>' +
       '<div class="vp-pause"><i class="fa-solid fa-circle-pause"></i></div>' +
-      '<div class="vp-cover" style="background-image:url(' + esc(posterHq) + ')"><button type="button" class="vp-big" aria-label="Play ' + esc(title) + '"><i class="fa-solid fa-play"></i></button></div>' +
+      '<div class="vp-cover"><button type="button" class="vp-big" aria-label="Play ' + esc(title) + '"><i class="fa-solid fa-play"></i></button></div>' +
       '<div class="vp-load"><span></span></div>' +
       '<div class="vp-ctl"><button type="button" class="vp-pp" aria-label="Play or pause"><i class="fa-solid fa-pause"></i></button><input type="range" class="vp-seek" min="0" max="1000" value="0" aria-label="Seek"><span class="vp-time">0:00 / 0:00</span><button type="button" class="vp-mute" aria-label="Mute"><i class="fa-solid fa-volume-high"></i></button><button type="button" class="vp-fs" aria-label="Full screen"><i class="fa-solid fa-expand"></i></button></div>' +
+      '<div class="vp-fail"><i class="fa-solid fa-triangle-exclamation"></i><p>This video could not play here.</p><div class="vp-fail-btns"><button type="button" class="vp-retry">Try again</button><a class="vp-yt" href="https://www.youtube.com/watch?v=' + esc(encodeURIComponent(vid)) + '" target="_blank" rel="noopener noreferrer">Watch on YouTube</a></div></div>' +
     '</div>' + (isTv ? '<div class="spk"></div><div class="knobs"><i></i><i></i></div>' : '');
 
   const stage = root.querySelector('.vp-stage');
-  const mount = root.querySelector('.vp-mount');
   const cover = root.querySelector('.vp-cover');
   const seek = root.querySelector('.vp-seek');
   const time = root.querySelector('.vp-time');
   const pp = root.querySelector('.vp-pp i');
   const mute = root.querySelector('.vp-mute i');
   const fsIcon = root.querySelector('.vp-fs i');
-  let player = null, poll = null, idleT = null, startT = null, dragging = false, ready = false, hostIdx = 0, triedHosts = 0;
+  let player = null, poll = null, idleT = null, loadT = null, tapT = null, dragging = false, ready = false, hostIdx = 0;
 
-  mount.style.position = 'absolute';
-  mount.style.top = '0';
-  mount.style.left = '0';
-  mount.style.width = '100%';
-  mount.style.height = '100%';
-  mount.style.overflow = 'hidden';
-  mount.style.background = '#000';
-  cover.style.backgroundColor = '#000';
-  cover.style.backgroundSize = 'cover';
-  cover.style.backgroundPosition = 'center';
-  stage.addEventListener('contextmenu', (ev) => ev.preventDefault());
-
-  const probe = new Image();
-  probe.onerror = () => { cover.style.backgroundImage = 'url(https://i.ytimg.com/vi/' + vid + '/mqdefault.jpg)'; };
-  probe.src = posterHq;
-
-  const showCover = (on) => {
-    cover.style.opacity = on ? '1' : '0';
-    cover.style.visibility = on ? 'visible' : 'hidden';
-    cover.style.pointerEvents = on ? 'auto' : 'none';
+  const paintPoster = () => {
+    if (!cover) return;
+    cover.style.backgroundSize = 'cover';
+    cover.style.backgroundPosition = 'center';
+    cover.style.backgroundRepeat = 'no-repeat';
+    const names = ['hqdefault', 'mqdefault', 'default'];
+    let i = 0;
+    const next = () => {
+      if (i >= names.length) return;
+      const u = 'https://i.ytimg.com/vi/' + encodeURIComponent(vid) + '/' + names[i++] + '.jpg';
+      const im = new Image();
+      im.onload = () => { cover.style.backgroundImage = 'url(' + u + ')'; };
+      im.onerror = next;
+      im.src = u;
+    };
+    next();
   };
+
+  if ('IntersectionObserver' in window) {
+    const po = new IntersectionObserver((es) => {
+      if (es[0].isIntersecting) {
+        po.disconnect();
+        paintPoster();
+      }
+    }, { rootMargin: '500px 0px' });
+    po.observe(root);
+  } else {
+    paintPoster();
+  }
 
   const setPlayIcon = (playing) => { pp.className = 'fa-solid ' + (playing ? 'fa-pause' : 'fa-play'); };
 
   const tickProgress = () => {
     if (!player || !ready || dragging) return;
-    let d = 0, c = 0;
-    try {
-      d = player.getDuration() || 0;
-      c = player.getCurrentTime() || 0;
-    } catch (er) { return; }
+    const d = player.getDuration() || 0;
+    const c = player.getCurrentTime() || 0;
     if (d > 0) {
       const v = (c / d) * 1000;
       seek.value = v;
@@ -707,34 +706,43 @@ function buildPlayer(root) {
   };
   players.push(api);
 
-  const resetLook = () => {
-    clearInterval(poll);
-    clearTimeout(startT);
+  const resetClasses = () => {
     root.classList.remove('loading', 'playing', 'paused', 'started', 'live', 'opened', 'idle');
-    setPlayIcon(false);
-    seek.value = 0;
-    seek.style.setProperty('--p', '0%');
-    time.textContent = '0:00 / 0:00';
-    showCover(true);
   };
 
-  const fail = (msg) => {
-    resetLook();
+  const freshMount = () => {
+    qsa('.vp-mount, iframe', stage).forEach((n) => n.remove());
+    const m = document.createElement('div');
+    m.className = 'vp-mount';
+    stage.insertBefore(m, stage.firstChild);
+    return m;
+  };
+
+  const dropPlayer = () => {
+    clearInterval(poll);
+    clearTimeout(loadT);
+    clearTimeout(tapT);
     ready = false;
     if (player) {
       try { player.destroy(); } catch (er) {}
-      player = null;
     }
-    mount.innerHTML = '';
-    toast('error', 'Video problem', msg || 'This video cannot be played right now. Please try again.');
+    player = null;
+  };
+
+  const fail = () => {
+    dropPlayer();
+    freshMount();
+    resetClasses();
+    setPlayIcon(false);
+    root.classList.add('failed');
   };
 
   const onState = (e) => {
     const s = e.data;
     if (s === 1) {
-      clearTimeout(startT);
-      showCover(false);
-      root.classList.remove('loading', 'paused');
+      clearTimeout(loadT);
+      clearTimeout(tapT);
+      root.classList.remove('loading', 'paused', 'failed');
       root.classList.add('playing', 'started', 'live', 'opened');
       setPlayIcon(true);
       clearInterval(poll);
@@ -747,7 +755,11 @@ function buildPlayer(root) {
       setPlayIcon(false);
       tickProgress();
     } else if (s === 0) {
-      resetLook();
+      clearInterval(poll);
+      resetClasses();
+      setPlayIcon(false);
+      seek.value = 0;
+      seek.style.setProperty('--p', '0%');
       try { player.seekTo(0, true); player.pauseVideo(); } catch (er) {}
     } else if (s === 3) {
       root.classList.add('loading');
@@ -755,72 +767,63 @@ function buildPlayer(root) {
     if (s !== 3) root.classList.remove('loading');
   };
 
-  const makePlayer = () => {
-    ready = false;
-    if (player) {
-      try { player.destroy(); } catch (er) {}
-      player = null;
+  const onError = () => {
+    if (hostIdx < YT_HOSTS.length - 1) {
+      hostIdx++;
+      dropPlayer();
+      create();
+      return;
     }
-    mount.innerHTML = '';
-    const holder = document.createElement('div');
-    mount.appendChild(holder);
-    const vars = { controls: 0, disablekb: 1, fs: 0, modestbranding: 1, rel: 0, iv_load_policy: 3, playsinline: 1, autoplay: 1, cc_load_policy: 0, enablejsapi: 1 };
+    fail();
+  };
+
+  const create = () => {
+    if (!(window.YT && window.YT.Player)) {
+      fail();
+      return;
+    }
+    const mount = freshMount();
+    const vars = { controls: 0, disablekb: 1, fs: 0, modestbranding: 1, rel: 0, iv_load_policy: 3, playsinline: 1, autoplay: 1, cc_load_policy: 0 };
     if (/^https?:$/.test(location.protocol)) vars.origin = location.origin;
-    player = new window.YT.Player(holder, {
-      videoId: vid,
-      host: YT_HOSTS[hostIdx],
-      playerVars: vars,
-      events: {
-        onReady: (e) => {
-          ready = true;
-          try {
-            const f = e.target.getIframe();
-            f.style.position = 'absolute';
-            f.style.top = '0';
-            f.style.left = '0';
-            f.style.width = '100%';
-            f.style.height = '100%';
-            f.style.border = '0';
-            f.style.pointerEvents = 'none';
-            f.setAttribute('tabindex', '-1');
-            f.removeAttribute('allowfullscreen');
-            f.setAttribute('allow', 'autoplay; encrypted-media');
-          } catch (er) {}
-          try { e.target.playVideo(); } catch (er) {}
-        },
-        onStateChange: onState,
-        onError: (e) => {
-          const code = e && e.data;
-          triedHosts++;
-          if (triedHosts < YT_HOSTS.length && code !== 100 && code !== 101 && code !== 150) {
-            hostIdx = (hostIdx + 1) % YT_HOSTS.length;
-            makePlayer();
-            return;
-          }
-          if (code === 100) fail('This video was removed or is private.');
-          else if (code === 101 || code === 150) fail('The owner of this video does not allow it to play here.');
-          else fail('This video cannot be played right now. Please try again.');
+    clearTimeout(loadT);
+    loadT = setTimeout(() => { if (!ready) onError(); }, YT_LOAD_TIMEOUT_MS);
+    try {
+      player = new window.YT.Player(mount, {
+        videoId: vid,
+        host: YT_HOSTS[hostIdx],
+        playerVars: vars,
+        events: {
+          onReady: (e) => {
+            ready = true;
+            clearTimeout(loadT);
+            try { e.target.playVideo(); } catch (er) {}
+            clearTimeout(tapT);
+            tapT = setTimeout(() => {
+              let st = -2;
+              try { st = player.getPlayerState(); } catch (er) {}
+              if (st !== 1 && st !== 3) root.classList.remove('loading');
+            }, YT_TAP_TIMEOUT_MS);
+          },
+          onStateChange: onState,
+          onError: onError
         }
-      }
-    });
+      });
+    } catch (er) {
+      onError();
+    }
   };
 
   const start = () => {
+    root.classList.remove('failed');
     if (player && ready) {
       try { player.playVideo(); } catch (er) {}
       return;
     }
+    if (player) return;
     root.classList.add('loading');
-    triedHosts = 0;
-    hostIdx = 0;
-    clearTimeout(startT);
-    startT = setTimeout(() => {
-      if (!root.classList.contains('playing')) fail('The video is taking too long. Please check your network and try again.');
-    }, YT_START_WAIT_MS);
-    loadYT(
-      () => { if (!player || !ready) makePlayer(); },
-      () => fail('The video could not load. Please check your network.')
-    );
+    clearTimeout(loadT);
+    loadT = setTimeout(() => { if (!ready) fail(); }, YT_LOAD_TIMEOUT_MS + 5000);
+    loadYT(create, fail);
   };
 
   const toggle = () => {
@@ -868,8 +871,9 @@ function buildPlayer(root) {
   document.addEventListener('webkitfullscreenchange', onFsChange);
 
   root.querySelector('.vp-big').addEventListener('click', start);
-  cover.addEventListener('click', (ev) => {
-    if (ev.target === cover) start();
+  root.querySelector('.vp-retry').addEventListener('click', () => {
+    hostIdx = 0;
+    start();
   });
   root.querySelector('.vp-shield').addEventListener('click', () => {
     if (root.classList.contains('started')) {
@@ -1400,9 +1404,9 @@ function bindEvents() {
   }, true);
 
   document.addEventListener('click', (e) => {
-    const cp = e.target.closest('[data-copy]');
-    if (cp) {
-      copyText(cp.dataset.copy);
+    const copy = e.target.closest('[data-copy]');
+    if (copy) {
+      copyText(copy.dataset.copy);
       return;
     }
     const more = e.target.closest('[data-more]');
