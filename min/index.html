@@ -33,6 +33,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Figtree:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="index.css">
+<link rel="stylesheet" href="showcase.css">
 </head>
 <body>
 <div id="bar"></div>
@@ -42,6 +43,7 @@
   <nav id="nav">
     <a href="#minister">The Minister</a>
     <a href="#teach">What we teach</a>
+    <a href="#showcase">Showcase</a>
     <a href="#gallery">Gallery</a>
     <a href="#courses">Courses</a>
     <a href="#journey">Journey</a>
@@ -171,6 +173,94 @@
     </div>
   </section>
 
+  <section class="sc-sec" id="showcase">
+    <div class="sc-head">
+      <span class="sc-tag"><i class="fa-solid fa-video"></i> Knowledge Showcase</span>
+      <h2>Show what you learned. Win free data.</h2>
+      <p>Record a short selfie video, say what you learned, and thank the person who paid for your lessons. Every week the best learners win free data.</p>
+    </div>
+
+    <div class="sc-grid">
+      <div class="sc-left">
+        <div class="sc-phone" id="scPlayer" data-mode="idle">
+          <div class="sc-stage" id="scStage">
+            <div class="sc-frame"><div id="scYt"></div></div>
+            <div class="sc-shield" id="scShield"></div>
+            <div class="sc-topmask"><span><i class="fa-solid fa-circle-play"></i> How to do your showcase</span></div>
+            <div class="sc-cover" id="scCover">
+              <i class="fa-solid fa-video"></i>
+              <b id="scCoverTitle">Watch how a student does it</b>
+              <button class="sc-bigplay" id="scBig" type="button" aria-label="Play video"><i class="fa-solid fa-play"></i></button>
+              <small id="scCoverNote">Tap to play</small>
+            </div>
+            <div class="sc-pause" id="scPause"><span><i class="fa-solid fa-play"></i></span></div>
+            <div class="sc-spin" id="scSpin"></div>
+            <div class="sc-ctrl">
+              <button type="button" id="scPlayBtn" aria-label="Play or pause"><i class="fa-solid fa-play"></i></button>
+              <div class="sc-bar" id="scBar"><div class="sc-track"><div class="sc-fill" id="scFill"></div></div></div>
+              <span class="sc-time" id="scTime">0:00 / 0:00</span>
+              <button type="button" id="scMuteBtn" aria-label="Sound on or off"><i class="fa-solid fa-volume-high"></i></button>
+              <button type="button" id="scFsBtn" aria-label="Full screen"><i class="fa-solid fa-expand"></i></button>
+            </div>
+          </div>
+        </div>
+        <p class="sc-note">Watch this example first. It shows you exactly how to record your own video.</p>
+      </div>
+
+      <div class="sc-right">
+        <h3>How to do your showcase</h3>
+        <ol class="sc-steps">
+          <li><div><b>Learn something this week</b><span>Finish a lesson or a part of your course.</span></div></li>
+          <li><div><b>Record a selfie video</b><span>Use the front camera of your phone. Hold it at eye level, face the light, and keep it between 30 and 60 seconds.</span></div></li>
+          <li><div><b>Say what you learned</b><span>Tell us your name, your course, and one useful thing you can now do. Show it if you can.</span></div></li>
+          <li><div><b>Thank your sponsor</b><span>Say thank you to Hon. Dr. Bello Mohammed Matawalle for paying for your learning.</span></div></li>
+          <li><div><b>Post it on your social media</b><span>Post the video on Facebook, Instagram, TikTok or X. Add the hashtag <strong>#BelloMatawalle</strong> to your post.</span></div></li>
+        </ol>
+
+        <div class="sc-say">
+          <h4><i class="fa-solid fa-microphone"></i> You can say this</h4>
+          <p id="scCaption">My name is ___. This week at the Matawallen Maradun Skills Foundation I learned ___. Now I can ___. Thank you, Hon. Dr. Bello Mohammed Matawalle, for paying for my learning. #BelloMatawalle #MatawallenMaradun</p>
+          <div class="sc-row">
+            <button type="button" class="sc-copy" id="scCopyCaption"><i class="fa-solid fa-copy"></i> <b>Copy this text</b></button>
+            <button type="button" class="sc-copy alt" id="scCopyTag"><i class="fa-solid fa-hashtag"></i> <b>Copy hashtags</b></button>
+          </div>
+        </div>
+
+        <div class="sc-win">
+          <i class="fa-solid fa-gift"></i>
+          <div><b>Win free data every week</b><span>The learners with the best and most active showcase posts win free data.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sc-why">
+      <h3>Why do we ask you to use the hashtag?</h3>
+      <p>The hashtag is how your story reaches the people who made your free learning possible. It helps everyone.</p>
+      <div class="sc-cards">
+        <div class="sc-card"><i class="fa-solid fa-heart"></i><b>Your sponsor sees the result</b><span>When he sees real students learning and saying thank you, he knows his support is changing lives.</span></div>
+        <div class="sc-card"><i class="fa-solid fa-users"></i><b>More young people find us</b><span>Your friends see your post and learn that free skills training is open to them too.</span></div>
+        <div class="sc-card"><i class="fa-solid fa-circle-check"></i><b>It proves the programme is real</b><span>Real faces and real voices show that the classes work and the certificates are earned.</span></div>
+        <div class="sc-card"><i class="fa-solid fa-trophy"></i><b>You can win and be known</b><span>We find your post through the hashtag, so you can win data and build your name online.</span></div>
+      </div>
+    </div>
+
+    <div class="sc-tips">
+      <h4><i class="fa-solid fa-lightbulb"></i> Tips for a good video</h4>
+      <ul>
+        <li><i class="fa-solid fa-check"></i> Stand or sit where there is good light.</li>
+        <li><i class="fa-solid fa-check"></i> Hold your phone steady, with the front camera.</li>
+        <li><i class="fa-solid fa-check"></i> Speak slowly and clearly, in English or your mother tongue.</li>
+        <li><i class="fa-solid fa-check"></i> Find a quiet place with little noise.</li>
+        <li><i class="fa-solid fa-check"></i> Smile, and be yourself.</li>
+        <li><i class="fa-solid fa-check"></i> Keep it short. Thirty to sixty seconds is enough.</li>
+      </ul>
+    </div>
+
+    <div class="sc-cta">
+      <button class="btn gold" data-apply type="button"><i class="fa-solid fa-rocket"></i> Apply free and start learning</button>
+    </div>
+  </section>
+
   <section class="sec gal" id="gallery">
     <div class="head reveal"><h2>Moments from the journey</h2><p>Hover or tap a picture to open it.</p></div>
     <div class="acc" id="acc">
@@ -215,7 +305,7 @@
 <div class="drawer-bg" id="dbg"></div>
 <aside class="drawer" id="drawer">
   <button type="button" class="x" id="dx" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
-  <a href="#minister">The Minister</a><a href="#teach">What we teach</a><a href="#gallery">Gallery</a><a href="#courses">Courses</a><a href="#journey">Journey</a><a href="about.html">About</a><a href="contact.html">Contact</a>
+  <a href="#minister">The Minister</a><a href="#teach">What we teach</a><a href="#showcase">Showcase</a><a href="#gallery">Gallery</a><a href="#courses">Courses</a><a href="#journey">Journey</a><a href="about.html">About</a><a href="contact.html">Contact</a>
   <button class="btn" data-apply type="button">Apply free</button>
 </aside>
 
@@ -283,5 +373,6 @@
 
 <div class="toasts" id="toasts"></div>
 <script src="index.js" type="module"></script>
+<script src="showcase.js" defer></script>
 </body>
 </html>
